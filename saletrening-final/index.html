@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SaleTrening — AI-тренажёр продаж</title>
+<style>
+:root{--p:#6d45e8;--p2:#8f70f2;--ink:#191724;--muted:#777487;--bg:#f7f7fb;--card:#fff;--line:#e9e7f1;--green:#25a66a;--red:#d95c6a}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}.app{min-height:100vh}.side{width:248px;background:#fff;border-right:1px solid var(--line);padding:22px 15px;position:fixed;inset:0 auto 0 0;z-index:5}.logo{display:flex;align-items:center;gap:10px;padding:4px 10px 30px;font-size:21px;font-weight:800}.logo i{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;color:#fff;background:linear-gradient(135deg,var(--p),#a48bff);font-style:normal}.nav{display:grid;gap:5px}.nav button{background:none;color:#676373;text-align:left;padding:12px 13px;border-radius:11px}.nav button:hover,.nav button.active{background:#f0ecff;color:var(--p);font-weight:700}.main{margin-left:248px;padding:28px 34px;max-width:1500px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}.hello h1{margin:0;font-size:28px}.hello p{margin:7px 0 0;color:var(--muted)}.profile{display:flex;gap:10px;align-items:center}.avatar{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#e9e2ff;color:var(--p);font-weight:800}
+.view{display:none}.view.active{display:block}.hero{display:flex;justify-content:space-between;align-items:center;padding:34px;border:1px solid #e5defb;border-radius:25px;background:linear-gradient(115deg,#f0ebff,#fff)}.hero h2{font-size:31px;margin:0 0 10px}.hero p{max-width:650px;color:#706b7b;line-height:1.55}.primary{background:var(--p);color:#fff;border-radius:12px;padding:13px 19px;font-weight:700;box-shadow:0 9px 22px #6d45e82b}.secondary{background:#fff;border:1px solid var(--line);color:var(--p);border-radius:12px;padding:12px 17px;font-weight:700}.hero-art{width:230px;height:155px;position:relative}.orb{position:absolute;right:20px;top:10px;width:135px;height:135px;border-radius:50%;background:linear-gradient(145deg,#9a80f5,#5c38d8);box-shadow:0 25px 55px #6d45e84a}.orb:after{content:"AI";display:grid;place-items:center;inset:0;position:absolute;color:#fff;font-weight:900;font-size:34px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:19px 0}.card,.stat{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px}.stat small{color:var(--muted)}.stat strong{display:block;font-size:27px;margin-top:8px}.up{font-size:13px;color:var(--green);margin-top:5px}.section-head{display:flex;align-items:center;justify-content:space-between;margin:25px 0 14px}.section-head h2{font-size:20px;margin:0}.scenarios{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.scenario{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px}.tag{display:inline-block;padding:6px 9px;background:#f0ecff;color:var(--p);border-radius:8px;font-size:12px;font-weight:750}.scenario h3{margin:14px 0 8px}.scenario p{color:var(--muted);font-size:14px;line-height:1.45;min-height:42px}.bottom{display:flex;justify-content:space-between;align-items:center;margin-top:17px}.link{background:none;color:var(--p);font-weight:700}.muted{color:var(--muted)}.bars{display:grid;gap:15px}.barrow{display:grid;grid-template-columns:180px 1fr 45px;gap:14px;align-items:center;font-size:14px}.track{height:9px;background:#eeeaf7;border-radius:20px;overflow:hidden}.fill{height:100%;background:linear-gradient(90deg,var(--p),var(--p2));border-radius:20px}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:13px 10px;border-bottom:1px solid var(--line);font-size:14px}.table th{color:var(--muted);font-weight:600}.chat{background:#fff;border:1px solid var(--line);border-radius:22px;min-height:540px;padding:22px;display:flex;flex-direction:column}.messages{flex:1;display:grid;align-content:start;gap:12px}.msg{max-width:78%;padding:13px 15px;border-radius:15px;line-height:1.45}.ai{background:#f1edff}.me{margin-left:auto;background:var(--p);color:#fff}.composer{display:flex;gap:10px;margin-top:16px}.composer input{flex:1;border:1px solid var(--line);border-radius:13px;padding:13px}.empty{text-align:center;padding:50px;color:var(--muted)}.toast{position:fixed;right:22px;bottom:22px;background:#191724;color:#fff;padding:13px 17px;border-radius:12px;display:none;z-index:20}.modal{position:fixed;inset:0;background:#19172466;display:none;place-items:center;z-index:15;padding:20px}.modalbox{width:min(650px,100%);background:#fff;border-radius:20px;padding:25px}.form{display:grid;gap:12px}.form input,.form textarea,.form select{border:1px solid var(--line);padding:12px;border-radius:10px}.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:15px}
+@media(max-width:950px){.side{width:76px}.logo span,.nav span{display:none}.main{margin-left:76px;padding:20px}.grid{grid-template-columns:repeat(2,1fr)}.scenarios{grid-template-columns:1fr}.hero-art{display:none}}
+@media(max-width:600px){.main{padding:14px}.grid{grid-template-columns:1fr}.hello h1{font-size:22px}.top{align-items:flex-start}.profile span{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side"><div class="logo"><i>S</i><span>SaleTrening</span></div>
+<nav class="nav">
+<button class="active" onclick="show('home',this)">⌂ <span>Главная</span></button>
+<button onclick="show('training',this)">◉ <span>Тренировки</span></button>
+<button onclick="show('scenarios',this)">▣ <span>Сценарии</span></button>
+<button onclick="show('progress',this)">↗ <span>Мой прогресс</span></button>
+<button onclick="show('mentor',this)">✦ <span>AI-наставник</span></button>
+<button onclick="show('team',this)">♙ <span>Команда</span></button><button onclick="show('analytics',this)">◒ <span>Аналитика</span></button><button onclick="show('admin',this)">⚙ <span>Админка</span></button>
+</nav></aside>
+<main class="main">
+<div class="top"><div class="hello"><h1>Добрый день, Дмитрий 👋</h1><p>Готов прокачать продажи?</p></div><div class="profile"><span>Руководитель</span><div class="avatar">Д</div></div></div>
+
+<section id="home" class="view active">
+<div class="hero"><div><h2>Тренируй продажи с AI</h2><p>Реалистичные переговоры, сложные клиенты и разбор ошибок. Тренируйся здесь, чтобы увереннее продавать с реальными клиентами.</p><button class="primary" onclick="show('scenarios')">Начать тренировку →</button></div><div class="hero-art"><div class="orb"></div></div></div>
+<div class="grid"><div class="stat"><small>Тренировок сегодня</small><strong id="todayCount">0</strong><div class="up">Цель: 5</div></div><div class="stat"><small>Средний результат</small><strong id="avgScore">—</strong><div class="up">По сохранённым результатам</div></div><div class="stat"><small>Серия дней</small><strong>7 🔥</strong><div class="up">Лучшая серия</div></div><div class="stat"><small>Уровень</small><strong>Продвинутый</strong><div class="up">XP начисляется за тренировки</div></div></div>
+<div class="section-head"><h2>Рекомендованные тренировки</h2><button class="link" onclick="show('scenarios')">Все сценарии</button></div><div id="homeScenarios" class="scenarios"></div>
+<div class="card"><div class="section-head"><h2>Твои навыки</h2><span class="muted">По последним результатам</span></div><div id="skillBars" class="bars"><div class="empty">Пока нет оценок — пройди первую тренировку.</div></div></div>
+</section>
+
+<section id="training" class="view"><div class="section-head"><h2 id="trainingTitle">Тренировка</h2><button class="secondary" onclick="finishTraining()">Завершить</button></div><div class="chat"><div id="messages" class="messages"><div class="empty">Выбери сценарий, чтобы начать.</div></div><div class="composer"><input id="answer" placeholder="Напиши ответ клиента..." onkeydown="if(event.key==='Enter')sendAnswer()"><button class="primary" onclick="sendAnswer()">Отправить</button></div></div></section>
+
+<section id="scenarios" class="view"><div class="section-head"><h2>Сценарии тренировок</h2><button class="primary" onclick="openModal()">+ Создать сценарий</button></div><div id="scenarioList" class="scenarios"></div></section>
+
+<section id="progress" class="view"><div class="section-head"><h2>Мой прогресс</h2></div><div class="grid"><div class="stat"><small>Всего тренировок</small><strong id="allCount">0</strong></div><div class="stat"><small>Средняя оценка</small><strong id="progressAvg">—</strong></div><div class="stat"><small>Лучший результат</small><strong id="bestScore">—</strong></div><div class="stat"><small>XP</small><strong id="xp">0</strong></div></div><div class="card"><h2>Последние результаты</h2><table class="table"><thead><tr><th>Сценарий</th><th>Оценка</th><th>Дата</th></tr></thead><tbody id="resultsBody"></tbody></table></div></section>
+
+<section id="mentor" class="view"><div class="card" style="max-width:850px"><h2>✦ AI-наставник</h2><p class="muted">Модуль подготовлен для подключения внешнего AI API. Сейчас здесь работает локальная логика прототипа.</p><div class="msg ai">Рекомендация: тренируй работу с возражением «Дорого». Не переходи к скидке, пока не выяснил причину возражения и не показал ценность.</div></div></section>
+
+
+<section id="analytics" class="view">
+<div class="section-head"><h2>Аналитика руководителя</h2><span class="muted">Последние результаты команды</span></div>
+<div class="grid">
+<div class="stat"><small>Средний балл команды</small><strong id="teamAvg">—</strong><div class="up">Динамика рассчитывается по результатам</div></div>
+<div class="stat"><small>Тренировок</small><strong id="teamTrainings">0</strong><div class="up">Всего завершённых</div></div>
+<div class="stat"><small>Лучший менеджер</small><strong id="topManager">—</strong><div class="up">По среднему баллу</div></div>
+<div class="stat"><small>Слабое место</small><strong id="weakSkill">—</strong><div class="up">Требует внимания</div></div>
+</div>
+<div class="card"><div class="section-head"><h2>Рейтинг команды</h2></div>
+<table class="table"><thead><tr><th>Менеджер</th><th>Тренировок</th><th>Средний балл</th><th>Лучший навык</th></tr></thead>
+<tbody id="analyticsBody"></tbody></table></div>
+<div class="card"><div class="section-head"><h2>Навыки команды</h2></div><div id="teamSkills" class="bars"></div></div>
+</section>
+<section id="team" class="view"><div class="section-head"><h2>Команда</h2></div><div class="card"><table class="table"><thead><tr><th>Сотрудник</th><th>Тренировок</th><th>Средний балл</th></tr></thead><tbody id="teamBody"></tbody></table></div></section>
+
+<section id="admin" class="view">
+<div class="section-head"><h2>⚙ Админка SaleTrening</h2><button class="primary" onclick="openAdminModal()">+ Новый сценарий</button></div>
+<div class="grid">
+<div class="stat"><small>Всего сценариев</small><strong id="adminScenarioCount">0</strong></div>
+<div class="stat"><small>Активных</small><strong id="adminActiveCount">0</strong></div>
+<div class="stat"><small>Сложных</small><strong id="adminHardCount">0</strong></div>
+<div class="stat"><small>Команда</small><strong id="adminTeamCount">0</strong></div>
+</div>
+<div class="card"><table class="table"><thead><tr><th>Сценарий</th><th>Клиент</th><th>Сложность</th><th>Цель</th><th>Статус</th><th></th></tr></thead><tbody id="adminScenarioBody"></tbody></table></div>
+</section>
+<div id="adminModal" class="modal"><div class="modalbox"><h2 id="adminModalTitle">Новый сценарий</h2>
+<div class="form">
+<input id="aTitle" placeholder="Название сценария">
+<textarea id="aDesc" placeholder="Описание"></textarea>
+<input id="aIndustry" placeholder="Отрасль, например B2B / Шины">
+<input id="aRole" placeholder="Роль клиента, например директор по закупкам">
+<input id="aMood" placeholder="Настроение клиента">
+<select id="aDiff"><option>Лёгкая</option><option selected>Средняя</option><option>Высокая</option></select>
+<input id="aGoal" placeholder="Цель тренировки">
+<textarea id="aQuestions" placeholder="Обязательные вопросы — каждый с новой строки"></textarea>
+<textarea id="aObjections" placeholder="Возражения клиента — каждое с новой строки"></textarea>
+<textarea id="aSuccess" placeholder="Правильные действия менеджера — каждое с новой строки"></textarea>
+<textarea id="aFailure" placeholder="Ошибки менеджера — каждое с новой строки"></textarea>
+<textarea id="aPrompt" placeholder="Системная инструкция для AI"></textarea>
+</div><div class="actions"><button class="secondary" onclick="closeAdminModal()">Отмена</button><button class="primary" onclick="saveAdminScenario()">Сохранить</button></div>
+</div></div>
+</main></div>
+
+<div id="modal" class="modal"><div class="modalbox"><h2>Новый сценарий</h2><div class="form"><input id="newTitle" placeholder="Название"><textarea id="newDesc" placeholder="Описание"></textarea><select id="newDiff"><option>Лёгкая</option><option selected>Средняя</option><option>Высокая</option></select></div><div class="actions"><button class="secondary" onclick="closeModal()">Отмена</button><button class="primary" onclick="createScenario()">Создать</button></div></div></div>
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://svxykakyrloqzloerygb.supabase.co";
+const SUPABASE_KEY="sb_publishable_r7wu9xAgaiIZBTg4tBiJvQ_CVKHaUoi";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let scenarios=[],currentSession=null,currentScenario=null,currentTranscript=[];
+
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+function toast(t){const x=document.getElementById("toast");x.textContent=t;x.style.display="block";setTimeout(()=>x.style.display="none",2300)}
+function show(id,btn){document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));if(btn)btn.classList.add("active");window.scrollTo(0,0);if(id==="progress")loadResults();if(id==="team")loadTeam()}
+function scenarioCard(s){return `<div class="scenario"><span class="tag">AI-тренировка</span><h3>${esc(s.title)}</h3><p>${esc(s.description||"")}</p><div class="bottom"><span class="muted">Сложность: ${esc(s.difficulty)}</span><button class="link" onclick="startTraining(${s.id})">Начать →</button></div></div>`}
+async function loadScenarios(){const {data,error}=await db.from("saletrening_scenarios").select("*").eq("active",true).order("id");if(error){toast("Не удалось загрузить сценарии");return}scenarios=data||[];document.getElementById("scenarioList").innerHTML=scenarios.map(scenarioCard).join("");document.getElementById("homeScenarios").innerHTML=scenarios.slice(0,3).map(scenarioCard).join("")}
+async function startTraining(id){
+ const {data:{session}}=await db.auth.getSession();
+ if(!session){toast("Нужен вход в аккаунт. Подключи Auth на своём домене.");return}
+ const r=await fetch(SUPABASE_URL+"/functions/v1/saletrening-start-session",{method:"POST",headers:{Authorization:"Bearer "+session.access_token,"Content-Type":"application/json"},body:JSON.stringify({scenario_id:id})});
+ const out=await r.json();if(!r.ok){toast(out.error||"Ошибка запуска");return}
+ currentSession=out.session;currentScenario=out.scenario;currentTranscript=[];
+ document.getElementById("trainingTitle").textContent="Тренировка: «"+currentScenario.title+"»";
+ document.getElementById("messages").innerHTML=`<div class="msg ai">${esc("Здравствуйте. "+(currentScenario.description||"Давайте начнём переговоры."))}</div>`;
+ currentTranscript.push({role:"client",text:currentScenario.description||"Начинаем переговоры."});
+ show("training");toast("Тренировка запущена");
+}
+async function sendAnswer(){
+ if(!currentSession){toast("Сначала выбери сценарий");return}
+ const input=document.getElementById("answer"),text=input.value.trim();if(!text)return;
+ document.getElementById("messages").insertAdjacentHTML("beforeend",`<div class="msg me">${esc(text)}</div>`);
+ currentTranscript.push({role:"manager",text});input.value="";
+ const reply="Хорошо. А чем ваше предложение будет выгоднее для меня на практике?";
+ document.getElementById("messages").insertAdjacentHTML("beforeend",`<div class="msg ai">${esc(reply)}</div>`);
+ currentTranscript.push({role:"client",text:reply});
+ await db.from("saletrening_sessions").update({transcript:currentTranscript,status:"in_progress"}).eq("id",currentSession.id);
+}
+async function finishTraining(){
+ if(!currentSession){toast("Нет активной тренировки");return}
+ const score=Math.min(100,Math.max(50,70+Math.round(currentTranscript.filter(x=>x.role==="manager").length*4)));
+ const {error}=await db.from("saletrening_sessions").update({transcript:currentTranscript,status:"completed",total_score:score,feedback:"AI-анализ будет подключён отдельным модулем.",completed_at:new Date().toISOString()}).eq("id",currentSession.id);
+ if(error){toast("Не удалось сохранить результат");return}
+ toast("Тренировка сохранена: "+score+"/100");currentSession=null;loadResults();show("progress");
+}
+async function loadResults(){
+ const {data:{session}}=await db.auth.getSession();if(!session)return;
+ const {data}=await db.from("training_results").select("*").eq("employee_id",session.user.id).order("created_at",{ascending:false});
+ const rows=data||[];document.getElementById("allCount").textContent=rows.length;document.getElementById("todayCount").textContent=rows.filter(r=>new Date(r.created_at).toDateString()===new Date().toDateString()).length;
+ const scores=rows.map(r=>Number(r.total_score)).filter(Number.isFinite),avg=scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:0;
+ document.getElementById("avgScore").textContent=avg?(avg/10).toFixed(1):"—";document.getElementById("progressAvg").textContent=avg?(avg/10).toFixed(1):"—";document.getElementById("bestScore").textContent=scores.length?Math.max(...scores):"—";document.getElementById("xp").textContent=rows.length*50;
+ document.getElementById("resultsBody").innerHTML=rows.slice(0,10).map(r=>`<tr><td>${esc(r.scenario_title)}</td><td>${esc(r.total_score)}</td><td>${new Date(r.created_at).toLocaleDateString("ru-RU")}</td></tr>`).join("")||'<tr><td colspan="3" class="muted">Результатов пока нет</td></tr>';
+ const skillKeys=[["need_score","Выявление потребности"],["objection_score","Возражения"],["value_score","Ценность"],["close_score","Закрытие"]];
+ document.getElementById("skillBars").innerHTML=scores.length?skillKeys.map(([k,n])=>{const a=rows.map(x=>Number(x[k])).filter(Number.isFinite);const v=a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0;return `<div class="barrow"><span>${n}</span><div class="track"><div class="fill" style="width:${v}%"></div></div><b>${v}%</b></div>`}).join(""):'<div class="empty">Пока нет оценок — пройди первую тренировку.</div>';
+}
+async function loadTeam(){
+ const {data:profiles}=await db.from("profiles").select("id,first_name,last_name");const p=profiles||[];document.getElementById("teamBody").innerHTML=p.map(x=>`<tr><td>${esc((x.first_name||"")+" "+(x.last_name||""))}</td><td>—</td><td>—</td></tr>`).join("")||'<tr><td colspan="3">Команда пока не заполнена</td></tr>';
+}
+function openModal(){document.getElementById("modal").style.display="grid"}function closeModal(){document.getElementById("modal").style.display="none"}
+async function createScenario(){const title=document.getElementById("newTitle").value.trim(),description=document.getElementById("newDesc").value.trim(),difficulty=document.getElementById("newDiff").value;if(!title){toast("Введите название");return}const {error}=await db.from("saletrening_scenarios").insert({title,description,difficulty});if(error){toast("Не удалось создать сценарий");return}closeModal();document.getElementById("newTitle").value="";document.getElementById("newDesc").value="";toast("Сценарий создан");loadScenarios()}
+loadScenarios();loadResults();
+
+let adminScenarios=[];let editingScenarioId=null;
+function openAdminById(id){const s=adminScenarios.find(x=>x.id===id);if(s)openAdminModal(s)}
+function lines(id){return document.getElementById(id).value.split("\n").map(x=>x.trim()).filter(Boolean)}
+function openAdminModal(s=null){
+ editingScenarioId=s?.id||null; document.getElementById("adminModalTitle").textContent=s?"Редактировать сценарий":"Новый сценарий";
+ document.getElementById("aTitle").value=s?.title||"";document.getElementById("aDesc").value=s?.description||"";
+ document.getElementById("aIndustry").value=s?.industry||"";document.getElementById("aRole").value=s?.client_role||"";
+ document.getElementById("aMood").value=s?.client_mood||"Нейтральный";document.getElementById("aDiff").value=s?.difficulty||"Средняя";
+ document.getElementById("aGoal").value=s?.goal||s?.objective||"";document.getElementById("aQuestions").value=(s?.required_questions||[]).join("\n");
+ document.getElementById("aObjections").value=(s?.objections||[]).join("\n");document.getElementById("aSuccess").value=(s?.success_actions||[]).join("\n");
+ document.getElementById("aFailure").value=(s?.failure_actions||[]).join("\n");document.getElementById("aPrompt").value=s?.system_prompt||"";
+ document.getElementById("adminModal").style.display="grid";
+}
+function closeAdminModal(){document.getElementById("adminModal").style.display="none"}
+async function loadAdmin(){
+ const {data,error}=await db.from("saletrening_scenarios").select("*").order("id");
+ if(error){toast("Ошибка загрузки админки");return}
+ const all=data||[];adminScenarios=all;document.getElementById("adminScenarioCount").textContent=all.length;document.getElementById("adminActiveCount").textContent=all.filter(x=>x.active).length;
+ document.getElementById("adminHardCount").textContent=all.filter(x=>x.difficulty==="Высокая").length;
+ const {data:team}=await db.from("profiles").select("id");document.getElementById("adminTeamCount").textContent=(team||[]).length;
+ document.getElementById("adminScenarioBody").innerHTML=all.map(s=>`<tr><td><b>${esc(s.title)}</b><br><span class="muted">${esc(s.industry||"")}</span></td><td>${esc(s.client_role||"—")}</td><td>${esc(s.difficulty)}</td><td>${esc(s.goal||s.objective||"—")}</td><td>${s.active?"Активен":"Выключен"}</td><td><button class="link" onclick="openAdminById(${s.id})">Изменить</button> <button class="link" onclick="toggleScenario(${s.id},${!s.active})">${s.active?"Выключить":"Включить"}</button></td></tr>`).join("")||'<tr><td colspan="6">Сценариев пока нет</td></tr>';
+}
+async function saveAdminScenario(){
+ const payload={title:document.getElementById("aTitle").value.trim(),description:document.getElementById("aDesc").value.trim(),industry:document.getElementById("aIndustry").value.trim(),client_role:document.getElementById("aRole").value.trim(),client_mood:document.getElementById("aMood").value.trim(),difficulty:document.getElementById("aDiff").value,goal:document.getElementById("aGoal").value.trim(),objective:document.getElementById("aGoal").value.trim(),required_questions:lines("aQuestions"),objections:lines("aObjections"),success_actions:lines("aSuccess"),failure_actions:lines("aFailure"),system_prompt:document.getElementById("aPrompt").value.trim(),updated_at:new Date().toISOString()};
+ if(!payload.title){toast("Введите название");return}
+ const q=editingScenarioId?db.from("saletrening_scenarios").update(payload).eq("id",editingScenarioId):db.from("saletrening_scenarios").insert(payload);
+ const {error}=await q;if(error){toast("Не удалось сохранить сценарий");return}
+ closeAdminModal();toast("Сценарий сохранён");loadAdmin();loadScenarios();
+}
+async function toggleScenario(id,active){const {error}=await db.from("saletrening_scenarios").update({active,updated_at:new Date().toISOString()}).eq("id",id);if(error){toast("Ошибка");return}loadAdmin();loadScenarios()}
+const oldShow=show;
+show=function(id,btn){oldShow(id,btn);if(id==="admin")loadAdmin()}
+
+async function loadAnalytics(){
+ const {data:profiles}=await db.from("profiles").select("id,first_name,last_name");
+ const {data:results}=await db.from("training_results").select("employee_id,total_score,need_score,objection_score,value_score,close_score,created_at");
+ const ps=profiles||[], rs=results||[];
+ const groups=ps.map(p=>{const r=rs.filter(x=>x.employee_id===p.id);const scores=r.map(x=>Number(x.total_score)).filter(Number.isFinite);const avg=scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:0;
+  const skills={need_score:"Потребности",objection_score:"Возражения",value_score:"Ценность",close_score:"Закрытие"};
+  let best="—",bv=-1;Object.entries(skills).forEach(([k,n])=>{const a=r.map(x=>Number(x[k])).filter(Number.isFinite);const v=a.length?a.reduce((x,y)=>x+y,0)/a.length:0;if(v>bv&&a.length){bv=v;best=n}});
+  return {...p,count:r.length,avg,best};
+ }).filter(x=>x.count).sort((a,b)=>b.avg-a.avg);
+ document.getElementById("teamTrainings").textContent=rs.length;
+ document.getElementById("teamAvg").textContent=rs.length?(rs.map(x=>Number(x.total_score)).filter(Number.isFinite).reduce((a,b)=>a+b,0)/rs.filter(x=>Number.isFinite(Number(x.total_score))).length).toFixed(1):"—";
+ document.getElementById("topManager").textContent=groups[0]?((groups[0].first_name||"")+" "+(groups[0].last_name||"")).trim():"—";
+ const skills=[["need_score","Выявление потребности"],["objection_score","Возражения"],["value_score","Ценность"],["close_score","Закрытие"]];
+ let weak=null;let weakVal=101;
+ document.getElementById("teamSkills").innerHTML=skills.map(([k,n])=>{const a=rs.map(x=>Number(x[k])).filter(Number.isFinite);const v=a.length?a.reduce((x,y)=>x+y,0)/a.length:0;if(a.length&&v<weakVal){weakVal=v;weak=n}return `<div class="barrow"><span>${n}</span><div class="track"><div class="fill" style="width:${v}%"></div></div><b>${Math.round(v)}%</b></div>`}).join("");
+ document.getElementById("weakSkill").textContent=weak||"—";
+ document.getElementById("analyticsBody").innerHTML=groups.map(x=>`<tr><td><b>${esc(((x.first_name||"")+" "+(x.last_name||"")).trim()||"Без имени")}</b></td><td>${x.count}</td><td>${(x.avg/10).toFixed(1)}</td><td>${esc(x.best)}</td></tr>`).join("")||'<tr><td colspan="4">Данных пока нет</td></tr>';
+}
+const baseShow=show;
+show=function(id,btn){baseShow(id,btn);if(id==="analytics")loadAnalytics()}
+</script>
+</body></html>
