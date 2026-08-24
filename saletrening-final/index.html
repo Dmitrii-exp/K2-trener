@@ -94,12 +94,69 @@ async function sendMessage(){
  setTimeout(async()=>{let replies=["Понимаю. А чем ваше предложение отличается от других вариантов?","А если цена окажется выше, почему мне выбрать вас?","Мне нужно подумать. Что вы предлагаете сделать дальше?","Какие условия вы можете предложить прямо сейчас?"];let r=replies[Math.floor(Math.random()*replies.length)];state.messages.push({speaker:"client",content:r});await saveSession();trainingChat()},500)
 }
 async function finishTraining(){
- if(!state.session)return;await saveSession();
- const {data,error}=await sb.functions.invoke("evaluate-session",{body:{session_id:state.session.id}});
- if(error){toast("AI-анализ: "+error.message);return}
- if(data?.configured){toast("AI-анализ завершён");}else toast("Тренировка сохранена. AI-ключ пока не подключён.");
- state.session=null;await loadAll();state.view="progress";render()
-}
+  if(!state.session)return;
+
+  await saveSession();
+
+  try {
+    const { data, error } = await sb.functions.invoke(
+      "evaluate-session",
+      {
+        body: {
+          session_id: state.session.id
+        }
+      }
+    );
+
+    if(error){
+      console.error("evaluate-session error:", error);
+
+      let details = "";
+
+      if(error.context){
+        try{
+          const text = await error.context.text();
+          details = text;
+        }catch(e){
+          details = String(error.context);
+        }
+      }
+
+      toast(
+        "AI-анализ: " +
+        (details || error.message || "неизвестная ошибка")
+      );
+
+      console.log("AI ERROR DETAILS:", {
+        message: error.message,
+        details,
+        error
+      });
+
+      return;
+    }
+
+    console.log("AI RESULT:", data);
+
+    if(data?.configured){
+      toast("AI-анализ завершён");
+    }else if(data?.error){
+      toast("AI-анализ: " + data.error);
+      console.log("AI RESULT ERROR:", data);
+      return;
+    }else{
+      toast("Тренировка сохранена. AI-ключ пока не подключён.");
+    }
+
+    state.session=null;
+    await loadAll();
+    state.view="progress";
+    render();
+
+  }catch(e){
+    console.error("AI ANALYSIS EXCEPTION:", e);
+    toast("Ошибка AI: " + (e.message || String(e)));
+  }
 function voiceInput(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast("Голосовой ввод не поддерживается этим браузером");return}const r=new SR();r.lang="ru-RU";r.interimResults=false;r.onresult=e=>{$("msg").value=e.results[0][0].transcript};r.onerror=()=>toast("Не удалось распознать речь");r.start()}
 async function logout(){await sb.auth.signOut();state={user:null,profile:null,company:null,view:"home",scenarios:[],session:null,messages:[],stats:null,team:[]};authScreen()}
 sb.auth.onAuthStateChange(async(event,session)=>{if(event==="SIGNED_IN"&&session&&!state.user){setTimeout(()=>boot(session.user),0)}});
