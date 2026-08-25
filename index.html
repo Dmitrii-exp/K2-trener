@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SaleTrening — AI-тренер по продажам</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Подключаем SDK Яндекс SpeechKit -->
+<script src="https://unpkg.com/react-speech-recognition/dist/react-speech-recognition.browser.min.js"></script>
+<style>
+:root{
+  --p:#6d4aff;--p2:#8b70ff;--bg:#f6f7fb;--card:#fff;--text:#171827;
+  --muted:#7b7e91;--line:#e8e9f0;--dark:#171625;--dark2:#232039;
+  --good:#19a873;--shadow:0 12px 35px rgba(25,20,55,.07)
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,Arial,sans-serif;background:var(--bg);color:var(--text)}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+.muted{color:var(--muted);font-size:13px}
+
+.primary{
+  border:0;border-radius:12px;padding:12px 17px;
+  background:var(--p);color:#fff;font-weight:750;
+  box-shadow:0 8px 18px rgba(109,74,255,.18)
+}
+.primary:hover{
+  background:#5f3df1;
+  transform:translateY(-1px)
+}
+
+.secondary{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:11px 16px;
+  background:#fff;
+  color:var(--text);
+  font-weight:650
+}
+.secondary:hover{
+  border-color:#cfcbe8;
+  background:#faf9ff
+}
+
+.logo{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  font-weight:850;
+  font-size:20px
+}
+
+.logo-b{
+  width:42px;
+  height:42px;
+  border-radius:13px;
+  background:
