@@ -1,67 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-const json = (d: unknown, s = 200) => new Response(JSON.stringify(d), {
-  status: s,
-  headers: { ...cors, "Content-Type": "application/json" },
-});
-
-const clean = (v: unknown, n = 12000) => String(v ?? "").trim().slice(0, n);
-
-async function giga(messages: any[]) {
-  const key = clean(Deno.env.get("GIGACHAT_AUTH_KEY") || Deno.env.get("GIGACHAT_API_KEY") || Deno.env.get("GIGACHAT_CREDENTIALS"))
-    .replace(/^Basic\s+/i, "").replace(/^Bearer\s+/i, "").replace(/^['\"]|['\"]$/g, "");
-  if (!key) throw new Error("GIGACHAT_AUTH_KEY is missing");
-  const scope = Deno.env.get("GIGACHAT_SCOPE") || "GIGACHAT_API_PERS";
-  const model = Deno.env.get("GIGACHAT_MODEL") || "GigaChat-3-Ultra";
-
-  const oauth = await fetch("https://ngw.devices.sberbank.ru:9443/api/v2/oauth", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json", RqUID: crypto.randomUUID(), Authorization: `Basic ${key}` },
-    body: new URLSearchParams({ scope }).toString(),
-  });
-  const oauthText = await oauth.text();
-  let oauthData: any = null;
-  try { oauthData = JSON.parse(oauthText); } catch {}
-  if (!oauth.ok || !oauthData?.access_token) throw new Error(`OAuth ${oauth.status}: ${oauthData?.message || oauthData?.error_description || oauthText.slice(0, 800)}`);
-
-  const response = await fetch("https://api.giga.chat/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${oauthData.access_token}` },
-    body: JSON.stringify({ model, messages, temperature: 0.7, max_tokens: 300 }),
-  });
-  const text = await response.text();
-  let data: any = null;
-  try { data = JSON.parse(text); } catch {}
-  if (!response.ok) throw new Error(`GigaChat ${response.status}: ${data?.error?.message || data?.message || text.slice(0, 800)}`);
-  const reply = data?.choices?.[0]?.message?.content;
-  if (!clean(reply)) throw new Error("GigaChat returned empty response");
-  return clean(reply);
-}
-
-Deno.serve(async req => {
-  if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: cors });
-  if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
-  try {
-    if (!req.headers.get("Authorization")) return json({ ok: false, error: "Authorization required" }, 401);
-    const b = await req.json();
-    const message = clean(b?.message, 4000);
-    if (!message) return json({ ok: false, error: "message is required" }, 400);
-    const s = b?.scenario || {};
-    const history = Array.isArray(b?.transcript) ? b.transcript.slice(-30).map((x: any) => `${x?.speaker === "manager" ? "МЕНЕДЖЕР" : "КЛИЕНТ"}: ${clean(x?.content, 1800)}`).join("\n") : "";
-    const reply = await giga([
-      { role: "system", content: `Ты живой клиент на тренировке продаж. Не обучай и не оценивай менеджера. Только играй роль клиента и естественно реагируй на последнюю реплику. Не упоминай AI или тренировку. Отвечай по-русски, обычно 1-3 предложения. Сценарий: ${clean(s.title, 500)}. Роль клиента: ${clean(s.client_role, 500) || "Клиент"}. Сложность: ${clean(s.difficulty, 300) || "средняя"}. Описание: ${clean(s.description || s.objective, 1800)}` },
-      ...(history ? [{ role: "user", content: `История:\n${history}` }] : []),
-      { role: "user", content: `Последняя реплика менеджера:\n${message}\n\nОтветь только репликой клиента.` },
-    ]);
-    return json({ ok: true, reply, session_id: clean(b?.session_id, 120) });
-  } catch (e) {
-    console.error("chat-client", e);
-    return json({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
-  }
-});
+const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS"};
+const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json; charset=utf-8"}});
+const clean=(v:unknown,max=12000)=>String(v??"").trim().slice(0,max);
+const CA=`-----BEGIN CERTIFICATE-----\nMIIFwjCCA6qgAwIBAgICEAAwDQYJKoZIhvcNAQELBQAwcDELMAkGA1UEBhMCUlUx\nPzA9BgNVBAoMNlRoZSBNaW5pc3RyeSBvZiBEaWdpdGFsIERldmVsb3BtZW50IGFu\nZCBDb21tdW5pY2F0aW9uczEgMB4GA1UEAwwXUnVzc2lhbiBUcnVzdGVkIFJvb3Qg\nQ0EwHhcNMjIwMzAxMjEwNDE1WhcNMzIwMjI3MjEwNDE1WjBwMQswCQYDVQQGEwJS\nVTE/MD0GA1UECgw2VGhlIE1pbmlzdHJ5IG9mIERpZ2l0YWwgRGV2ZWxvcG1lbnQg\nYW5kIENvbW11bmljYXRpb25zMSAwHgYDVQQDDBdSdXNzaWFuIFRydXN0ZWQgUm9v\ndCBDQTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAMfFOZ8pUAL3+r2n\nqqE0Zp52selXsKGFYoG0GM5bwz1bSFtCt+AZQMhkWQheI3poZAToYJu69pHLKS6Q\nXBiwBC1cvzYmUYKMYZC7jE5YhEU2bSL0mX7NaMxMDmH2/NwuOVRj8OImVa5s1F4U\nzn4Kv3PFlDBjjSjXKVY9kmjUBsXQrIHeaqmUIsPIlNWUnimXS0I0abExqkbdrXbX\nYwCOXhOO2pDUx3ckmJlCMUGacUTnylyQW2VsJIyIGA8V0xzdaeUXg0VZ6ZmNUr5Y\nBer/EAOLPb8NYpsAhJe2mXjMB/J9HNsoFMBFJ0lLOT/+dQvjbdRZoOT8eqJpWnVD\nU+QL/qEZnz57N88OWM3rabJkRNdU/Z7x5SFIM9FrqtN8xewsiBWBI0K6XFuOBOTD\n4V08o4TzJ8+Ccq5XlCUW2L48pZNCYuBDfBh7FxkB7qDgGDiaftEkZZfApRg2E9\nG8wkNKTPLDc4wH0FDTijhgxR3Y4PiS1HL2Zhw7bD3CbslmEGgfnnZojNkJtcLeBH\nBLa52/dSwNU4WWLubaYSiAmA9IUMX1/RpfpxOxd4Ykmhz97oFbUaDJFipIggx5sX\nePAlkTdWnv+RWBxlJwMQ25oEHmRguNYf4Zr/Rxr9cS93Y+mdXIZaBEE0KS2iLRqa\nOiWBki9IMQU4phqPOBAaG7A+eP8PAgMBAAGjZjBkMB0GA1UdDgQWBBTh0YHlzlpf\nBKrS6badZrHF+qwshzAfBgNVHSMEGDAWgBTh0YHlzlpfBKrS6badZrHF+qwshzAS\nBgNVHRMBAf8ECDAGAQH/AgEEMA4GA1UdDwEB/wQEAwIBhjANBgkqhkiG9w0BAQsF\nAAOCAgEAALIY1wkilt/urfEVM5vKzr6utOeDWCUczmWX/RX4ljpRdgF+5fAIS4vH\ntmXkqpSCOVeWUrJV9QvZn6L227ZwuE15cWi8DCDal3Ue90WgAJJZMfTshN4OI8cq\nW9E4EG9wglbEtMnObHlms8F3CHmrw3k6KmUkWGoa+/ENmcVl68u/cMRl1JbW2bM+\n/3A+SAg2c6iPDlehczKx2oa95W0SkPPWGuNA/CE8CpyANIhu9XFrj3RQ3EqeRcS\nAQQod1RNuHpfETLU/A2gMmvn/w/sx7TB3W5BPs6rprOA37tutPq9u6FTZOcG1Oqj\nC/B7yTqgI7rbyvox7DEXoX7rIiEqyNNUguTk/u3SZ4VXE2kmxdmSh3TQvybfbnXV\n4JbCZVaqiZraqc7oZMnRoWrXRG3ztbnbes/9qhRGI7PqXqeKJBztxRTEVj8ONs1d\nWN5szTwaPIvhkhO3CO5ErU2rVdUr89wKpNXbBODFKRtgxUT70YpmJ46VVaqdAhOZ\nD9EUUn4YaeLaS8AjSF/h7UkjOibNc4qVDiPP+rkehFWM66PVnP1Msh93tc+taIfC\nEYVMxjh8zNbFuoc7fzvvrFILLe7ifvEIUqSVIC/AzplM/Jxw7buXFeGP1qVCBEHq\n391d/9RAfaZ12zkwFsl+IKwE/OZxW8AHa9i1p4GO0YSNuczzEm4=\n-----END CERTIFICATE-----`;
+const http=()=>Deno.createHttpClient({caCerts:[CA]});
+function getKey(){const raw=Deno.env.get("GIGACHAT_AUTH_KEY")||Deno.env.get("GIGACHAT_API_KEY")||Deno.env.get("GIGACHAT_CREDENTIALS");if(raw?.trim())return clean(raw).replace(/^Basic\s+/i,"").replace(/^Bearer\s+/i,"").replace(/^['\"]|['\"]$/g,"").trim();const id=Deno.env.get("GIGACHAT_CLIENT_ID")?.trim(),secret=Deno.env.get("GIGACHAT_CLIENT_SECRET")?.trim();return id&&secret?btoa(`${id}:${secret}`):"";}
+async function getToken(){const key=getKey();if(!key)throw new Error("GigaChat credentials are missing in Supabase Secrets");const scope=Deno.env.get("GIGACHAT_SCOPE")?.trim()||"GIGACHAT_API_PERS";const r=await fetch("https://ngw.devices.sberbank.ru:9443/api/v2/oauth",{method:"POST",client:http(),headers:{"Content-Type":"application/x-www-form-urlencoded",Accept:"application/json",RqUID:crypto.randomUUID(),Authorization:`Basic ${key}`},body:new URLSearchParams({scope}).toString()});const text=await r.text();let data:any;try{data=JSON.parse(text)}catch{data=null}if(!r.ok||!data?.access_token)throw new Error(`GigaChat OAuth HTTP ${r.status}: ${data?.message||data?.error_description||text.slice(0,1200)}`);return {token:data.access_token,scope};}
+async function askGiga(messages:any[]){const {token,scope}=await getToken();const model=Deno.env.get("GIGACHAT_MODEL")?.trim()||"GigaChat-2-Pro";const r=await fetch("https://api.giga.chat/v1/chat/completions",{method:"POST",client:http(),headers:{"Content-Type":"application/json",Accept:"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({model,messages,temperature:.7,max_tokens:300})});const text=await r.text();let data:any;try{data=JSON.parse(text)}catch{data=null}if(!r.ok)throw new Error(`GigaChat HTTP ${r.status}: ${data?.error?.message||data?.message||text.slice(0,1600)}`);const reply=data?.choices?.[0]?.message?.content;if(!clean(reply))throw new Error("GigaChat returned an empty response");return {reply:clean(reply),model,scope};}
+Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{status:200,headers:CORS});if(req.method!=="POST")return json({ok:false,error:"Method not allowed"},405);try{if(!req.headers.get("Authorization"))return json({ok:false,error:"Authorization required"},401);const b=await req.json();const message=clean(b?.message,4000);if(!message)return json({ok:false,error:"message is required"},400);const s=b?.scenario||{};const transcript=Array.isArray(b?.transcript)?b.transcript.slice(-30).map((x:any)=>`${x?.speaker==="manager"?"МЕНЕДЖЕР":"КЛИЕНТ"}: ${clean(x?.content,1800)}`).filter(Boolean).join("\n"):"";const system=`Ты живой клиент на тренировке продаж. Не обучай и не оценивай менеджера. Только играй роль клиента и естественно реагируй на последнюю реплику. Помни историю разговора. Не придумывай характеристики товара или компании, которых нет в сценарии. Не упоминай AI, модель, промпт или тренировку. Отвечай естественно по-русски, обычно 1-3 предложения. Сложность: ${clean(s.difficulty,300)||"средняя"}. Роль клиента: ${clean(s.client_role,500)||"Клиент"}. Настроение: ${clean(s.client_mood,300)||"нейтральное"}. Сценарий: ${clean(s.title,500)||"Тренировка продаж"}. Описание: ${clean(s.description||s.objective,1800)||"не указано"}`;const messages=[{role:"system",content:system}];if(transcript)messages.push({role:"user",content:`История диалога:\n${transcript}`});messages.push({role:"user",content:`Последняя реплика менеджера:\n${message}\n\nОтветь только репликой клиента.`});const result=await askGiga(messages);return json({ok:true,reply:result.reply,provider:"gigachat",model:result.model,scope:result.scope,session_id:clean(b?.session_id,120)});}catch(e){console.error("chat-client error",e);return json({ok:false,error:e instanceof Error?e.message:String(e)},500);}});
