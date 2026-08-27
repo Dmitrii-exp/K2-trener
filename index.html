@@ -1007,17 +1007,17 @@ function render(){
 
       <div class="nav">
 
-        ${nav("home","Главная","¦")}
+        ${nav("home","Главная","⌂")}
 
-        ${nav("training","Тренировки","?")}
+        ${nav("training","Тренировки","◉")}
 
-        ${nav("scenarios","Сценарии","?")}
+        ${nav("scenarios","Сценарии","▣")}
 
-        ${nav("progress","Мой прогресс","?")}
+        ${nav("progress","Мой прогресс","↗")}
 
-        ${nav("history","История","?")}
+        ${nav("history","История","◷")}
 
-        ${nav("ai","AI-наставник","?")}
+        ${nav("ai","AI-наставник","✦")}
 
         ${
           ["director","admin"]
@@ -1025,8 +1025,8 @@ function render(){
 
           ?
 
-          nav("team","Команда","?")+
-          nav("analytics","Аналитика","?")
+          nav("team","Команда","♙")+
+          nav("analytics","Аналитика","▥")
 
           :
 
@@ -1187,7 +1187,7 @@ function home(){
       </div>
 
       <div class="hero-robot">
-        ??
+        🤖
       </div>
 
     </div>
@@ -1322,7 +1322,7 @@ function home(){
       >
 
         <strong>
-          ?? Выявление потребностей
+          🎯 Выявление потребностей
         </strong>
 
         <span class="muted">
@@ -1337,7 +1337,7 @@ function home(){
       >
 
         <strong>
-          ?? Работа с возражениями
+          🛡️ Работа с возражениями
         </strong>
 
         <span class="muted">
@@ -1352,7 +1352,7 @@ function home(){
       >
 
         <strong>
-          ? AI-наставник
+          ✦ AI-наставник
         </strong>
 
         <span class="muted">
@@ -1620,8 +1620,8 @@ function team(){
     </div>
 
     <div class="empty">
-      Добавь сотрудников через систему
-      приглашений на следующем этапе.
+      Завершённых тренировок команды пока нет.
+      Здесь появится командная статистика после первых результатов.
     </div>
 
     `;
@@ -2000,7 +2000,7 @@ function aiCoach(){
     </ul>
 
     <p class="muted">
-      AI Edge Function подключается отдельно через Supabase.
+      AI-наставник работает на данных ваших тренировок и AI-разборов.
     </p>
 
   </div>
@@ -2046,19 +2046,23 @@ async function startTraining(id){
     scenario:s
   };
 
-  state.messages=[
-    {
-      speaker:"client",
-      content:
-      "Здравствуйте. Я пока просто сравниваю варианты и не уверен, что мне это вообще нужно."
-    }
-  ];
-
+  state.messages=[];
   await saveSession();
 
   state.view="training";
-
   trainingChat();
+
+  try{
+    const opening=await aiClientReply("",true);
+    state.messages.push({speaker:"client",content:opening});
+    await saveSession();
+    trainingChat();
+    speakClient(opening);
+  }catch(e){
+    console.error("chat-client opening:",e);
+    trainingChat();
+    toast("Не удалось получить первую реплику AI-клиента: "+(e.message||"ошибка"));
+  }
 }
 
 function trainingChat(){
@@ -2225,7 +2229,9 @@ async function aiClientReply(userMessage){
   const raw=await r.text(); let j=null;
   try{j=raw?JSON.parse(raw):null}catch(_){}
   if(!r.ok) throw new Error(j?.error||j?.message||raw||("HTTP "+r.status));
-  return j?.reply||j?.message||j?.content||j?.text||"Расскажите подробнее.";
+  const reply=j?.reply||j?.message||j?.content||j?.text;
+  if(!reply) throw new Error("AI не вернул реплику клиента");
+  return reply;
 }
 function speakClient(text){
   if(!("speechSynthesis" in window)||!text)return;
@@ -2244,9 +2250,8 @@ async function sendMessage(){
     await saveSession();trainingChat();speakClient(r);
   }catch(e){
     console.error("chat-client:",e);
-    state.messages.push({speaker:"client",content:"Я понял. Уточните, пожалуйста, что именно вы предлагаете и какую пользу я получу для своей компании?"});
-    await saveSession();trainingChat();
-    toast("AI временно недоступен: "+(e.message||"ошибка"));
+    trainingChat();
+    toast("AI-клиент временно недоступен: "+(e.message||"ошибка"));
   }
 }
 
