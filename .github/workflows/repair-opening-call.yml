@@ -1,0 +1,48 @@
+name: One-time opening call repair
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch opening AI request
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='''async function aiClientReply(userMessage){\n  if(!state.session?.scenario) throw new Error("Нет активной тренировки");'''
+          new='''async function aiClientReply(userMessage,opening=false){\n  if(!state.session?.scenario) throw new Error("Нет активной тренировки");'''
+          assert old in s, 'signature not found'
+          s=s.replace(old,new)
+          old='''      message:userMessage,\n      transcript:state.messages,'''
+          new='''      message:opening?"":userMessage,\n      opening,\n      transcript:state.messages,'''
+          assert old in s, 'payload not found'
+          s=s.replace(old,new)
+          p.write_text(s,encoding='utf-8')
+      - name: Validate and commit
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          assert 'async function aiClientReply(userMessage,opening=false)' in s
+          assert 'opening,\n      transcript:state.messages' in s
+          assert 'Расскажите подробнее.' not in s
+          assert 'Я понял. Уточните, пожалуйста' not in s
+          js=re.search(r'<script>([\s\S]*)</script>',s).group(1)
+          Path('/tmp/app.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/app.js
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git rm .github/workflows/repair-opening-call.yml
+          git commit -m 'fix: send opening flag to AI client'
+          git push
