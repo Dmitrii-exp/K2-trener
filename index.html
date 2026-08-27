@@ -2206,7 +2206,7 @@ async function saveSession(){
 }
 
 
-async function aiClientReply(userMessage){
+async function aiClientReply(userMessage,opening=false){
   if(!state.session?.scenario) throw new Error("Нет активной тренировки");
   const {data,error}=await sb.auth.getSession();
   if(error||!data?.session?.access_token) throw new Error("Сессия авторизации истекла");
@@ -2220,7 +2220,8 @@ async function aiClientReply(userMessage){
     body:JSON.stringify({
       session_id:state.session.id,
       scenario_id:state.session.scenario.id,
-      message:userMessage,
+      message:opening?"":userMessage,
+      opening,
       transcript:state.messages,
       scenario:state.session.scenario
     }),
