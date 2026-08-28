@@ -1,0 +1,32 @@
+name: Fix SpeechKit script escaping
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove broken SpeechKit inline patch only
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          start=s.find('/* YANDEX_SPEECHKIT_TTS_V1 */')
+          if start < 0:
+              raise SystemExit('SpeechKit patch marker not found')
+          end=s.find('let state=', start)
+          if end < 0:
+              raise SystemExit('state marker not found')
+          s=s[:start]+s[end:]
+          p.write_text(s,encoding='utf-8')
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: restore page script after SpeechKit patch'
+          git push
