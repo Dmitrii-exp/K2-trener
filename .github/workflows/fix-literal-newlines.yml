@@ -1,0 +1,37 @@
+name: Fix literal newline escapes in index
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace literal backslash-n sequences
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          fixed = s.replace('\\\\n', '\\n')
+          if fixed != s:
+              p.write_text(fixed, encoding='utf-8')
+          else:
+              print('No literal newline escapes found')
+      - name: Commit fix
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'No changes needed'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'fix: replace literal newline escapes in index'
+          git push
