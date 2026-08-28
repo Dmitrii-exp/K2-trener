@@ -1,0 +1,45 @@
+name: Enable AI Mentor
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add AI mentor menu and chat
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          marker='/* AI_MENTOR_V1 */'
+          if marker in s:
+              print('AI mentor already enabled')
+              raise SystemExit(0)
+          insert='''\n/* AI_MENTOR_V1 */\n.ai-mentor-card{max-width:1000px;margin:auto}.ai-mentor-chat{height:600px;display:grid;grid-template-rows:1fr auto;background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}\n'''
+          s=s.replace('</style>',insert+'</style>',1)
+          nav_marker='<button onclick="showView(\'analytics\')"><span class="nav-icon">▥</span> Аналитика</button>'
+          nav_add=nav_marker+'<button onclick="showView(\'mentor\')"><span class="nav-icon">🤖</span> AI-наставник</button>'
+          if nav_marker not in s: raise SystemExit('menu marker not found')
+          s=s.replace(nav_marker,nav_add,1)
+          view_marker='function analyticsView(){'
+          mentor='''function mentorView(){return `<div class="top"><div><h2>AI-наставник</h2><div class="muted">Задавай вопросы по продажам и получай помощь от AI.</div></div></div><div class="ai-mentor-card"><div class="ai-mentor-chat"><div id="mentorMessages" class="messages"><div class="msg client"><b>AI-наставник</b><br>Привет! Я готов помочь с вопросами по продажам, переговорам и работе с возражениями.</div></div><form class="composer" onsubmit="sendMentor(event)"><textarea id="mentorInput" rows="2" placeholder="Напиши вопрос наставнику..."></textarea><button class="primary" type="submit">Отправить</button></form></div></div>`}\nasync function sendMentor(e){e.preventDefault();const input=$("mentorInput"),text=input.value.trim();if(!text)return;const box=$("mentorMessages");box.innerHTML+=`<div class="msg manager">${esc(text)}</div>`;input.value="";box.innerHTML+=`<div id="mentorTyping" class="msg client">AI-наставник печатает...</div>`;box.scrollTop=box.scrollHeight;try{const {data,error}=await sb.functions.invoke("chat-client-v39",{body:{session_id:"mentor-"+state.user.id,scenario_id:"mentor",message:text,transcript:[],scenario:{title:"AI-наставник",client_role:"AI-наставник по продажам",client_mood:"помогающий",difficulty:"наставник",description:"Отвечай на вопросы менеджера по продажам, объясняй и давай практические рекомендации."}}});$("mentorTyping")?.remove();if(error)throw error;const reply=data?.reply||data?.message||"Не удалось получить ответ.";box.innerHTML+=`<div class="msg client"><b>AI-наставник</b><br>${esc(reply)}</div>`}catch(err){$("mentorTyping")?.remove();box.innerHTML+=`<div class="msg client">Не удалось получить ответ AI. Попробуй ещё раз.</div>`;console.error(err)}box.scrollTop=box.scrollHeight}\n'''
+          if view_marker not in s: raise SystemExit('analytics marker not found')
+          s=s.replace(view_marker,mentor+view_marker,1)
+          route_marker='if(view==="analytics")return analyticsView();'
+          route_add=route_marker+'if(view==="mentor")return mentorView();'
+          if route_marker not in s: raise SystemExit('route marker not found')
+          s=s.replace(route_marker,route_add,1)
+          p.write_text(s,encoding='utf-8')
+      - name: Commit
+        run: |
+          if git diff --quiet -- index.html; then echo 'No changes needed'; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'feat: enable AI mentor in main menu'
+          git push
