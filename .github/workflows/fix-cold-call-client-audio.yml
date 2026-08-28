@@ -1,0 +1,35 @@
+name: Fix cold call client audio
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch only cold call audio fallback
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old="""const originalCancel=nativeSpeechSynthesis.cancel.bind(nativeSpeechSynthesis);\n  nativeSpeechSynthesis.cancel=()=>{try{if(yandexAudio){yandexAudio.pause();yandexAudio.currentTime=0;yandexAudio=null}}catch{};yandexBusy=false;originalCancel()};"""
+          new="""const originalCancel=nativeSpeechSynthesis.cancel.bind(nativeSpeechSynthesis);\n  const originalSpeak=nativeSpeechSynthesis.speak.bind(nativeSpeechSynthesis);\n  nativeSpeechSynthesis.cancel=()=>{try{if(yandexAudio){yandexAudio.pause();yandexAudio.currentTime=0;yandexAudio=null}}catch{};yandexBusy=false;originalCancel()};"""
+          if old not in s: raise SystemExit('speechkit cancel block not found')
+          s=s.replace(old,new,1)
+          old="""      await yandexAudio.play();\n    }catch(e){\n      yandexBusy=false;console.error('Yandex SpeechKit TTS:',e);\n      try{utterance?.onerror?.({type:'error',error:e})}catch{}\n    }"""
+          new="""      try{await yandexAudio.play()}catch(playError){\n        console.warn('Yandex SpeechKit audio playback failed, using browser TTS fallback:',playError);\n        yandexBusy=false;\n        try{originalSpeak(utterance)}catch{}\n        return;\n      }\n    }catch(e){\n      yandexBusy=false;console.error('Yandex SpeechKit TTS:',e);\n      try{originalSpeak(utterance)}catch{}\n      try{utterance?.onerror?.({type:'error',error:e})}catch{}\n    }"""
+          if old not in s: raise SystemExit('speechkit play block not found')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: restore cold call client audio fallback'
+          git push
