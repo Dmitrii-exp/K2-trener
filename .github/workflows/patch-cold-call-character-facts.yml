@@ -1,0 +1,43 @@
+name: Add cold call character and client facts
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch only cold call character and facts UI/flow
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='function coldCallHome(){return `<div class="top"><div><h2>Холодный звонок</h2><div class="muted">Голосовая тренировка в режиме телефонного разговора</div></div></div><div class="card" style="max-width:900px;margin:auto"><h3>Выберите уровень сложности</h3><div class="grid" style="margin-top:18px"><div class="card"><h3>Средний</h3><p class="muted">Клиент более лоялен, идёт на контакт, слушает и задаёт вопросы.</p><button class="primary" onclick="startColdCall(\'Средний\')">☎ Начать</button></div><div class="card"><h3>Сложный</h3><p class="muted">Клиент менее охотно идёт на контакт и требует сильной аргументации.</p><button class="primary" onclick="startColdCall(\'Сложный\')">☎ Начать</button></div></div><p class="muted" style="margin-top:18px">Вы говорите первым. Лимит звонка — 10 минут.</p></div>`}'
+          new='function coldCallHome(){return `<div class="top"><div><h2>Холодный звонок</h2><div class="muted">Голосовая тренировка в режиме телефонного разговора</div></div></div><div class="card" style="max-width:900px;margin:auto"><h3>Настройка клиента</h3><div class="field" style="margin-top:14px"><label>Характер клиента</label><select id="coldCharacter"><option value="Лояльный">Лояльный</option><option value="Скептик">Скептик</option><option value="Грубит">Грубит</option><option value="Занятой">Занятой</option><option value="Аналитик">Аналитик</option></select></div><div class="field" style="margin-top:14px"><label>Факты о клиенте <span class="muted">(необязательно)</span></label><textarea id="coldFacts" rows="4" placeholder="Например: сейчас покупает у конкурента, нужен объём 100 шин, важна гарантия..."></textarea></div><h3 style="margin-top:22px">Выберите уровень сложности</h3><div class="grid" style="margin-top:18px"><div class="card"><h3>Средний</h3><p class="muted">Клиент более лоялен, идёт на контакт, слушает и задаёт вопросы.</p><button class="primary" onclick="startColdCall(\'Средний\')">☎ Начать</button></div><div class="card"><h3>Сложный</h3><p class="muted">Клиент менее охотно идёт на контакт и требует сильной аргументации.</p><button class="primary" onclick="startColdCall(\'Сложный\')">☎ Начать</button></div></div><p class="muted" style="margin-top:18px">Вы говорите первым. Лимит звонка — 10 минут.</p></div>`}'
+          if old not in s: raise SystemExit('coldCallHome pattern not found')
+          s=s.replace(old,new,1)
+          old='let coldCall={recognition:null,listening:false,silenceTimer:null,silenceNudged:false,startedAt:0,processing:false,difficulty:"Средний",timer:null};'
+          new='let coldCall={recognition:null,listening:false,silenceTimer:null,silenceNudged:false,startedAt:0,processing:false,difficulty:"Средний",timer:null,character:"Лояльный",facts:""};'
+          if old not in s: raise SystemExit('coldCall state pattern not found')
+          s=s.replace(old,new,1)
+          old='async function startColdCall(difficulty="Средний"){const s=coldCallScenario(difficulty);if(!s.id){toast("Сценарий «Холодный звонок» не найден в базе");return}const payload={employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:s.id,status:"started",transcript:[],voice_mode:true};'
+          new='async function startColdCall(difficulty="Средний"){const s=coldCallScenario(difficulty);if(!s.id){toast("Сценарий «Холодный звонок» не найден в базе");return}coldCall.character=$("coldCharacter")?.value||"Лояльный";coldCall.facts=$("coldFacts")?.value.trim()||"";const payload={employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:s.id,status:"started",transcript:[],voice_mode:true};'
+          if old not in s: raise SystemExit('startColdCall pattern not found')
+          s=s.replace(old,new,1)
+          old='body:JSON.stringify({session_id:state.session.id,scenario_id:state.session.scenario.id,message:opening?"":userMessage,opening,transcript:state.messages,scenario:state.session.scenario,difficulty:coldCall.difficulty})'
+          new='body:JSON.stringify({session_id:state.session.id,scenario_id:state.session.scenario.id,message:opening?"":userMessage,opening,transcript:state.messages,scenario:state.session.scenario,difficulty:coldCall.difficulty,client_character:coldCall.character,client_facts:coldCall.facts})'
+          if old not in s: raise SystemExit('chat payload pattern not found')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+      - name: Commit
+        run: |
+          if git diff --quiet -- index.html; then echo 'No changes needed'; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'feat: add cold call client character and facts'
+          git push
