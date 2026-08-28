@@ -50,6 +50,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
   let yandexAudio=null;
   let yandexBusy=false;
   const originalCancel=nativeSpeechSynthesis.cancel.bind(nativeSpeechSynthesis);
+  const originalSpeak=nativeSpeechSynthesis.speak.bind(nativeSpeechSynthesis);
   nativeSpeechSynthesis.cancel=()=>{try{if(yandexAudio){yandexAudio.pause();yandexAudio.currentTime=0;yandexAudio=null}}catch{};yandexBusy=false;originalCancel()};
   nativeSpeechSynthesis.speak=async(utterance)=>{
     const text=String(utterance?.text||'').trim();
@@ -63,9 +64,15 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
       yandexAudio=new Audio(URL.createObjectURL(new Blob([bytes],{type:data?.mime||'audio/wav'})));
       yandexAudio.onended=()=>{yandexBusy=false;try{utterance?.onend?.({type:'end'})}catch{}};
       yandexAudio.onerror=()=>{yandexBusy=false;try{utterance?.onerror?.({type:'error'})}catch{}};
-      await yandexAudio.play();
+      try{await yandexAudio.play()}catch(playError){
+        console.warn('Yandex SpeechKit audio playback failed, using browser TTS fallback:',playError);
+        yandexBusy=false;
+        try{originalSpeak(utterance)}catch{}
+        return;
+      }
     }catch(e){
       yandexBusy=false;console.error('Yandex SpeechKit TTS:',e);
+      try{originalSpeak(utterance)}catch{}
       try{utterance?.onerror?.({type:'error',error:e})}catch{}
     }
   };
