@@ -114,7 +114,7 @@ function trainingCallPage(){const p=$("page");if(!p||!state.session)return;if(co
 async function speakCallClient(text){
   if(!text)return;
   try{
-    const {data,error}=await sb.functions.invoke('yandex-tts',{body:{text,voice:'marina',role:'friendly',speed:0.96,pitch_shift:0}});
+    const {data,error}=await sb.functions.invoke('yandex-tts',{body:{text,voice:(document.getElementById('coldVoice')?.value||'marina'),role:'friendly',speed:0.96,pitch_shift:0}});
     if(error)throw error;
     if(!data?.audio_base64)throw new Error(data?.error||'Yandex TTS returned no audio');
     const bin=atob(data.audio_base64),bytes=new Uint8Array(bin.length);
