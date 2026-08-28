@@ -19,7 +19,7 @@ jobs:
           from pathlib import Path
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          fixed = s.replace('\\\\n', '\\n')
+          fixed = s.replace(r'\n', '\n')
           if fixed != s:
               p.write_text(fixed, encoding='utf-8')
           else:
