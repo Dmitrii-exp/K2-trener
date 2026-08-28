@@ -14,41 +14,29 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
           changed=False
-          old="voice:'marina'"
-          new="voice:(window.coldCall?.voice||'marina')"
-          if old in s:
-              s=s.replace(old,new,1)
-              changed=True
-          marker='<div class="field" style="margin-top:14px"><label>Факты о клиенте <span class="muted">(необязательно)</span></label>'
+          for old,new in [("voice:'marina'","voice:(document.getElementById('coldVoice')?.value||'marina')"),("voice:\"marina\"","voice:(document.getElementById('coldVoice')?.value||'marina')")]:
+              if old in s:
+                  s=s.replace(old,new,1); changed=True; break
           voice_field='<div class="field" style="margin-top:14px"><label>Голос клиента</label><select id="coldVoice"><option value="filipp">Филипп — мужской</option><option value="ermil">Ермил — мужской</option><option value="zahar">Захар — мужской</option><option value="alexander">Александр — мужской</option><option value="kirill">Кирилл — мужской</option><option value="anton">Антон — мужской</option></select></div>'
           if 'id="coldVoice"' not in s:
-              if marker not in s: raise SystemExit('cold facts marker not found')
-              s=s.replace(marker,voice_field+marker,1)
+              m=re.search(r'(<select id="coldCharacter"[\s\S]*?</select>)',s,flags=re.S)
+              if not m: raise SystemExit('coldCharacter selector not found')
+              s=s[:m.end()]+voice_field+s[m.end():]
               changed=True
-          old_state='let coldCall={recognition:null,listening:false,silenceTimer:null,silenceNudged:false,startedAt:0,processing:false,difficulty:"Средний",timer:null,character:"Лояльный",facts:""};'
-          new_state='let coldCall={recognition:null,listening:false,silenceTimer:null,silenceNudged:false,startedAt:0,processing:false,difficulty:"Средний",timer:null,character:"Лояльный",facts:"",voice:"filipp"};'
-          if old_state in s:
-              s=s.replace(old_state,new_state,1)
-              changed=True
-          old_start='coldCall.character=$("coldCharacter")?.value||"Лояльный";coldCall.facts=$("coldFacts")?.value.trim()||"";'
-          new_start='coldCall.character=$("coldCharacter")?.value||"Лояльный";coldCall.facts=$("coldFacts")?.value.trim()||"";coldCall.voice=$("coldVoice")?.value||"filipp";'
-          if old_start in s and 'coldCall.voice=$("coldVoice")' not in s:
-              s=s.replace(old_start,new_start,1)
-              changed=True
-          if not changed:
-              raise SystemExit('No target changes found')
+          if not changed: raise SystemExit('No target changes found')
           p.write_text(s,encoding='utf-8')
       - name: Validate and commit
         run: |
           python - <<'PY'
           from pathlib import Path
           s=Path('index.html').read_text(encoding='utf-8')
-          required=['id="coldVoice"','coldCall.voice=$("coldVoice")?.value||"filipp"','voice:(window.coldCall?.voice||\'marina\')']
-          missing=[x for x in required if x not in s]
-          if missing: raise SystemExit('Missing: '+', '.join(missing))
+          for x in ['id="coldVoice"','Филипп — мужской','Ермил — мужской','Захар — мужской']:
+              if x not in s: raise SystemExit('Missing: '+x)
+          if 'document.getElementById(\'coldVoice\')?.value' not in s: raise SystemExit('Voice selection is not connected')
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
