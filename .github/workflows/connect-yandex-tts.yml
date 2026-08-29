@@ -10,34 +10,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Connect SpeechKit TTS without changing call logic
+      - name: Wire employee invitation registration
         shell: python
         run: |
           from pathlib import Path
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          marker='/* YANDEX_SPEECHKIT_TTS_V1 */'
-          if marker in s:
-              print('Yandex SpeechKit TTS already connected')
-              raise SystemExit(0)
-          patch=r'''\n/* YANDEX_SPEECHKIT_TTS_V1 */\n(()=>{\n  const nativeSpeechSynthesis=window.speechSynthesis;\n  if(!nativeSpeechSynthesis||!window.supabase)return;\n  let yandexAudio=null;\n  let yandexBusy=false;\n  const originalCancel=nativeSpeechSynthesis.cancel.bind(nativeSpeechSynthesis);\n  nativeSpeechSynthesis.cancel=()=>{try{if(yandexAudio){yandexAudio.pause();yandexAudio.currentTime=0;yandexAudio=null}}catch{};yandexBusy=false;originalCancel()};\n  nativeSpeechSynthesis.speak=async(utterance)=>{\n    const text=String(utterance?.text||'').trim();\n    if(!text)return;\n    try{utterance?.onstart?.({type:'start'});yandexBusy=true;\n      const {data,error}=await sb.functions.invoke('yandex-tts',{body:{text,voice:'marina',role:'friendly',speed:0.96,pitchShift:0}});\n      if(error)throw error;\n      const b64=data?.audio_base64;if(!b64)throw new Error('Yandex TTS returned no audio');\n      const bin=atob(b64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);\n      if(yandexAudio){try{yandexAudio.pause()}catch{}}\n      yandexAudio=new Audio(URL.createObjectURL(new Blob([bytes],{type:data?.mime||'audio/wav'})));\n      yandexAudio.onended=()=>{yandexBusy=false;try{utterance?.onend?.({type:'end'})}catch{}};\n      yandexAudio.onerror=()=>{yandexBusy=false;try{utterance?.onerror?.({type:'error'})}catch{}};\n      await yandexAudio.play();\n    }catch(e){\n      yandexBusy=false;console.error('Yandex SpeechKit TTS:',e);\n      try{utterance?.onerror?.({type:'error',error:e})}catch{}\n    }\n  };\n})();\n'''
-          anchor='const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);'
-          if anchor not in s: raise SystemExit('Supabase client anchor not found')
-          s=s.replace(anchor,anchor+patch,1)
-          p.write_text(s,encoding='utf-8')
-      - name: Validate patch
+          tag='<script src="/auth-invite.js"></script>'
+          if tag not in s:
+              anchor='</body>'
+              if anchor not in s: raise SystemExit('body anchor not found')
+              s=s.replace(anchor,tag+anchor,1)
+              p.write_text(s,encoding='utf-8')
+      - name: Validate
         shell: python
         run: |
           from pathlib import Path
           s=Path('index.html').read_text(encoding='utf-8')
-          assert 'YANDEX_SPEECHKIT_TTS_V1' in s
-          assert "sb.functions.invoke('yandex-tts'" in s
-          print('Yandex SpeechKit TTS wiring present')
+          assert '<script src="/auth-invite.js"></script>' in s
+          assert Path('auth-invite.js').exists()
+          print('Employee invitation registration wiring present')
       - name: Commit
         run: |
           if git diff --quiet -- index.html; then echo 'No changes needed'; exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git commit -m 'feat: connect Yandex SpeechKit TTS to cold call'
+          git commit -m 'feat: wire employee invitation registration'
           git push
