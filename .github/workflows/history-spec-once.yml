@@ -1,0 +1,44 @@
+name: isolated history report
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply history-only layer
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          marker='/* HISTORY_SPEC_FINAL_V1 */'
+          if marker in s: raise SystemExit('already patched')
+          s=s.replace('else if(state.view==="history")setPageHTML(p,historyPage());','else if(state.view==="history")setPageHTML(p,window.historyPage());',1)
+          block=r'''<script>
+/* HISTORY_SPEC_FINAL_V1 */
+(()=>{
+const score=v=>Math.max(1,Math.min(20,Math.round(Number(v)||1)));
+window.showTrainingReport=async id=>{const q=await sb.from('saletrening_sessions').select('id,employee_id,scenario_id,status,total_score,ai_summary,transcript,created_at,completed_at').eq('id',id).single();if(q.error){toast(q.error.message);return}const z=await sb.from('session_scores').select('*').eq('session_id',id).maybeSingle();state.report={session:q.data,score:z.data||{}};page()};
+window.reportPage=()=>{const r=state.report||{},x=r.session||{},s=r.score||{},a=[['Работа с возражениями',score(s.objection_score)],['Презентация продукта',score(s.value_score)],['Дожим / закрытие сделки',score(s.closing_score)],['Вовлечённость клиента в разговор',score(s.communication_score)],['Выявление потребности',score(s.discovery_score)]];const total=a.reduce((n,v)=>n+v[1],0),list=k=>Array.isArray(s[k])&&s[k].length?'<ul>'+s[k].map(v=>'<li>'+esc(v)+'</li>').join('')+'</ul>':'<div class="muted">Нет данных.</div>',tr=Array.isArray(x.transcript)?x.transcript:[];return `<div class="top"><div><h2>Отчёт тренировки</h2><div class="muted">${esc(new Date(x.created_at).toLocaleString('ru-RU'))}</div></div><button class="secondary" onclick="state.report=null;page()">← История</button></div><div class="card" style="text-align:center;padding:28px"><div class="muted">Общий балл</div><div class="metric" style="font-size:54px">${total}<span style="font-size:18px;color:var(--muted)"> / 100</span></div></div><div class="section card"><h3>Оценка навыков</h3>${a.map(v=>`<div style="margin:18px 0"><div style="display:flex;justify-content:space-between"><span>${v[0]}</span><b>${v[1]} / 20</b></div><div class="bar" style="margin-top:8px"><i style="width:${v[1]*5}%"></i></div></div>`).join('')}</div><div class="section card"><h3>Анализ тренировки</h3><div style="margin-top:16px"><b>🟢 Сильные стороны</b>${list('strengths')}</div><div style="margin-top:20px"><b>🔴 Слабые стороны</b>${list('weaknesses')}</div><div style="margin-top:20px"><b>💡 Рекомендации</b>${list('recommendations')}</div>${x.ai_summary?`<p class="muted" style="margin-top:20px">${esc(x.ai_summary)}</p>`:''}</div><div class="section card"><h3>Полный диалог менеджера и клиента</h3><div class="messages" style="margin-top:14px;max-height:none">${tr.length?tr.map(m=>`<div class="msg ${m.speaker==='manager'?'manager':'client'}"><b>${m.speaker==='manager'?'Менеджер':'Клиент'}:</b> ${esc(m.content||'')}</div>`).join(''):'<div class="empty">Диалог не сохранён.</div>'}</div></div>`};
+const old=window.historyPage;window.historyPage=async()=>{const q=await sb.from('saletrening_sessions').select('id,employee_id,scenario_id,status,total_score,ai_summary,created_at,completed_at').eq('employee_id',state.user.id).order('created_at',{ascending:false}).limit(100),rows=q.data||[],names={};state.scenarios.forEach(v=>names[v.id]=v.title);let sm={};if(rows.length){const z=await sb.from('session_scores').select('session_id,strengths,weaknesses').in('session_id',rows.map(v=>v.id));(z.data||[]).forEach(v=>sm[v.session_id]=v)}return `<div class="top"><div><h2>История тренировок</h2><div class="muted">Нажмите на тренировку, чтобы открыть полный отчёт</div></div></div><div class="card" style="padding:0;overflow:hidden">${rows.length?`<table class="table"><thead><tr><th>Дата</th><th>Менеджер</th><th>Сценарий</th><th>Статус</th><th>Балл</th><th>Отчёт</th></tr></thead><tbody>${rows.map(x=>{let z=sm[x.id]||{};return `<tr onclick="showTrainingReport('${x.id}')" style="cursor:pointer"><td>${new Date(x.created_at).toLocaleString('ru-RU')}</td><td>${esc(state.profile.first_name||state.user.email)}</td><td>${esc(names[x.scenario_id]||'Тренировка')}</td><td>${x.status==='completed'?'Завершена':'В процессе'}</td><td><b>${x.total_score??'—'}</b></td><td><div><b>Хорошо:</b> ${Array.isArray(z.strengths)?z.strengths.slice(0,2).map(esc).join(' · '):'—'}</div><div style="margin-top:4px"><b>Плохо:</b> ${Array.isArray(z.weaknesses)?z.weaknesses.slice(0,2).map(esc).join(' · '):'—'}</div></td></tr>`}).join('')}</tbody></table>`:'<div class="empty">История пока пуста.</div>'}</div>`};
+const op=window.page;window.page=function(){if(state.report){setPageHTML($('page'),reportPage());return}return op.apply(this,arguments)};
+})();
+</script>
+'''
+          s=s.replace('</body>',block+'</body>',1)
+          p.write_text(s,encoding='utf-8')
+      - name: Commit and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "fix: implement exact training history report [skip ci]"
+          git rm .github/workflows/history-spec-once.yml
+          git commit -m "chore: remove temporary history workflow [skip ci]"
+          git push
