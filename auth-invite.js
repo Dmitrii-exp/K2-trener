@@ -1,5 +1,5 @@
 /* COMPANY_INVITE_EMAIL_V1 */
-/* TRIGGER_INVITATION_WIRING_V2 */
+/* TRIGGER_INVITATION_WIRING_V3 */
 (function(){
   const qs=new URLSearchParams(location.search);
   const token=qs.get('invite')||localStorage.getItem('saletrening_invite_token')||'';
