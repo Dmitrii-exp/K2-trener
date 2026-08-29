@@ -1,11 +1,27 @@
 /* COMPANY_INVITE_EMAIL_V1 */
-/* TRIGGER_INVITATION_WIRING_V4 */
+/* TRIGGER_INVITATION_WIRING_V5 */
 (function(){
   const qs=new URLSearchParams(location.search);
   const token=qs.get('invite')||localStorage.getItem('saletrening_invite_token')||'';
   const invitedEmail=(qs.get('email')||'').trim().toLowerCase();
   const inviteFlow=qs.get('type')==='invite'&&!!token;
+
+  window.createCompanyInvitation=async function(){
+    if(!state?.user||!state?.profile){toast('Профиль ещё загружается. Обновите страницу через секунду.');return}
+    if(!state.profile.company_id||!['director','admin','manager'].includes(state.profile.role)){toast('Нет прав для приглашения сотрудников');return}
+    const email=document.getElementById('inviteEmail')?.value.trim().toLowerCase();
+    const role=document.getElementById('inviteRole')?.value||'employee';
+    if(!email){toast('Укажи email сотрудника');return}
+    const {data,error}=await sb.functions.invoke('send-company-invitation',{body:{email,role,origin:location.origin}});
+    if(error){toast(error.message||'Не удалось отправить приглашение');return}
+    if(data?.error){toast(data.error);return}
+    const out=document.getElementById('inviteResult');
+    if(out)out.innerHTML=`<div class="card" style="margin-top:14px;background:#faf9ff"><b>Приглашение отправлено</b><div class="muted" style="margin-top:6px">Письмо с приглашением автоматически отправлено на ${esc(email)}. Срок действия — 7 дней.</div></div>`;
+    if(document.getElementById('inviteEmail'))document.getElementById('inviteEmail').value='';
+  };
+
   if(!inviteFlow)return;
+
   const originalBoot=window.boot;
   function showRegistration(email){
     const safe=esc(String(email||''));
@@ -20,19 +36,6 @@
     const {data,error}=await sb.auth.updateUser({password,data:{first_name:first}});
     if(error){toast(error.message);return}
     try{await acceptPendingInvitation(data?.user?.id);await originalBoot(data.user)}catch(e){console.error('completeInviteRegistration:',e);toast(e.message||'Не удалось принять приглашение')}
-  };
-  window.createCompanyInvitation=async function(){
-    if(!state?.user||!state?.profile){toast('Профиль ещё загружается. Обновите страницу через секунду.');return}
-    if(!state.profile.company_id||!['director','admin','manager'].includes(state.profile.role)){toast('Нет прав для приглашения сотрудников');return}
-    const email=document.getElementById('inviteEmail')?.value.trim().toLowerCase();
-    const role=document.getElementById('inviteRole')?.value||'employee';
-    if(!email){toast('Укажи email сотрудника');return}
-    const {data,error}=await sb.functions.invoke('send-company-invitation',{body:{email,role,origin:location.origin}});
-    if(error){toast(error.message||'Не удалось отправить приглашение');return}
-    if(data?.error){toast(data.error);return}
-    const out=document.getElementById('inviteResult');
-    if(out)out.innerHTML=`<div class="card" style="margin-top:14px;background:#faf9ff"><b>Приглашение отправлено</b><div class="muted" style="margin-top:6px">Письмо с приглашением автоматически отправлено на ${esc(email)}. Срок действия — 7 дней.</div></div>`;
-    if(document.getElementById('inviteEmail'))document.getElementById('inviteEmail').value='';
   };
   window.boot=async function(user){
     const sessionEmail=String(user?.email||'').trim().toLowerCase();
