@@ -10,6 +10,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Repair training runtime wrappers
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          s=re.sub(r'(</style>\s*<script>\s*)+</style>\s*<script>\s*',r'\1',s,flags=re.I)
+          s=re.sub(r'(</script>\s*<style>\s*)+</script>\s*<style>\s*',r'\1',s,flags=re.I)
+          marker='async function startTraining'
+          styles=list(re.finditer(r'<style[^>]*>(.*?)</style>',s,flags=re.S|re.I))
+          containing=next((m for m in styles if marker in m.group(1)),None)
+          if containing:
+              block=containing.group(1)
+              css_marker='/* COLD_CALL_MODE_V1 */'
+              if css_marker not in block: raise SystemExit('training runtime/CSS boundary not found')
+              split=block.index(css_marker)
+              js=block[:split].strip();css=block[split:].strip()
+              open_end=s.index('>',containing.start())+1
+              close_start=containing.end()-len('</style>')
+              s=s[:containing.start()]+s[containing.start():open_end]+'\n'+css+'\n</style>\n<script>\n'+js+'\n</script>'+s[close_start+len('</style>'):]
+          s=re.sub(r'(</style>\s*<script>\s*)+</style>\s*<script>\s*',r'\1',s,flags=re.I)
+          s=re.sub(r'(</script>\s*<style>\s*)+</script>\s*<style>\s*',r'\1',s,flags=re.I)
+          p.write_text(s,encoding='utf-8')
       - name: Patch only speech output
         shell: python
         run: |
@@ -20,7 +44,6 @@ jobs:
           if '/* YANDEX_TTS_V1 */' in s:
               print('Yandex TTS already connected')
               raise SystemExit(0)
-
           old_call=re.compile(r'function speakCallClient\(text\)\{.*?\n\}', re.S)
           new_call='''/* YANDEX_TTS_V1 */
 async function speakYandexTTS(text,onEnd){
@@ -47,7 +70,6 @@ function speakCallClient(text){if(!text)return;speakYandexTTS(text,()=>{if(state
           s2,n=old_call.subn(new_call,s,count=1)
           if n!=1: raise SystemExit('speakCallClient pattern not found')
           s=s2
-
           old_client=re.compile(r'function speakClient\(text\)\{.*?\n\}', re.S)
           new_client='''function speakClient(text){if(!text)return;speakYandexTTS(text)}'''
           s2,n=old_client.subn(new_client,s,count=1)
@@ -60,5 +82,5 @@ function speakCallClient(text){if(!text)return;speakYandexTTS(text,()=>{if(state
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git commit -m 'feat: connect cold call to Yandex SpeechKit TTS'
+          git commit -m 'fix: normalize executable training runtime'
           git push
