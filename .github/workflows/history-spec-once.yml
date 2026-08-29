@@ -42,3 +42,4 @@ const op=window.page;window.page=function(){if(state.report){setPageHTML($('page
           git rm .github/workflows/history-spec-once.yml
           git commit -m "chore: remove temporary history workflow [skip ci]"
           git push
+# trigger isolated history patch
