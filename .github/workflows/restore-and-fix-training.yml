@@ -23,10 +23,12 @@ jobs:
           base=subprocess.check_output(['git','show','739d668b4aa2529a6c4a5520d9f63da6776333ec:index.html'],text=True)
           names=['startTraining','trainingChat','saveSession','aiClientReply','speakClient','sendMessage','finishTraining','voiceInput','logout','startVoiceListening','toggleVoice','sendVoiceTurn','setCallStatus']
           blocks=[]
+          boundary=r'(?=\n(?:async\s+)?function\s+|\nlet\s+coldCall\s*=|\nsb\.auth\.onAuthStateChange|\n\(async\(\)=>)'
           for name in names:
-              m=re.search(r'((?:async\s+)?function\s+'+re.escape(name)+r'\s*\([^\n]*\)\s*\{.*?\n\})',base,re.S)
+              pattern=r'((?:async\s+)?function\s+'+re.escape(name)+r'\s*\([^\n]*\)\s*\{[\s\S]*?)'+boundary
+              m=re.search(pattern,base)
               if not m: raise SystemExit(f'missing base function: {name}')
-              blocks.append(m.group(1))
+              blocks.append(m.group(1).rstrip())
           marker='/* COLD_CALL_MODE_V1 */'
           idx=target.find(marker)
           if idx<0: raise SystemExit('training marker not found')
