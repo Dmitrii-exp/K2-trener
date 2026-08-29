@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fix malformed cold-call separators and history report layer
+      - name: Fix malformed cold-call separators and history report layer (exact spec)
         shell: python
         run: |
           from pathlib import Path
