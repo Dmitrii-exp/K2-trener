@@ -1,0 +1,65 @@
+name: Repair training runtime final
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Normalize training script and style wrappers
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          # Collapse all accidental duplicate style/script wrappers.
+          s = re.sub(r'(</style>\s*<script>\s*)+</style>\s*<script>\s*', r'\1', s, flags=re.I)
+          s = re.sub(r'(</script>\s*<style>\s*)+</script>\s*<style>\s*', r'\1', s, flags=re.I)
+          marker = 'async function startTraining'
+          styles = list(re.finditer(r'<style[^>]*>(.*?)</style>', s, flags=re.S|re.I))
+          containing = next((m for m in styles if marker in m.group(1)), None)
+          if containing:
+              block = containing.group(1)
+              css_marker = '/* COLD_CALL_MODE_V1 */'
+              if css_marker not in block:
+                  raise SystemExit('training runtime/CSS boundary not found')
+              split = block.index(css_marker)
+              js = block[:split].strip()
+              css = block[split:].strip()
+              open_end = s.index('>', containing.start()) + 1
+              close_start = containing.end() - len('</style>')
+              s = s[:containing.start()] + s[containing.start():open_end] + '\n' + css + '\n</style>\n<script>\n' + js + '\n</script>' + s[close_start + len('</style>'):]
+          # Final cleanup.
+          s = re.sub(r'(</style>\s*<script>\s*)+</style>\s*<script>\s*', r'\1', s, flags=re.I)
+          s = re.sub(r'(</script>\s*<style>\s*)+</script>\s*<style>\s*', r'\1', s, flags=re.I)
+          p.write_text(s, encoding='utf-8')
+      - name: Validate
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          t = Path('index.html').read_text(encoding='utf-8')
+          styles = re.findall(r'<style[^>]*>(.*?)</style>', t, flags=re.S|re.I)
+          scripts = re.findall(r'<script[^>]*>(.*?)</script>', t, flags=re.S|re.I)
+          assert not any('async function startTraining' in x for x in styles), 'training JS is inside CSS'
+          assert any('async function startTraining' in x for x in scripts), 'training JS missing from script'
+          assert '.call-shell' in t, 'cold-call CSS missing'
+          assert t.count('<style') == len(re.findall(r'</style>', t, flags=re.I)), 'style tags unbalanced'
+          assert t.count('<script') == len(re.findall(r'</script>', t, flags=re.I)), 'script tags unbalanced'
+          print('FINAL TRAINING RUNTIME VALID')
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: normalize executable training runtime'
+          git push
