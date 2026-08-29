@@ -1,0 +1,37 @@
+name: Fix invite button click
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch invite button only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='onclick="toggleInviteBox()">Пригласить сотрудника</button>'
+          new='onclick="var b=document.getElementById(\'inviteBox\');if(b){b.classList.toggle(\'hidden\');if(!b.classList.contains(\'hidden\')){setTimeout(function(){var e=document.getElementById(\'inviteEmail\');if(e)e.focus()},50)}}else{toast(\'Не найден блок приглашения\')}" >Пригласить сотрудника</button>'
+          if old not in s:
+              raise SystemExit('invite button pattern not found')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Validate
+        run: |
+          grep -q "getElementById('inviteBox')" index.html
+          grep -q "Пригласить сотрудника" index.html
+      - name: Commit and remove workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git rm .github/workflows/zz-fix-invite-click.yml
+          git commit -m 'fix: make invite button click independent of handler scope [skip ci]'
+          git push
