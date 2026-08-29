@@ -22,7 +22,7 @@ jobs:
               print('Invitation auth already applied')
               raise SystemExit(0)
 
-          auth=re.compile(r'function authScreen\(\)\{.*?\n\}\nasync function signUp\(\)',re.S)
+          auth=re.compile(r'function authScreen\(\)\{.*?\}\s*async function signUp\(\)',re.S)
           new_auth=r'''function authScreen(){
             const invite=new URLSearchParams(location.search).get("invite")||localStorage.getItem("saletrening_invite_token")||"";
             const hasInvite=!!invite;
@@ -33,7 +33,7 @@ jobs:
           if not auth.search(s): raise SystemExit('authScreen/signUp block not found')
           s=auth.sub(new_auth,s,count=1)
 
-          signup=re.compile(r'async function signUp\(\)\{.*?\n\}\nasync function signIn\(\)',re.S)
+          signup=re.compile(r'async function signUp\(\)\{.*?\}\s*async function signIn\(\)',re.S)
           new_signup=r'''async function signUp(){
             const email=$("email").value.trim().toLowerCase(),password=$("pass").value,first=$("first").value.trim(),company=$("company")?.value.trim()||"";
             const invite=new URLSearchParams(location.search).get("invite")||localStorage.getItem("saletrening_invite_token")||"";
@@ -47,7 +47,7 @@ jobs:
           if not signup.search(s): raise SystemExit('signUp/signIn block not found')
           s=signup.sub(new_signup,s,count=1)
 
-          boot=re.compile(r'async function boot\(user\)\{.*?\n\}\nasync function loadAll\(\)',re.S)
+          boot=re.compile(r'async function boot\(user\)\{.*?\}\s*async function loadAll\(\)',re.S)
           new_boot=r'''async function acceptPendingInvitation(userId){
             const token=new URLSearchParams(location.search).get("invite")||localStorage.getItem("saletrening_invite_token")||"";
             if(!token)return null;
@@ -78,7 +78,7 @@ jobs:
           if not boot.search(s): raise SystemExit('boot/loadAll block not found')
           s=boot.sub(new_boot,s,count=1)
 
-          team=re.compile(r'function team\(\)\{.*?\n\}\nfunction avgSkill\(',re.S)
+          team=re.compile(r'function team\(\)\{.*?\}\s*function avgSkill\(',re.S)
           new_team=r'''async function createCompanyInvitation(){
             if(!state.profile?.company_id||!["director","admin","manager"].includes(state.profile.role)){toast("Нет прав для приглашения сотрудников");return}
             const email=$("inviteEmail")?.value.trim().toLowerCase();
@@ -99,7 +99,6 @@ jobs:
           if not team.search(s): raise SystemExit('team/avgSkill block not found')
           s=team.sub(new_team,s,count=1)
 
-          if marker in s: raise SystemExit('marker unexpectedly present')
           s=s.replace('</script>',marker+'\n</script>',1)
           p.write_text(s,encoding='utf-8')
       - name: Validate
