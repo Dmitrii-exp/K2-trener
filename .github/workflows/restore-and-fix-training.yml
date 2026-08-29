@@ -1,0 +1,52 @@
+name: Restore and fix training runtime
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore known-good index and training runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show e13b86e71c0cca99e004c7e5c78e0333abee772a:index.html > index.html
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess
+          target=Path('index.html').read_text(encoding='utf-8')
+          base=subprocess.check_output(['git','show','739d668b4aa2529a6c4a5520d9f63da6776333ec:index.html'],text=True)
+          names=['startTraining','trainingChat','saveSession','aiClientReply','speakClient','sendMessage','finishTraining','voiceInput','logout','startVoiceListening','toggleVoice','sendVoiceTurn','setCallStatus']
+          blocks=[]
+          for name in names:
+              m=re.search(r'((?:async\s+)?function\s+'+re.escape(name)+r'\s*\([^\n]*\)\s*\{.*?\n\})',base,re.S)
+              if not m: raise SystemExit(f'missing base function: {name}')
+              blocks.append(m.group(1))
+          marker='/* COLD_CALL_MODE_V1 */'
+          idx=target.find(marker)
+          if idx<0: raise SystemExit('training marker not found')
+          target=target[:idx]+'\n'.join(blocks)+'\n'+target[idx:]
+          Path('index.html').write_text(target,encoding='utf-8')
+          PY
+      - name: Validate JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/app.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/app.js
+      - name: Commit repaired index
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: restore training runtime without changing auth or design'
+          git push
