@@ -1,0 +1,64 @@
+name: Fix training runtime layout
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Move training runtime JavaScript out of CSS
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          text = p.read_text(encoding='utf-8')
+          marker = 'async function startTraining'
+          css_marker = '/* COLD_CALL_MODE_V1 */'
+          if marker not in text:
+              raise SystemExit('training runtime marker not found')
+          start = text.index(marker)
+          style_end = text.index('</style>', start)
+          block = text[start:style_end]
+          if css_marker not in block:
+              raise SystemExit('cold-call CSS marker not found')
+          split = block.index(css_marker)
+          js = block[:split].rstrip()
+          css = block[split:].strip()
+          prefix = text[:start]
+          suffix = text[style_end + len('</style>'):]
+          fixed = prefix + '</style>\n<script>\n' + js + '\n</script>\n<style>\n' + css + '\n</style>' + suffix
+          if fixed == text:
+              raise SystemExit('no change produced')
+          p.write_text(fixed, encoding='utf-8')
+
+      - name: Verify JavaScript is outside style
+        shell: python
+        run: |
+          from pathlib import Path
+          t = Path('index.html').read_text(encoding='utf-8')
+          style_start = t.index('<style>')
+          style_end = t.index('</style>', style_start)
+          css = t[style_start:style_end]
+          if 'async function startTraining' in css:
+              raise SystemExit('startTraining is still inside style')
+          if '.call-shell' not in css:
+              raise SystemExit('cold-call CSS was lost')
+          if '<script>\nasync function startTraining' not in t:
+              raise SystemExit('training runtime script was not created')
+          print('training runtime layout verified')
+
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: restore executable training runtime'
+          git push
