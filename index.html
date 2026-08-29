@@ -35,6 +35,8 @@ h1{font-size:34px;line-height:1.08;margin:26px 0 9px}.sub{color:var(--muted);lin
 
 </style>
 <script>
+</style>
+<script>
 async function startTraining(id){const s=state.scenarios.find(x=>x.id===id);if(!s)return;const {data,error}=await sb.from("saletrening_sessions").insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:id,status:"started",transcript:[],voice_mode:false}).select().single();if(error){toast(error.message);return}state.session={...data,scenario:s};state.messages=[];await saveSession();state.view="training";trainingChat();try{const opening=await aiClientReply("",true);state.messages.push({speaker:"client",content:opening});await saveSession();trainingChat();speakClient(opening)}catch(e){console.error("chat-client opening:",e);trainingChat();toast("Не удалось получить первую реплику AI-клиента: "+(e.message||"ошибка"))}}
 function trainingChat(){const p=$("page");if(!p)return;p.innerHTML=`<div class="top"><div><h2>${esc(state.session.scenario.title)}</h2><div class="muted">${esc(state.session.scenario.client_role||"Клиент")} · ${esc(state.session.scenario.difficulty||"Средняя")}</div></div><button class="secondary" onclick="finishTraining()">Завершить и оценить</button></div><div class="chat"><div id="messages" class="messages">${state.messages.map(m=>`<div class="msg ${m.speaker}"><b>${m.speaker==="client"?"Клиент":"Вы"}:</b> ${esc(m.content)}</div>`).join("")}</div><div class="composer"><button class="voice" onclick="voiceInput()" title="Голосовой ввод">🎙️</button><textarea id="msg" rows="2" placeholder="Ответьте клиенту..."></textarea><button class="primary" onclick="sendMessage()">Отправить</button></div></div>`;const messages=$("messages");if(messages)messages.scrollTop=messages.scrollHeight}
 async function saveSession(){if(!state.session)return;const {error}=await sb.from("saletrening_sessions").update({transcript:state.messages,updated_at:new Date().toISOString()}).eq("id",state.session.id).eq("employee_id",state.user.id);if(error)console.error("saveSession:",error)}
@@ -57,6 +59,8 @@ async function sendVoiceTurn(text){if(coldCall.processing||!state.session)return
 function setCallStatus(text,pulse){const el=$("callStatus");if(el){el.textContent=text;el.classList.toggle("call-pulse",!!pulse)}}
 
 function setCallStatus(text,pulse){const el=$("callStatus");if(el){el.textContent=text;el.classList.toggle("call-pulse",!!pulse)}}
+</script>
+<style>
 </script>
 <style>
 /* COLD_CALL_MODE_V1 */
