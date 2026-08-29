@@ -13,42 +13,55 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fix malformed cold-call separators
+      - name: Repair training runtime placement safely
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          old = r'\n/* COLD_CALL_MODE_V1 */\n'
-          new = '\n/* COLD_CALL_MODE_V1 */\n'
-          if old in s:
-              s = s.replace(old, new)
+
+          # Clean duplicate wrappers produced by earlier repair attempts.
+          s = s.replace('</style>\n<script>\n</style>\n<script>\n', '</style>\n<script>\n')
+          s = s.replace('</script>\n<style>\n</script>\n<style>\n', '</script>\n<style>\n')
+
+          marker = 'async function startTraining'
+          if marker not in s:
+              raise SystemExit('training runtime marker not found')
+
+          # Only move the runtime when it is actually inside a <style> block.
+          styles = list(re.finditer(r'<style[^>]*>(.*?)</style>', s, flags=re.S|re.I))
+          containing = None
+          for m in styles:
+              if marker in m.group(1):
+                  containing = m
+                  break
+
+          if containing:
+              style_start, style_end = containing.span(1)
+              block = containing.group(1)
+              css_marker = '/* COLD_CALL_MODE_V1 */'
+              if css_marker not in block:
+                  raise SystemExit('cold-call CSS marker not found')
+              split = block.index(css_marker)
+              js = block[:split].rstrip()
+              css = block[split:].strip()
+              fixed = s[:style_start] + '\n' + s[style_start:style_end].replace(block, '')
+              # Rebuild exactly around the original style block boundaries.
+              open_tag_end = s.index('>', containing.start()) + 1
+              close_tag_start = containing.end() - len('</style>')
+              prefix = s[:containing.start()]
+              original_open = s[containing.start():open_tag_end]
+              suffix = s[close_tag_start + len('</style>'):]
+              fixed = prefix + original_open + css + '\n</style>\n<script>\n' + js + '\n</script>' + suffix
+              s = fixed
+
+          # Normalize accidental duplicate wrappers after the move.
+          s = s.replace('</style>\n<script>\n</style>\n<script>\n', '</style>\n<script>\n')
+          s = s.replace('</script>\n<style>\n</script>\n<style>\n', '</script>\n<style>\n')
           p.write_text(s, encoding='utf-8')
           PY
-      - name: Move training runtime JavaScript out of CSS
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('index.html')
-          text = p.read_text(encoding='utf-8')
-          marker = 'async function startTraining'
-          css_marker = '/* COLD_CALL_MODE_V1 */'
-          if marker not in text:
-              raise SystemExit('training runtime marker not found')
-          start = text.index(marker)
-          style_end = text.index('</style>', start)
-          block = text[start:style_end]
-          if css_marker not in block:
-              raise SystemExit('cold-call CSS marker not found')
-          split = block.index(css_marker)
-          js = block[:split].rstrip()
-          css = block[split:].strip()
-          prefix = text[:start]
-          suffix = text[style_end + len('</style>'):]
-          fixed = prefix + '</style>\n<script>\n' + js + '\n</script>\n<style>\n' + css + '\n</style>' + suffix
-          if fixed != text:
-              p.write_text(fixed, encoding='utf-8')
-          PY
+
       - name: Verify training runtime
         run: |
           python - <<'PY'
@@ -60,12 +73,18 @@ jobs:
               raise SystemExit('training runtime remains inside CSS')
           if '.call-shell' not in t:
               raise SystemExit('cold-call CSS missing')
-          if '<script>\nasync function startTraining' not in t:
+          scripts = re.findall(r'<script[^>]*>(.*?)</script>', t, flags=re.S|re.I)
+          if not any('async function startTraining' in js for js in scripts):
               raise SystemExit('training script block missing')
-          if t.count('<style') != t.lower().count('</style>'):
+          if t.count('<style') != len(re.findall(r'</style>', t, flags=re.I)):
               raise SystemExit('unbalanced style tags')
+          if t.count('<script') != len(re.findall(r'</script>', t, flags=re.I)):
+              raise SystemExit('unbalanced script tags')
+          if '</style>\n<script>\n</style>\n<script>' in t:
+              raise SystemExit('duplicate style/script wrapper remains')
           print('training runtime verified')
           PY
+
       - name: Commit fix
         run: |
           if git diff --quiet -- index.html; then
@@ -75,5 +94,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git commit -m 'fix: restore executable training runtime'
+          git commit -m 'fix: normalize executable training runtime'
           git push
