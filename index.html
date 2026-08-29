@@ -247,5 +247,5 @@ window.authScreen=authScreen;window.boot=boot;
 sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_IN'&&session){setTimeout(()=>window.boot(session.user),0)}});
 (async()=>{const {data}=await sb.auth.getSession();if(data.session){await window.boot(data.session.user)}else{window.authScreen()}})();
 </script>
-</body>
+<script src="/auth-invite.js"></script></body>
 </html>
