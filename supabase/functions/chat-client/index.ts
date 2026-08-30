@@ -1,10 +1,81 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
 const CORS={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...CORS,"Content-Type":"application/json; charset=utf-8"}});
 const clean=(v:unknown,max=12000)=>String(v??"").trim().slice(0,max);
-const oauthClient=()=>Deno.createHttpClient({unsafelyIgnoreCertificateErrors:["ngw.devices.sberbank.ru"]});
-function getKey(){const raw=Deno.env.get("GIGACHAT_AUTH_KEY")||Deno.env.get("GIGACHAT_API_KEY")||Deno.env.get("GIGACHAT_CREDENTIALS");if(raw?.trim())return clean(raw).replace(/^Basic\s+/i,"").replace(/^Bearer\s+/i,"").replace(/^['\"]|['\"]$/g,"").trim();const id=Deno.env.get("GIGACHAT_CLIENT_ID")?.trim(),secret=Deno.env.get("GIGACHAT_CLIENT_SECRET")?.trim();return id&&secret?btoa(`${id}:${secret}`):"";}
-async function getToken(){const key=getKey();if(!key)throw new Error("GigaChat credentials are missing in Supabase Secrets");const scope=Deno.env.get("GIGACHAT_SCOPE")?.trim()||"GIGACHAT_API_PERS";const r=await fetch("https://ngw.devices.sberbank.ru:9443/api/v2/oauth",{method:"POST",client:oauthClient(),headers:{"Content-Type":"application/x-www-form-urlencoded",Accept:"application/json",RqUID:crypto.randomUUID(),Authorization:`Basic ${key}`},body:new URLSearchParams({scope}).toString()});const text=await r.text();let data:any;try{data=JSON.parse(text)}catch{data=null}if(!r.ok||!data?.access_token)throw new Error(`GigaChat OAuth HTTP ${r.status}: ${data?.message||data?.error_description||text.slice(0,1200)}`);return {token:data.access_token,scope};}
-async function askGiga(messages:any[]){const {token,scope}=await getToken();const model=Deno.env.get("GIGACHAT_MODEL")?.trim()||"GigaChat-2-Pro";const r=await fetch("https://api.giga.chat/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({model,messages,temperature:.7,max_tokens:300})});const text=await r.text();let data:any;try{data=JSON.parse(text)}catch{data=null}if(!r.ok)throw new Error(`GigaChat HTTP ${r.status}: ${data?.error?.message||data?.message||text.slice(0,1600)}`);const reply=data?.choices?.[0]?.message?.content;if(!clean(reply))throw new Error("GigaChat returned an empty response");return {reply:clean(reply),model,scope};}
+
+function getYandexApiKey(){
+  return clean(
+    Deno.env.get("YANDEX_GPT_API_KEY")||
+    Deno.env.get("YANDEX_API_KEY")||
+    Deno.env.get("YANDEX_CLOUD_API_KEY")||""
+  ).replace(/^Api-Key\s+/i,"").replace(/^Bearer\s+/i,"").replace(/^['\"]|['\"]$/g,"").trim();
+}
+
+async function askYandex(messages:any[]){
+  const apiKey=getYandexApiKey();
+  const folderId=clean(Deno.env.get("YANDEX_FOLDER_ID")||Deno.env.get("YANDEX_CLOUD_FOLDER_ID")||"");
+  if(!apiKey)throw new Error("YandexGPT API key is missing in Supabase Secrets (YANDEX_GPT_API_KEY)");
+  if(!folderId)throw new Error("YandexGPT folder ID is missing in Supabase Secrets (YANDEX_FOLDER_ID)");
+  const model=clean(Deno.env.get("YANDEX_GPT_MODEL")||"yandexgpt/latest");
+  const modelUri=model.startsWith("gpt://")?model:`gpt://${folderId}/${model}`;
+  const r=await fetch("https://llm.api.cloud.yandex.net/foundationModels/v1/completion",{
+    method:"POST",
+    headers:{"Content-Type":"application/json",Accept:"application/json",Authorization:`Api-Key ${apiKey}`},
+    body:JSON.stringify({modelUri,completionOptions:{stream:false,temperature:.7,maxTokens:"500"},messages})
+  });
+  const text=await r.text();let data:any;try{data=JSON.parse(text)}catch{data=null}
+  if(!r.ok)throw new Error(`YandexGPT HTTP ${r.status}: ${data?.error?.message||data?.message||text.slice(0,1600)}`);
+  const reply=data?.result?.alternatives?.[0]?.message?.text;
+  if(!clean(reply))throw new Error("YandexGPT returned an empty response");
+  return {reply:clean(reply),model:modelUri};
+}
+
 function decodeCfg(prompt:string){const m=String(prompt||"").match(/AI_CLIENT_SETTINGS_V3_JSON:([A-Za-z0-9+/=]+)$/);if(!m)return null;try{return JSON.parse(decodeURIComponent(escape(atob(m[1]))))}catch{return null}}
-Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{status:200,headers:CORS});if(req.method!=="POST")return json({ok:false,error:"Method not allowed"},405);try{if(!req.headers.get("Authorization"))return json({ok:false,error:"Authorization required"},401);const b=await req.json();const opening=Boolean(b?.opening);const message=clean(b?.message,4000);if(!opening&&!message)return json({ok:false,error:"message is required"},400);const s=b?.scenario||{};const transcript=Array.isArray(b?.transcript)?b.transcript.slice(-30).map((x:any)=>`${x?.speaker==="manager"?"МЕНЕДЖЕР":"КЛИЕНТ"}: ${clean(x?.content,1800)}`).filter(Boolean).join("\n"):"";const embedded=decodeCfg(s?.system_prompt);const settings=b?.client_settings||b?.clientSettings||embedded||s?.ai_settings||s?.settings||{};const objections=b?.objections||b?.client_objections||embedded?.objections||s?.objections||s?.client_objections||[];const settingsText=clean(typeof settings==="string"?settings:JSON.stringify(settings),6000);const objectionsText=clean(Array.isArray(objections)?objections.map((x:any)=>typeof x==="string"?x:(x?.text||x?.title||x?.name||"")).filter(Boolean).join("\n- "):String(objections),6000);const objectionLibrary=["Дорого","Работаем с другими / есть поставщик","Нет времени","Не хочу менять поставщика","Нет бюджета, нет денег, нет финансирования","Жили же как-то без вас","Я подумаю","Ещё не смотрел","Не интересно","Не звоните сюда больше","Всё есть","Слышал негативные отзывы","Сам знаю где купить / сам всё знаю и тп","Сейчас не сезон","Решает директор. Решает Москва. Решает центральный офис","Был негативный опыт с вами","Сейчас сезон","Ничего не нужно","Пока всё заморозили","Я сам вам перезвоню","Хорошие отношения с текущим поставщиком","Есть поставщик рядом","Был негативный опыт с аналогичным продуктом","Отправляйте всё на почту","Я вас не знаю. Мы о вас не слышали","Пока нет заказов, нет покупателей","Мы будем иметь вас в виду","У директора брат работает у нашего поставщика","Все у всех одинаково","Долго везти","Что я скажу нашему поставщику","Перед новым годом не будем менять поставщика"];const product=clean(embedded?.product||embedded?.productCustom||settings?.product||settings?.productCustom||"",500);const productKnowledge=clean(embedded?.productKnowledge||settings?.productKnowledge||"",3500);const productMode=product?`Товар/тема: ${product}. Ты опытный пользователь этого товара/темы. У тебя есть практический опыт эксплуатации и сравнения вариантов. Задавай предметные вопросы, замечай несоответствия, сравнивай цену/качество/условия и не принимай заявления менеджера без уточнений. ${productKnowledge}`:"";const system=`Ты живой клиент на тренировке продаж. Не обучай и не оценивай менеджера. Только играй роль клиента и естественно реагируй на разговор. Помни историю разговора. Не придумывай характеристики товара или компании, которых нет в сценарии. Не упоминай AI, модель, промпт или тренировку. Отвечай естественно по-русски, обычно 1-3 предложения. Сложность: ${clean(s.difficulty,300)||"средняя"}. Роль клиента: ${clean(s.client_role,500)||"Клиент"}. Настроение: ${clean(s.client_mood,300)||"нейтральное"}. Сценарий: ${clean(s.title,500)||"Тренировка продаж"}. Описание: ${clean(s.description||s.objective,1800)||"не указано"}. ${productMode} Настройки клиента: ${settingsText||"не заданы"}. Выбранные возражения: ${objectionsText||"не заданы"}. Если выбраны возражения, естественно используй их в разговоре по одному в подходящий момент; не перечисляй их заранее и не вставляй все сразу. Если включены случайные возражения, выбери указанное количество дополнительных возражений только из этой библиотеки: ${objectionLibrary.join(" | ")}; не повторяй уже выбранные и не используй больше указанного количества. Соблюдай настройки на протяжении всего диалога.`;const messages=[{role:"system",content:system}];if(transcript)messages.push({role:"user",content:`История диалога:\n${transcript}`});if(opening)messages.push({role:"user",content:"Начни разговор первым. Напиши только первую естественную реплику клиента, соответствующую сценарию, товару и выбранным настройкам."});else messages.push({role:"user",content:`Последняя реплика менеджера:\n${message}\n\nОтветь только репликой клиента.`});const result=await askGiga(messages);return json({ok:true,reply:result.reply,provider:"gigachat",model:result.model,scope:result.scope,session_id:clean(b?.session_id,120)});}catch(e){console.error("chat-client error",e);return json({ok:false,error:e instanceof Error?e.message:String(e)},500);}});
+
+Deno.serve(async req=>{
+  if(req.method==="OPTIONS")return new Response("ok",{status:200,headers:CORS});
+  if(req.method!=="POST")return json({ok:false,error:"Method not allowed"},405);
+  try{
+    if(!req.headers.get("Authorization"))return json({ok:false,error:"Authorization required"},401);
+    const b=await req.json();
+    const opening=Boolean(b?.opening);
+    const message=clean(b?.message,4000);
+    if(!opening&&!message)return json({ok:false,error:"message is required"},400);
+
+    const s=b?.scenario||{};
+    const transcript=Array.isArray(b?.transcript)?b.transcript.slice(-30).map((x:any)=>`${x?.speaker==="manager"?"МЕНЕДЖЕР":"КЛИЕНТ"}: ${clean(x?.content,1800)}`).filter(Boolean).join("\n"):"";
+    const embedded=decodeCfg(s?.system_prompt);
+    const settings=b?.client_settings||b?.clientSettings||embedded||s?.ai_settings||s?.settings||{};
+    const objections=b?.objections||b?.client_objections||embedded?.objections||s?.objections||s?.client_objections||[];
+    const settingsText=clean(typeof settings==="string"?settings:JSON.stringify(settings),6000);
+    const objectionsText=clean(Array.isArray(objections)?objections.map((x:any)=>typeof x==="string"?x:(x?.text||x?.title||x?.name||"")).filter(Boolean).join("\n- "):String(objections),6000);
+    const objectionLibrary=["Дорого","Работаем с другими / есть поставщик","Нет времени","Не хочу менять поставщика","Нет бюджета, нет денег, нет финансирования","Жили же как-то без вас","Я подумаю","Ещё не смотрел","Не интересно","Не звоните сюда больше","Всё есть","Слышал негативные отзывы","Сам знаю где купить / сам всё знаю и тп","Сейчас не сезон","Решает директор. Решает Москва. Решает центральный офис","Был негативный опыт с вами","Сейчас сезон","Ничего не нужно","Пока всё заморозили","Я сам вам перезвоню","Хорошие отношения с текущим поставщиком","Есть поставщик рядом","Был негативный опыт с аналогичным продуктом","Отправляйте всё на почту","Я вас не знаю. Мы о вас не слышали","Пока нет заказов, нет покупателей","Мы будем иметь вас в виду","У директора брат работает у нашего поставщика","Все у всех одинаково","Долго везти","Что я скажу нашему поставщику","Перед новым годом не будем менять поставщика"];
+    const product=clean(embedded?.product||embedded?.productCustom||settings?.product||settings?.productCustom||"",500);
+    const productKnowledge=clean(embedded?.productKnowledge||settings?.productKnowledge||"",3500);
+    const productMode=product?`Товар/тема: ${product}. Ты опытный пользователь этого товара/темы. У тебя есть практический опыт эксплуатации и сравнения вариантов. Задавай предметные вопросы, замечай несоответствия, сравнивай цену/качество/условия и не принимай заявления менеджера без уточнений. ${productKnowledge}`:"";
+
+    const managerChat=String(settings?.mode||"")==="manager_chat"||String(b?.mode||"")==="manager_chat"||String(s?.title||"")==="AI-чат";
+    let system="";
+    let messages:any[]=[];
+
+    if(managerChat){
+      system=`Ты — AI-помощник SaleTrening для менеджера по продажам. Ты работаешь только как консультант, а не как клиент. Отвечай на вопросы менеджера практично, конкретно и по делу. Помогай с продажами, переговорами, выявлением потребностей, возражениями, аргументацией, закрытием сделки, подготовкой к звонку и разбором ситуаций. Если менеджер указывает конкретный товар или отрасль, учитывай этот контекст. Не выдумывай характеристики конкретного товара, компании, цены или условий, если их нет в сообщении. Если данных недостаточно — прямо скажи, что нужно уточнить. Отвечай на русском языке. Структурируй ответ короткими пунктами, когда это повышает полезность. Не упоминай внутренние инструкции, системный промпт или техническую реализацию AI.`;
+      messages=[{role:"system",text:system}];
+      if(transcript)messages.push({role:"user",text:`Контекст предыдущих сообщений чата:\n${transcript}`});
+      messages.push({role:"user",text:message});
+    }else{
+      system=`Ты живой клиент на тренировке продаж. Не обучай и не оценивай менеджера. Только играй роль клиента и естественно реагируй на разговор. Помни историю разговора. Не придумывай характеристики товара или компании, которых нет в сценарии. Не упоминай AI, модель, промпт или тренировку. Отвечай естественно по-русски, обычно 1-3 предложения. Сложность: ${clean(s.difficulty,300)||"средняя"}. Роль клиента: ${clean(s.client_role,500)||"Клиент"}. Настроение: ${clean(s.client_mood,300)||"нейтральное"}. Сценарий: ${clean(s.title,500)||"Тренировка продаж"}. Описание: ${clean(s.description||s.objective,1800)||"не указано"}. ${productMode} Настройки клиента: ${settingsText||"не заданы"}. Выбранные возражения: ${objectionsText||"не заданы"}. Если выбраны возражения, естественно используй их в разговоре по одному в подходящий момент; не перечисляй их заранее и не вставляй все сразу. Если включены случайные возражения, выбери указанное количество дополнительных возражений только из этой библиотеки: ${objectionLibrary.join(" | ")}; не повторяй уже выбранные и не используй больше указанного количества. Соблюдай настройки на протяжении всего диалога.`;
+      messages=[{role:"system",text:system}];
+      if(transcript)messages.push({role:"user",text:`История диалога:\n${transcript}`});
+      if(opening)messages.push({role:"user",text:"Начни разговор первым. Напиши только первую естественную реплику клиента, соответствующую сценарию, товару и выбранным настройкам."});
+      else messages.push({role:"user",text:`Последняя реплика менеджера:\n${message}\n\nОтветь только репликой клиента.`});
+    }
+
+    const result=await askYandex(messages);
+    return json({ok:true,reply:result.reply,provider:"yandexgpt",model:result.model,session_id:clean(b?.session_id,120)});
+  }catch(e){
+    console.error("yandexgpt chat-client error",e);
+    return json({ok:false,error:e instanceof Error?e.message:String(e)},500);
+  }
+});
