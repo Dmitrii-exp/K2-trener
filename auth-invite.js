@@ -45,4 +45,7 @@
   window.completeInviteRegistration=async function(){const first=document.getElementById('inviteFirst')?.value.trim()||'',password=document.getElementById('invitePass')?.value||'';if(password.length<6){toast('Пароль должен содержать минимум 6 символов');return}const {data,error}=await sb.auth.updateUser({password,data:{first_name:first}});if(error){toast(error.message);return}try{await acceptPendingInvitation(data?.user?.id);await originalBoot(data.user)}catch(e){console.error(e);toast(e.message||'Не удалось принять приглашение')}};
   window.boot=async function(user){const email=String(user?.email||'').trim().toLowerCase();if(invitedEmail&&email&&email!==invitedEmail){await sb.auth.signOut();authScreen();return}showInvite(email||invitedEmail)};
   window.signUp=function(){toast('Для регистрации сотрудника используйте ссылку из приглашения.');};
+
+  /* Disable speech only for the normal text training chat. Cold-call mode uses speakCallClient() separately. */
+  window.speakClient=function(){return;};
 })();
