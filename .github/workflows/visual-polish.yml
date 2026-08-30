@@ -11,46 +11,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply visual polish
+      - name: Apply Canva-inspired SaleTrening shell
         shell: bash
         run: |
-          cat >> auth-invite.js <<'EOF'
-
-/* SALETrening visual polish v2 — safe CSS-only override */
-(function(){
-  const css = `
-  .content{min-width:0}
-  .top{align-items:center}
-  .top h2{font-weight:800}
-  .top .muted{line-height:1.45}
-  .hero-card{min-height:190px;display:flex;flex-direction:column;justify-content:center}
-  .hero-card .primary{align-self:flex-start}
-  .scenario{background:linear-gradient(180deg,#fff 0%,#fcfbff 100%)}
-  .scenario .primary{width:100%}
-  .quick{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
-  .quick:hover{box-shadow:0 10px 24px rgba(25,20,55,.06);border-color:#d9d1ff}
-  .card h3{font-weight:800}
-  .section-head button{white-space:nowrap}
-  .table th{position:sticky;top:0;z-index:1}
-  .auth-card{backdrop-filter:blur(8px)}
-  .auth-actions .primary,.auth-actions .secondary{min-height:44px}
-  @media(max-width:760px){
-    .top{align-items:flex-start}
-    .hero-card{min-height:0}
-    .hero-card .primary{align-self:stretch}
-    .section-head{align-items:flex-start}
-    .section-head button{margin-top:0}
-    .scenario{min-height:0}
-  }
-  `;
-  const style=document.getElementById('saletrening-visual-polish-v2')||document.createElement('style');
-  style.id='saletrening-visual-polish-v2';
-  style.textContent=css;
-  if(!style.parentNode)document.head.appendChild(style);
-})();
-EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          css=r'''
+          /* SALETrening Canva UI v3 — applied to the actual index */
+          :root{--p:#7357ff;--p2:#9b86ff;--bg:#f7f7fb;--card:#fff;--text:#171827;--muted:#85889a;--line:#e7e7ef;--dark:#15131f;--dark2:#25213a;--good:#20b486;--shadow:0 10px 30px rgba(25,20,55,.06)}
+          html,body{background:var(--bg);color:var(--text)}
+          .shell{grid-template-columns:264px minmax(0,1fr);background:#f7f7fb}
+          .side{background:#15131f;padding:22px 16px;border-right:1px solid #262235;box-shadow:12px 0 35px rgba(17,14,30,.08)}
+          .side .logo{padding:4px 10px 30px;font-size:21px;letter-spacing:-.3px}
+          .side .logo-b{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#7357ff,#9b86ff);box-shadow:0 10px 24px rgba(115,87,255,.25)}
+          .nav{gap:6px}.nav button{padding:12px 14px;border-radius:12px;color:#aaa7b8;font-weight:600;transition:all .16s ease}.nav button.active{background:linear-gradient(90deg,#2a2440,#211d32);color:#fff;box-shadow:inset 3px 0 0 var(--p)}.nav button:hover{background:#211d32;color:#fff}.nav-icon{font-size:16px}
+          .content{padding:34px 38px 46px;max-width:1500px}
+          .top{margin-bottom:26px}.top h2{font-size:30px;font-weight:850;letter-spacing:-.8px}.top-actions{gap:10px}
+          .pill{background:#eeeaff;color:#6548ee;padding:8px 12px;border-radius:999px}
+          .hero{grid-template-columns:minmax(0,1.75fr) minmax(280px,.8fr);gap:18px;margin-bottom:20px}
+          .hero-card{min-height:210px;padding:30px;border-radius:24px;background:linear-gradient(135deg,#fff 0%,#f5f1ff 100%);border:1px solid #e4defc;box-shadow:0 16px 40px rgba(71,48,150,.08)}
+          .hero h3{font-size:26px;letter-spacing:-.5px}.hero-robot{font-size:72px;right:30px;bottom:18px}
+          .grid{gap:16px}.card{border-radius:20px;padding:21px;border-color:#e7e7ef;box-shadow:0 5px 20px rgba(25,20,55,.035)}.card:hover{box-shadow:0 10px 28px rgba(25,20,55,.06)}
+          .metric{font-size:32px}.metric-label{font-size:12px}.section{margin-top:24px}.section-head{margin-bottom:14px}.section h3{font-size:18px}
+          .scenario-grid{gap:16px}.scenario{min-height:220px;border-radius:20px;background:linear-gradient(180deg,#fff,#fcfbff);transition:transform .16s ease,box-shadow .16s ease}.scenario:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(25,20,55,.07)}.scenario-title{font-size:18px}.tag{background:#f0edff;color:#6045e0;padding:6px 9px}
+          .quick-grid{gap:14px}.quick{border-radius:17px;padding:17px;transition:all .16s ease}.quick:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(25,20,55,.06);border-color:#d7ceff}
+          .primary{border-radius:13px;padding:12px 18px;background:linear-gradient(135deg,#7357ff,#6648ee);box-shadow:0 9px 20px rgba(115,87,255,.2)}.primary:hover{background:#6548ee}.secondary{border-radius:13px;background:#fff}
+          .progress-card{padding:22px}.ring{width:88px;height:88px}.bar{height:9px}
+          .chat{height:590px;border-radius:20px;box-shadow:0 12px 35px rgba(25,20,55,.06)}.messages{background:#faf9ff;padding:22px}.msg{border-radius:16px;padding:13px 15px}.msg.manager{background:#eeeaff}.composer{padding:14px;background:#fff}.composer textarea{border-radius:13px}
+          .table{background:#fff;border-radius:16px;overflow:hidden}.table th,.table td{padding:14px}.table th{background:#faf9ff}
+          .auth{background:radial-gradient(circle at 20% 20%,#eee9ff,transparent 38%),linear-gradient(135deg,#fafaff,#f2efff)}.auth-card{border-radius:30px;box-shadow:0 25px 70px rgba(51,32,96,.12)}
+          @media(max-width:1050px){.shell{grid-template-columns:230px 1fr}.content{padding:26px}.hero{grid-template-columns:1fr}}
+          @media(max-width:760px){.shell{grid-template-columns:1fr}.side{padding:12px;box-shadow:none}.content{padding:18px 14px}.hero-card{min-height:0;padding:22px}.hero-robot{display:none}.top h2{font-size:25px}.card,.scenario{border-radius:17px}.chat{height:calc(100vh - 210px)}}
+          '''
+          marker='</head>'
+          if 'SALETrening Canva UI v3' not in s:
+              s=s.replace(marker,'<style>'+css+'</style>\n'+marker,1)
+              p.write_text(s,encoding='utf-8')
+          PY
           git config user.name "SaleTrening Bot"
           git config user.email "actions@github.com"
-          git add auth-invite.js
-          git commit -m "style: polish SaleTrening UI safely"
+          git add index.html
+          git commit -m "style: integrate Canva SaleTrening UI into index"
           git push
