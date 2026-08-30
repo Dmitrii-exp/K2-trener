@@ -1,0 +1,56 @@
+name: Fix white screen bootstrap
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-bootstrap:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Patch Supabase bootstrap
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          marker = 'SUPABASE_BOOTSTRAP_FALLBACK_V2'
+          if marker in s:
+              raise SystemExit(0)
+          old = '''<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">/* COMPANY_INVITE_AUTH_V2 */
+/* INVITE_BUTTON_FIX_V1 */
+</script>'''
+          new = '''<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">/* COMPANY_INVITE_AUTH_V2 */
+/* INVITE_BUTTON_FIX_V1 */
+</script>
+<script>
+/* SUPABASE_BOOTSTRAP_FALLBACK_V2 */
+/* If the primary CDN is blocked, synchronously load a fallback before the app script. */
+if (!window.supabase) {
+  document.write('<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"><\\/script>');
+}
+</script>'''
+          if old not in s:
+              raise SystemExit('Expected Supabase script block not found')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git add index.html
+          git commit -m "fix: fallback Supabase CDN before app bootstrap"
+          git push
