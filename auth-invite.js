@@ -10,3 +10,14 @@
   const oldPage=window.page;if(oldPage)window.page=function(){const r=oldPage.apply(this,arguments);if(state.view==='ai')setTimeout(draw,0);return r};document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&document.activeElement?.id==='mentorInput'){e.preventDefault();sendMentorMessage()}});
   const qs=new URLSearchParams(location.search),token=qs.get('invite')||localStorage.getItem('saletrening_invite_token')||'',invitedEmail=(qs.get('email')||'').trim().toLowerCase(),inviteFlow=qs.get('type')==='invite'&&!!token;if(!inviteFlow)return;const originalBoot=window.boot;function showInvite(email){const root=document.getElementById('root');if(!root)return;root.innerHTML=`<div class="auth"><div class="auth-card"><div class="auth-brand"><div class="logo"><div class="logo-b">S</div>SaleTrening</div><span class="auth-badge">ПРИГЛАШЕНИЕ</span></div><h1>Завершите регистрацию.</h1><div class="sub">Вы приглашены в команду SaleTrening. Email из приглашения закреплён и не может быть изменён.</div><div class="field"><label>Имя</label><input id="inviteFirst" placeholder="Дмитрий"></div><div class="field"><label>Email</label><input id="inviteEmailLocked" value="${escM(email)}" readonly style="background:#f5f5f8;color:#555"></div><div class="field"><label>Пароль</label><input id="invitePass" type="password" placeholder="Минимум 6 символов"></div><div class="auth-actions"><button class="primary" onclick="completeInviteRegistration()">Завершить регистрацию</button></div></div></div>`}window.completeInviteRegistration=async function(){const first=document.getElementById('inviteFirst')?.value.trim()||'',password=document.getElementById('invitePass')?.value||'';if(password.length<6){toast('Пароль должен содержать минимум 6 символов');return}const {data,error}=await sb.auth.updateUser({password,data:{first_name:first}});if(error){toast(error.message);return}try{await acceptPendingInvitation(data?.user?.id);await originalBoot(data.user)}catch(e){console.error(e);toast(e.message||'Не удалось принять приглашение')}};window.boot=async function(user){const email=String(user?.email||'').trim().toLowerCase();if(invitedEmail&&email&&email!==invitedEmail){await sb.auth.signOut();authScreen();return}showInvite(email||invitedEmail)};window.signUp=function(){toast('Для регистрации сотрудника используйте ссылку из приглашения.');};window.speakClient=function(){};
 })();
+
+// Load the full Canva application shell after the existing visual/invite layer.
+(function(){
+  var src='/canva-ui.js';
+  if(document.querySelector('script[data-canva-ui]')) return;
+  var s=document.createElement('script');
+  s.src=src+'?v=1';
+  s.async=false;
+  s.setAttribute('data-canva-ui','1');
+  document.head.appendChild(s);
+})();
