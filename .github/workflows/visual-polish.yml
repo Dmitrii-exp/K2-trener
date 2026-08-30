@@ -1,0 +1,56 @@
+name: Visual Polish
+on:
+  push:
+    paths:
+      - '.visual-polish-trigger'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  polish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply visual polish
+        shell: bash
+        run: |
+          cat >> auth-invite.js <<'EOF'
+
+/* SALETrening visual polish v2 — safe CSS-only override */
+(function(){
+  const css = `
+  .content{min-width:0}
+  .top{align-items:center}
+  .top h2{font-weight:800}
+  .top .muted{line-height:1.45}
+  .hero-card{min-height:190px;display:flex;flex-direction:column;justify-content:center}
+  .hero-card .primary{align-self:flex-start}
+  .scenario{background:linear-gradient(180deg,#fff 0%,#fcfbff 100%)}
+  .scenario .primary{width:100%}
+  .quick{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+  .quick:hover{box-shadow:0 10px 24px rgba(25,20,55,.06);border-color:#d9d1ff}
+  .card h3{font-weight:800}
+  .section-head button{white-space:nowrap}
+  .table th{position:sticky;top:0;z-index:1}
+  .auth-card{backdrop-filter:blur(8px)}
+  .auth-actions .primary,.auth-actions .secondary{min-height:44px}
+  @media(max-width:760px){
+    .top{align-items:flex-start}
+    .hero-card{min-height:0}
+    .hero-card .primary{align-self:stretch}
+    .section-head{align-items:flex-start}
+    .section-head button{margin-top:0}
+    .scenario{min-height:0}
+  }
+  `;
+  const style=document.getElementById('saletrening-visual-polish-v2')||document.createElement('style');
+  style.id='saletrening-visual-polish-v2';
+  style.textContent=css;
+  if(!style.parentNode)document.head.appendChild(style);
+})();
+EOF
+          git config user.name "SaleTrening Bot"
+          git config user.email "actions@github.com"
+          git add auth-invite.js
+          git commit -m "style: polish SaleTrening UI safely"
+          git push
