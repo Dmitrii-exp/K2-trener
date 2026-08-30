@@ -1,51 +1,25 @@
 (() => {
   'use strict';
 
-  // K2 recovery layer: the application historically depended on a single
-  // Supabase CDN request. If that request is blocked, the inline app script
-  // stops before authScreen() and the user sees a completely white page.
-  async function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src;
-      s.async = false;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error('Failed to load ' + src));
-      document.head.appendChild(s);
-    });
+  // K2 recovery layer. The main app script executes before this file, so a
+  // failed Supabase CDN request can leave the page white. Install a same-origin
+  // service worker that proxies the primary CDN to a fallback on the next load.
+  async function installRecoveryWorker() {
+    if (!('serviceWorker' in navigator)) return false;
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js', {scope:'/'});
+      await navigator.serviceWorker.ready;
+      return !!reg;
+    } catch (e) {
+      console.error('[K2] recovery service worker:', e);
+      return false;
+    }
   }
 
-  async function recoverMainApp() {
-    if (window.supabase) return;
-    const sources = [
-      'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js',
-      'https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2'
-    ];
-    for (const src of sources) {
-      try { await loadScript(src); if (window.supabase) break; } catch (_) {}
-    }
-    if (!window.supabase) {
-      console.error('[K2] Supabase SDK could not be loaded from fallback CDNs.');
-      return;
-    }
-    if (window.__K2_MAIN_EXECUTED) return;
-    const scripts = [...document.scripts];
-    const main = scripts.find(s => s.textContent && s.textContent.includes('const SUPABASE_URL='));
-    if (!main) {
-      console.error('[K2] Main application script was not found.');
-      return;
-    }
-    window.__K2_MAIN_EXECUTED = true;
-    try {
-      // Re-run the original inline application script now that Supabase exists.
-      (0, eval)(main.textContent);
-    } catch (e) {
-      window.__K2_MAIN_EXECUTED = false;
-      console.error('[K2] Main application recovery failed:', e);
-      const root = document.getElementById('root');
-      if (root && !root.innerHTML.trim()) {
-        root.innerHTML = '<div style="min-height:100vh;display:grid;place-items:center;font:16px Arial;color:#555"><div><b>SaleTrening не удалось запустить.</b><br><small>Откройте страницу ещё раз через несколько секунд.</small></div></div>';
-      }
+  function showRecoveryMessage() {
+    const root = document.getElementById('root');
+    if (root && !root.innerHTML.trim()) {
+      root.innerHTML = '<div style="min-height:100vh;display:grid;place-items:center;background:#f7f7fb;font:16px Arial;color:#555"><div style="max-width:560px;padding:28px;text-align:center;background:#fff;border:1px solid #e8e7ef;border-radius:18px"><b>SaleTrening не удалось запустить.</b><br><small style="display:block;margin-top:8px">Восстанавливаю подключение. Обновите страницу через несколько секунд.</small></div></div>';
     }
   }
 
@@ -69,5 +43,22 @@
   }
 
   applyUI();
-  if (!window.supabase) recoverMainApp();
+
+  (async () => {
+    const hadApp = !!window.supabase;
+    if (!hadApp) {
+      const installed = await installRecoveryWorker();
+      if (installed && !navigator.serviceWorker.controller) {
+        // The worker uses clients.claim(), but force a single clean reload so
+        // the very first Supabase request is intercepted by it.
+        const key = 'k2_sw_recovery_reload_v1';
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1');
+          location.reload();
+          return;
+        }
+      }
+      showRecoveryMessage();
+    }
+  })();
 })();
