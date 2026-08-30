@@ -1,2 +1,2 @@
 Production deploy trigger — safe marker. No application code changes.
-Training runtime redeploy 2026-08-30T13:24:00Z
+Restore stable runtime base after visual regression 2026-08-31T00:56:00+03:00
