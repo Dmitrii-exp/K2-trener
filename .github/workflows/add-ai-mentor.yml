@@ -1,4 +1,4 @@
-name: Enable AI Mentor
+name: Enable AI Chat
 on:
   push:
     branches: [main]
@@ -10,36 +10,49 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Add AI mentor menu and chat
+      - name: Replace AI mentor with manager AI chat
         shell: python
         run: |
           from pathlib import Path
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-          marker='/* AI_MENTOR_V1 */'
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          marker = '/* AI_CHAT_V2 */'
           if marker in s:
-              print('AI mentor already enabled')
+              print('AI chat already enabled')
               raise SystemExit(0)
-          insert='''\n/* AI_MENTOR_V1 */\n.ai-mentor-card{max-width:1000px;margin:auto}.ai-mentor-chat{height:600px;display:grid;grid-template-rows:1fr auto;background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}\n'''
-          s=s.replace('</style>',insert+'</style>',1)
-          nav_marker='<button onclick="showView(\'analytics\')"><span class="nav-icon">▥</span> Аналитика</button>'
-          nav_add=nav_marker+'<button onclick="showView(\'mentor\')"><span class="nav-icon">🤖</span> AI-наставник</button>'
-          if nav_marker not in s: raise SystemExit('menu marker not found')
-          s=s.replace(nav_marker,nav_add,1)
-          view_marker='function analyticsView(){'
-          mentor='''function mentorView(){return `<div class="top"><div><h2>AI-наставник</h2><div class="muted">Задавай вопросы по продажам и получай помощь от AI.</div></div></div><div class="ai-mentor-card"><div class="ai-mentor-chat"><div id="mentorMessages" class="messages"><div class="msg client"><b>AI-наставник</b><br>Привет! Я готов помочь с вопросами по продажам, переговорам и работе с возражениями.</div></div><form class="composer" onsubmit="sendMentor(event)"><textarea id="mentorInput" rows="2" placeholder="Напиши вопрос наставнику..."></textarea><button class="primary" type="submit">Отправить</button></form></div></div>`}\nasync function sendMentor(e){e.preventDefault();const input=$("mentorInput"),text=input.value.trim();if(!text)return;const box=$("mentorMessages");box.innerHTML+=`<div class="msg manager">${esc(text)}</div>`;input.value="";box.innerHTML+=`<div id="mentorTyping" class="msg client">AI-наставник печатает...</div>`;box.scrollTop=box.scrollHeight;try{const {data,error}=await sb.functions.invoke("chat-client-v39",{body:{session_id:"mentor-"+state.user.id,scenario_id:"mentor",message:text,transcript:[],scenario:{title:"AI-наставник",client_role:"AI-наставник по продажам",client_mood:"помогающий",difficulty:"наставник",description:"Отвечай на вопросы менеджера по продажам, объясняй и давай практические рекомендации."}}});$("mentorTyping")?.remove();if(error)throw error;const reply=data?.reply||data?.message||"Не удалось получить ответ.";box.innerHTML+=`<div class="msg client"><b>AI-наставник</b><br>${esc(reply)}</div>`}catch(err){$("mentorTyping")?.remove();box.innerHTML+=`<div class="msg client">Не удалось получить ответ AI. Попробуй ещё раз.</div>`;console.error(err)}box.scrollTop=box.scrollHeight}\n'''
-          if view_marker not in s: raise SystemExit('analytics marker not found')
-          s=s.replace(view_marker,mentor+view_marker,1)
-          route_marker='if(view==="analytics")return analyticsView();'
-          route_add=route_marker+'if(view==="mentor")return mentorView();'
-          if route_marker not in s: raise SystemExit('route marker not found')
-          s=s.replace(route_marker,route_add,1)
-          p.write_text(s,encoding='utf-8')
-      - name: Commit
+
+          css = '''\n/* AI_CHAT_V2 */\n.ai-chat-card{max-width:1100px;margin:auto}.ai-chat-shell{height:620px;display:grid;grid-template-rows:1fr auto;background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}.ai-chat-head{padding:18px 20px;border-bottom:1px solid var(--line);background:linear-gradient(135deg,#fff,#f8f5ff)}.ai-chat-head strong{font-size:18px}.ai-chat-messages{padding:20px;overflow:auto;background:#fafaff}.ai-chat-msg{max-width:82%;padding:12px 14px;border-radius:15px;margin:8px 0;line-height:1.5;white-space:pre-wrap}.ai-chat-msg.ai{background:#fff;border:1px solid var(--line)}.ai-chat-msg.user{background:#eeeaff;margin-left:auto}.ai-chat-composer{display:flex;gap:10px;padding:12px;border-top:1px solid var(--line);background:#fff}.ai-chat-composer textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:12px;padding:12px;outline:none}.ai-chat-composer textarea:focus{border-color:var(--p);box-shadow:0 0 0 3px #6d4aff12}.ai-chat-send{min-width:120px}@media(max-width:760px){.ai-chat-shell{height:calc(100vh - 210px);min-height:460px}.ai-chat-composer{flex-wrap:wrap}.ai-chat-composer textarea{width:100%;min-width:0}.ai-chat-send{width:100%}}\n'''
+          s = s.replace('</style>', css + '</style>', 1)
+
+          old_nav = 'nav("ai","AI-наставник","✦")'
+          new_nav = 'nav("ai","AI-чат","✦")'
+          if old_nav not in s:
+              raise SystemExit('AI mentor navigation marker not found')
+          s = s.replace(old_nav, new_nav, 1)
+
+          old_route = 'else if(state.view==="analytics")setPageHTML(p,analytics());else p.innerHTML=aiCoach()'
+          new_route = 'else if(state.view==="analytics")setPageHTML(p,analytics());else if(state.view==="ai")setPageHTML(p,aiChat());else p.innerHTML=aiCoach()'
+          if old_route not in s:
+              raise SystemExit('page route marker not found')
+          s = s.replace(old_route, new_route, 1)
+
+          start = 'function aiCoach(){'
+          pos = s.find(start)
+          if pos < 0:
+              raise SystemExit('aiCoach function not found')
+          end = s.find('\n/* COLD_CALL_MODE_V1 */', pos)
+          if end < 0:
+              raise SystemExit('AI coach end marker not found')
+
+          chat = r'''function aiChat(){return `<div class="top"><div><h2>AI-чат</h2><div class="muted">Задавай вопросы по продажам, переговорам, товарам и работе с клиентами.</div></div></div><div class="ai-chat-card"><div class="ai-chat-shell"><div><div class="ai-chat-head"><strong>AI-помощник SaleTrening</strong><div class="muted" style="margin-top:4px">Поможет разобрать ситуацию, подготовить аргументы и найти следующий шаг.</div></div><div id="aiChatMessages" class="ai-chat-messages"><div class="ai-chat-msg ai"><b>AI:</b> Привет! Задавай вопрос — помогу разобраться в ситуации по продажам.</div></div></div><form class="ai-chat-composer" onsubmit="sendAIChat(event)"><textarea id="aiChatInput" rows="2" placeholder="Напишите свой вопрос..."></textarea><button class="primary ai-chat-send" type="submit">Отправить</button></form></div></div>`}
+async function sendAIChat(e){e.preventDefault();const input=$("aiChatInput"),text=input?.value.trim();if(!text)return;const box=$("aiChatMessages");if(!box)return;box.innerHTML+=`<div class="ai-chat-msg user"><b>Вы:</b> ${esc(text)}</div>`;input.value="";box.innerHTML+=`<div id="aiChatTyping" class="ai-chat-msg ai">AI печатает...</div>`;box.scrollTop=box.scrollHeight;try{const {data,error}=await sb.auth.getSession();const token=data?.session?.access_token;if(error||!token)throw new Error("Сессия авторизации истекла. Войдите снова.");const history=Array.from(box.querySelectorAll(".ai-chat-msg")).slice(-12).map(x=>x.innerText).filter(x=>x&&!x.includes("AI печатает..."));const r=await fetch(SUPABASE_URL+"/functions/v1/chat-client",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+token},body:JSON.stringify({session_id:"ai-chat-"+state.user.id,scenario_id:"ai-chat",message:text,opening:false,transcript:history.map(x=>({speaker:x.startsWith("Вы:")?"manager":"client",content:x.replace(/^[^:]+:\s*/,"")})),scenario:{title:"AI-чат",client_role:"AI-помощник по продажам",client_mood:"деловой",difficulty:"свободный",description:"Отвечай менеджеру на вопросы о продажах, переговорах, работе с возражениями, клиентах и товарах. Не играй роль клиента. Давай практичный, точный и понятный ответ."},client_settings:{mode:"manager_chat"}}),cache:"no-store"});const raw=await r.text();let j=null;try{j=raw?JSON.parse(raw):null}catch(_){}if(!r.ok)throw new Error(j?.error||j?.message||raw||("HTTP "+r.status));const reply=j?.reply||j?.message||j?.content||j?.text;if(!reply)throw new Error("AI не вернул ответ");$("aiChatTyping")?.remove();box.innerHTML+=`<div class="ai-chat-msg ai"><b>AI:</b> ${esc(reply)}</div>`}catch(err){console.error("AI chat:",err);$("aiChatTyping")?.remove();box.innerHTML+=`<div class="ai-chat-msg ai">Не удалось получить ответ AI: ${esc(err.message||"неизвестная ошибка")}</div>`}box.scrollTop=box.scrollHeight}'''
+          s = s[:pos] + chat + s[end:]
+          p.write_text(s, encoding='utf-8')
+      - name: Commit patched application
         run: |
           if git diff --quiet -- index.html; then echo 'No changes needed'; exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git commit -m 'feat: enable AI mentor in main menu'
+          git commit -m 'feat: add manager AI chat'
           git push
