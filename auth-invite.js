@@ -132,7 +132,7 @@
     document.body.appendChild(m);m.querySelector('#aiCloseLibrary').onclick=()=>m.remove();m.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const x=OBJECTIONS[Number(b.dataset.add)];if(!c.objections.includes(x))c.objections.push(x);b.textContent='Выбрано';renderSettings();showLibrary(c)});
   }
   function mount(){
-    if(!window.state||!window.sb)return;
+    if(typeof state==='undefined'||typeof sb==='undefined')return;
     if(state.view!=='scenarios')return;
     if(document.getElementById('ai-client-settings-v4'))return;
     const p=document.getElementById('page');if(!p)return;
