@@ -64,7 +64,7 @@
       let session = data?.session || null;
 
       if (!session) {
-        const { data: listenerData } = await supabaseClient.auth.onAuthStateChange((event, s) => {
+        supabaseClient.auth.onAuthStateChange((event, s) => {
           if (s && !invitationReady) { session = s; invitationReady = true; }
         });
         await new Promise((resolve) => setTimeout(resolve, 700));
@@ -73,8 +73,6 @@
       }
 
       if (!session?.user) {
-        // The Supabase magic-link exchange may still be completing. Keep the invite UI,
-        // rather than allowing the normal app auth screen to overwrite it.
         render(invitedEmail);
         message('Ссылка приглашения открыта. Если форма не активировалась, откройте ссылку ещё раз в этой вкладке.');
         return;
@@ -111,7 +109,7 @@
       if (!user) throw new Error('Сессия приглашения не найдена. Откройте ссылку из письма ещё раз.');
       if (invitedEmail && String(user.email || '').toLowerCase() !== invitedEmail) throw new Error('Email не совпадает с приглашением.');
 
-      const { data: updated, error: updateError } = await supabaseClient.auth.updateUser({ password, data: { first_name: first } });
+      const { error: updateError } = await supabaseClient.auth.updateUser({ password, data: { first_name: first } });
       if (updateError) throw updateError;
 
       const { data: accepted, error: rpcError } = await supabaseClient.rpc('accept_company_invitation', { p_token: token });
@@ -128,8 +126,48 @@
     }
   }
 
-  // Stop the normal app from rendering over the isolated invitation page.
   window.__SALE_TRAINING_INVITE_FLOW__ = true;
   window.boot = function () { return Promise.resolve(); };
+
+  // Invitation creation fix: route the manager button through the Edge Function
+  // so the function creates the invitation and sends the email via Resend.
+  window.createCompanyInvitation = async function () {
+    if (!window.state || !window.sb) {
+      if (typeof window.toast === 'function') window.toast('Профиль ещё загружается. Обновите страницу через секунду.');
+      return;
+    }
+    const profile = window.state.profile;
+    const user = window.state.user;
+    if (!user || !profile) return window.toast?.('Профиль ещё загружается. Обновите страницу через секунду.');
+    if (!profile.company_id || !['director','admin','manager'].includes(profile.role)) {
+      return window.toast?.('Нет прав для приглашения сотрудников');
+    }
+    const email = document.getElementById('inviteEmail')?.value.trim().toLowerCase() || '';
+    const role = document.getElementById('inviteRole')?.value || 'employee';
+    if (!email) return window.toast?.('Укажи email сотрудника');
+
+    const button = document.querySelector('#inviteBox button.primary');
+    if (button) { button.disabled = true; button.textContent = 'Отправляем…'; }
+    try {
+      const { data, error } = await window.sb.functions.invoke('send-company-invitation', {
+        body: { email, role, origin: window.location.origin }
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || 'Не удалось отправить приглашение');
+
+      const result = document.getElementById('inviteResult');
+      if (result) {
+        const link = data.invite_url || data.url || '';
+        result.innerHTML = `<div class="card" style="margin-top:14px;background:#faf9ff"><b>Приглашение отправлено</b><div class="muted" style="margin:6px 0">Письмо отправлено на ${esc(email)}. Срок действия: 7 дней.</div>${link ? `<input id="inviteLink" value="${esc(link)}" readonly style="width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff"><div style="display:flex;gap:8px;margin-top:8px"><button class="primary" onclick="navigator.clipboard.writeText(document.getElementById('inviteLink').value);toast('Ссылка скопирована')">Копировать ссылку</button></div>` : ''}</div>`;
+      }
+      window.toast?.('Приглашение отправлено на email');
+    } catch (e) {
+      console.error('[invite] send-company-invitation:', e);
+      window.toast?.('Не удалось отправить приглашение: ' + (e?.message || 'ошибка'));
+    } finally {
+      if (button) { button.disabled = false; button.textContent = 'Создать приглашение'; }
+    }
+  };
+
   init();
 })();
