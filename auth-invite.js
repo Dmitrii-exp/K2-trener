@@ -1,23 +1,135 @@
-/* SaleTrening visual design layer — Canva UI Kit integration (visual layer only). */
-(function(){
-  const css=`:root{--p:#6d4aff;--p2:#8b70ff;--bg:#f5f6fa;--card:#fff;--text:#171827;--muted:#7b7e91;--line:#e7e8ef;--dark:#171625;--dark2:#25213d;--good:#19a873;--warn:#f59e0b;--bad:#ef476f;--shadow:0 14px 40px rgba(25,20,55,.06);--shadow-sm:0 4px 18px rgba(25,20,55,.035)}*{box-sizing:border-box}html,body{background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}body{letter-spacing:-.01em}.shell{grid-template-columns:228px minmax(0,1fr);background:var(--bg)}.side{background:linear-gradient(180deg,#171625 0%,#1a1829 100%);padding:18px 12px;border-right:1px solid rgba(255,255,255,.04);box-shadow:8px 0 30px rgba(17,14,32,.05)}.side .logo{padding:5px 10px 26px;font-size:19px;letter-spacing:-.03em}.side .logo-b{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--p),#8d75ff);box-shadow:0 8px 22px rgba(109,74,255,.2)}.nav{gap:3px}.nav button{position:relative;padding:11px 12px;border-radius:10px;font-size:13px;font-weight:650;transition:background .18s ease,color .18s ease,transform .18s ease}.nav button:hover{transform:translateX(1px)}.nav button.active{background:rgba(109,74,255,.18);color:#fff}.nav button.active:before{content:"";position:absolute;left:-12px;top:9px;bottom:9px;width:3px;border-radius:0 4px 4px 0;background:var(--p)}.nav-icon{margin-right:4px}.side-bottom{padding-top:14px}.user-mini{margin:0 9px 9px;font-size:11px;color:#aaa6b7}.side-bottom .secondary{width:100%;background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08);color:#d8d5e1;padding:9px 12px;font-size:12px}.side-bottom .secondary:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12)}.content{padding:28px 34px 42px;max-width:1500px}.top{margin-bottom:20px}.top h2{font-size:26px;line-height:1.15;letter-spacing:-.035em}.top .muted{font-size:12px;margin-top:4px}.top-actions{gap:8px;display:flex;align-items:center}.pill{padding:6px 10px;font-size:11px;background:#eeeaff;color:#5d43db;border-radius:999px}.primary{border-radius:10px;padding:10px 15px;font-size:13px;box-shadow:0 7px 16px rgba(109,74,255,.16);transition:all .18s ease}.primary:hover{box-shadow:0 10px 22px rgba(109,74,255,.22);transform:translateY(-1px)}.secondary{border-radius:10px;padding:9px 14px;font-size:13px;transition:all .18s ease}.secondary:hover{transform:translateY(-1px)}.hero{gap:14px;margin-bottom:16px}.hero-card{border-radius:20px;padding:24px;box-shadow:var(--shadow);background:linear-gradient(135deg,#fff 0%,#faf8ff 100%);border:1px solid #eeebf7}.hero h3{font-size:22px;letter-spacing:-.03em}.hero-card .muted{max-width:580px}.hero-robot{font-size:56px;right:24px}.grid{gap:12px}.card{border-radius:15px;padding:17px;box-shadow:var(--shadow-sm);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}.card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(25,20,55,.06);border-color:#dedbea}.metric{font-size:28px;font-weight:750}.metric-label{font-size:11px}.section{margin-top:18px}.section-head{margin-bottom:10px}.section h3{font-size:16px;letter-spacing:-.02em}.scenario-grid{gap:12px}.scenario{min-height:188px;gap:10px}.scenario-title{font-size:16px;margin:8px 0 5px}.tag{font-size:10px;padding:4px 7px;border-radius:999px}.quick-grid{gap:10px}.quick{border-radius:13px;padding:13px;transition:all .18s ease}.quick:hover{transform:translateY(-1px)}.quick strong{font-size:13px}.progress-card{gap:15px}.ring{width:76px;height:76px}.ring b{font-size:17px}.bar{height:7px;border-radius:999px}.chat{height:calc(100vh - 145px);min-height:480px;border-radius:17px;box-shadow:var(--shadow);border-color:#e2e3eb;overflow:hidden}.messages{padding:20px 22px;background:linear-gradient(180deg,#fafaff 0%,#f7f7fb 100%)}.msg{max-width:72%;padding:11px 13px;border-radius:14px;margin:7px 0;font-size:13px;box-shadow:0 2px 7px rgba(25,20,55,.025)}.msg.client{background:#fff}.msg.manager{background:#eeeaff;border-color:#e1dafe}.composer{padding:11px;border-top-color:#e6e6ed;background:#fff}.composer textarea{border-radius:11px;font-size:13px;transition:border-color .18s,box-shadow .18s}.composer textarea:focus{border-color:#cfc4ff;box-shadow:0 0 0 3px #6d4aff12}.voice{width:42px;border-radius:10px}.table{border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--line);border-radius:15px;overflow:hidden;width:100%}.table th,.table td{padding:12px 14px;border-bottom:1px solid #eeeef3}.table tr:last-child td{border-bottom:0}.table th{font-size:11px;background:#fafaff}.table td{font-size:12px}.table tbody tr{transition:background .15s}.table tbody tr:hover{background:#fbfaff}.empty{padding:38px;border-radius:15px;background:#fff;box-shadow:var(--shadow-sm)}.field input,.field textarea,.field select{border-radius:11px;transition:border-color .18s,box-shadow .18s}.field input:focus,.field textarea:focus,.field select:focus{box-shadow:0 0 0 3px #6d4aff12;border-color:#cfc4ff}.toast{border-radius:11px;box-shadow:0 14px 35px rgba(0,0,0,.18);font-size:13px}.auth{background:radial-gradient(circle at 20% 20%,#eee9ff,transparent 38%),linear-gradient(135deg,#fafaff,#f2efff)}.page-dashboard,.page-training,.page-scenarios,.page-progress,.page-history,.page-report,.page-team,.page-analytics{max-width:1500px}.kpi,.stat-card,.history-card,.report-card,.team-card,.analytics-card{background:var(--card);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow-sm)}.status,.badge,.tag{white-space:nowrap}.success,.positive{color:var(--good)}.warning{color:var(--warn)}.danger,.negative{color:var(--bad)}@media(max-width:1050px){.shell{grid-template-columns:214px minmax(0,1fr)}.content{padding:24px}.grid{gap:10px}.scenario-grid{gap:10px}}@media(max-width:760px){.shell{display:block}.side{position:sticky;top:0;z-index:15;height:auto;padding:9px 10px;box-shadow:0 5px 20px rgba(17,14,32,.16)}.side .logo{padding:3px 7px 9px}.side .logo-b{width:36px;height:36px}.nav{display:flex;overflow-x:auto;gap:4px;padding-bottom:2px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}.nav button{white-space:nowrap;padding:9px 10px;font-size:12px}.nav button.active:before{left:7px;right:7px;top:auto;bottom:3px;width:auto;height:2px}.side-bottom{display:none}.content{padding:18px 14px 30px}.top h2{font-size:23px}.hero-card{padding:19px}.card{padding:15px}.chat{height:calc(100vh - 205px);min-height:430px}.messages{padding:15px}.msg{max-width:88%}.table{display:block;overflow-x:auto}.top-actions{flex-wrap:wrap}}`;
-  const style=document.getElementById('saletrening-approved-design')||document.createElement('style');style.id='saletrening-approved-design';style.textContent=css;if(!style.parentNode)document.head.appendChild(style);
-  const originalNav=window.nav;window.nav=function(v,t,icon){if(v==='ai')t='AI-чат';return originalNav?originalNav(v,t,icon):`<button class="${state.view===v?'active':''}" onclick="state.view='${v}';page()"><span class="nav-icon">${icon}</span>${t}</button>`};
-  const key=()=>`saletrening_mentor_${window.state?.user?.id||'guest'}`;const escM=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));const load=()=>{try{const x=JSON.parse(localStorage.getItem(key())||'[]');return Array.isArray(x)?x.slice(-40):[]}catch{return[]}};const save=()=>{try{localStorage.setItem(key(),JSON.stringify(state.mentorMessages||[]))}catch{}};
-  function draw(){const box=document.getElementById('mentorMessages');if(!box)return;const a=state.mentorMessages||[];box.innerHTML=a.length?a.map(m=>`<div class="msg ${m.role==='assistant'?'client':'manager'}"><b>${m.role==='assistant'?'AI-наставник':'Вы'}:</b><div style="white-space:pre-wrap;margin-top:5px">${escM(m.text)}</div></div>`).join(''):`<div class="empty" style="background:transparent;border:0;padding:55px 20px"><div style="font-size:42px">✦</div><b style="font-size:18px;color:var(--text)">AI-наставник готов</b><div class="muted" style="margin-top:7px">Спросите, как отработать возражение, разобрать тренировку или усилить аргументацию.</div></div>`;box.scrollTop=box.scrollHeight}
-  window.clearMentorChat=function(){state.mentorMessages=[];save();draw()};window.sendMentorMessage=async function(){const input=document.getElementById('mentorInput'),button=document.getElementById('mentorSend');if(!input||!button)return;const text=input.value.trim();if(!text||button.disabled)return;if(!state.mentorMessages)state.mentorMessages=load();state.mentorMessages.push({role:'user',text});save();input.value='';draw();button.disabled=true;button.textContent='Думаю…';try{const s=await sb.auth.getSession(),token=s?.data?.session?.access_token;if(!token)throw new Error('Сессия авторизации истекла. Войдите снова.');const r=await fetch(`${SUPABASE_URL}/functions/v1/manager-ai-chat`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':`Bearer ${token}`},body:JSON.stringify({message:text,transcript:state.mentorMessages.slice(-16),profile:{first_name:state.profile?.first_name||'',role:state.profile?.role||'',company:state.company?.name||''},stats:state.stats||{},history:(state.history||[]).slice(0,10)}),cache:'no-store'});const raw=await r.text();let j=null;try{j=raw?JSON.parse(raw):null}catch{}if(!r.ok||!j?.reply)throw new Error(j?.error||j?.message||raw||`HTTP ${r.status}`);state.mentorMessages.push({role:'assistant',text:j.reply});save();draw()}catch(e){console.error('manager-ai-chat:',e);state.mentorMessages.push({role:'assistant',text:`Не удалось получить ответ AI: ${e.message||'ошибка'}`});save();draw()}finally{button.disabled=false;button.textContent='Отправить';input.focus()}};
-  window.aiCoach=function(){if(!state.mentorMessages)state.mentorMessages=load();return `<div class="top"><div><h2>AI-чат</h2><div class="muted">Персональный AI-наставник по продажам</div></div><div class="top-actions"><span class="pill">YandexGPT</span><button class="secondary" onclick="clearMentorChat()">Очистить чат</button></div></div><div class="chat" style="height:calc(100vh - 150px);min-height:520px"><div id="mentorMessages" class="messages"></div><div class="composer"><textarea id="mentorInput" rows="2" placeholder="Например: как ответить на возражение «Дорого»?"></textarea><button id="mentorSend" class="primary" onclick="sendMentorMessage()">Отправить</button></div></div>`};
-  const oldPage=window.page;if(oldPage)window.page=function(){const r=oldPage.apply(this,arguments);if(state.view==='ai')setTimeout(draw,0);return r};document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&document.activeElement?.id==='mentorInput'){e.preventDefault();sendMentorMessage()}});
-  const qs=new URLSearchParams(location.search),token=qs.get('invite')||localStorage.getItem('saletrening_invite_token')||'',invitedEmail=(qs.get('email')||'').trim().toLowerCase(),inviteFlow=qs.get('type')==='invite'&&!!token;if(!inviteFlow)return;const originalBoot=window.boot;function showInvite(email){const root=document.getElementById('root');if(!root)return;root.innerHTML=`<div class="auth"><div class="auth-card"><div class="auth-brand"><div class="logo"><div class="logo-b">S</div>SaleTrening</div><span class="auth-badge">ПРИГЛАШЕНИЕ</span></div><h1>Завершите регистрацию.</h1><div class="sub">Вы приглашены в команду SaleTrening. Email из приглашения закреплён и не может быть изменён.</div><div class="field"><label>Имя</label><input id="inviteFirst" placeholder="Дмитрий"></div><div class="field"><label>Email</label><input id="inviteEmailLocked" value="${escM(email)}" readonly style="background:#f5f5f8;color:#555"></div><div class="field"><label>Пароль</label><input id="invitePass" type="password" placeholder="Минимум 6 символов"></div><div class="auth-actions"><button class="primary" onclick="completeInviteRegistration()">Завершить регистрацию</button></div></div></div>`}window.completeInviteRegistration=async function(){const first=document.getElementById('inviteFirst')?.value.trim()||'',password=document.getElementById('invitePass')?.value||'';if(password.length<6){toast('Пароль должен содержать минимум 6 символов');return}const {data,error}=await sb.auth.updateUser({password,data:{first_name:first}});if(error){toast(error.message);return}try{await acceptPendingInvitation(data?.user?.id);await originalBoot(data.user)}catch(e){console.error(e);toast(e.message||'Не удалось принять приглашение')}};window.boot=async function(user){const email=String(user?.email||'').trim().toLowerCase();if(invitedEmail&&email&&email!==invitedEmail){await sb.auth.signOut();authScreen();return}showInvite(email||invitedEmail)};window.signUp=function(){toast('Для регистрации сотрудника используйте ссылку из приглашения.');};window.speakClient=function(){};
-})();
+/* SaleTrening invitation flow — isolated from the main auth UI. */
+(function () {
+  'use strict';
 
-// Load the full Canva application shell after the existing visual/invite layer.
-(function(){
-  var src='/canva-ui.js';
-  if(document.querySelector('script[data-canva-ui]')) return;
-  var s=document.createElement('script');
-  s.src=src+'?v=1';
-  s.async=false;
-  s.setAttribute('data-canva-ui','1');
-  document.head.appendChild(s);
+  const qs = new URLSearchParams(window.location.search);
+  const token = qs.get('invite');
+  const invitedEmail = (qs.get('email') || '').trim().toLowerCase();
+  const isInvite = qs.get('type') === 'invite' && !!token;
+  if (!isInvite) return;
+
+  const root = document.getElementById('root');
+  if (!root) return;
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+  }[m]));
+
+  const css = `
+    .invite-page{min-height:100vh;display:grid;place-items:center;padding:32px 18px;background:radial-gradient(circle at 20% 10%,#eee9ff,transparent 35%),linear-gradient(135deg,#fafaff,#f2efff);font-family:Inter,ui-sans-serif,Arial,sans-serif;color:#171827}
+    .invite-card{width:min(520px,100%);background:#fff;border:1px solid #e5e3ee;border-radius:28px;padding:34px;box-shadow:0 25px 80px rgba(51,32,96,.13)}
+    .invite-logo{display:flex;align-items:center;gap:11px;font-size:20px;font-weight:850}.invite-logo-b{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#7357ff,#9b86ff);color:#fff;display:grid;place-items:center;box-shadow:0 8px 20px rgba(109,74,255,.22)}
+    .invite-badge{display:inline-block;margin-top:24px;font-size:11px;font-weight:800;color:#6548ee;background:#eeeaff;padding:7px 10px;border-radius:999px}
+    .invite-card h1{font-size:32px;line-height:1.1;margin:16px 0 9px;letter-spacing:-.7px}.invite-sub{color:#7b7e91;line-height:1.55;font-size:14px}
+    .invite-field{margin:16px 0}.invite-field label{display:block;font-size:13px;color:#686b7c;margin-bottom:7px}.invite-field input{width:100%;box-sizing:border-box;border:1px solid #e1e1e9;border-radius:12px;padding:13px 14px;font:inherit;outline:none;background:#fff}.invite-field input:focus{border-color:#7357ff;box-shadow:0 0 0 3px #7357ff18}.invite-field input[readonly]{background:#f5f5f8;color:#626274;cursor:not-allowed}
+    .invite-actions{margin-top:20px}.invite-btn{width:100%;border:0;border-radius:12px;padding:13px 17px;background:linear-gradient(135deg,#7357ff,#6548ed);color:#fff;font-weight:800;font-size:14px;cursor:pointer}.invite-btn:disabled{opacity:.65;cursor:wait}.invite-error{display:none;margin-top:14px;padding:12px 14px;border-radius:12px;background:#fff3f4;border:1px solid #f0ced3;color:#b33b4b;font-size:13px;line-height:1.45}.invite-success{display:none;margin-top:14px;padding:14px;border-radius:12px;background:#f0fbf7;border:1px solid #c9eddf;color:#187957;font-size:13px;line-height:1.45}
+    @media(max-width:560px){.invite-page{padding:16px}.invite-card{padding:25px;border-radius:22px}.invite-card h1{font-size:28px}}
+  `;
+  const style = document.createElement('style');
+  style.id = 'saletrening-invite-isolated';
+  style.textContent = css;
+  document.head.appendChild(style);
+
+  let supabaseClient = null;
+  let invitationReady = false;
+
+  function render(email, loading = false) {
+    root.innerHTML = `<main class="invite-page">
+      <section class="invite-card" aria-label="Приглашение в SaleTrening">
+        <div class="invite-logo"><span class="invite-logo-b">S</span><span>SaleTrening</span></div>
+        <span class="invite-badge">ПРИГЛАШЕНИЕ В КОМАНДУ</span>
+        <h1>Завершите регистрацию</h1>
+        <div class="invite-sub">Вас пригласили присоединиться к команде. Email из приглашения закреплён и не может быть изменён.</div>
+        <div class="invite-field"><label for="inviteFirst">Имя</label><input id="inviteFirst" autocomplete="given-name" placeholder="Ваше имя"></div>
+        <div class="invite-field"><label for="inviteEmail">Email</label><input id="inviteEmail" value="${esc(email)}" readonly tabindex="-1"></div>
+        <div class="invite-field"><label for="invitePassword">Пароль</label><input id="invitePassword" type="password" autocomplete="new-password" placeholder="Минимум 6 символов"></div>
+        <div class="invite-actions"><button id="inviteComplete" class="invite-btn" ${loading ? 'disabled' : ''}>${loading ? 'Подготавливаем приглашение…' : 'Завершить регистрацию'}</button></div>
+        <div id="inviteError" class="invite-error"></div><div id="inviteSuccess" class="invite-success"></div>
+      </section>
+    </main>`;
+    const button = document.getElementById('inviteComplete');
+    if (button) button.addEventListener('click', complete);
+  }
+
+  function message(text) { const el = document.getElementById('inviteError'); if (el) { el.textContent = text; el.style.display = 'block'; } }
+  function success(text) { const el = document.getElementById('inviteSuccess'); if (el) { el.innerHTML = text; el.style.display = 'block'; } }
+
+  async function init() {
+    render(invitedEmail, true);
+    try {
+      if (!window.supabase || !window.SUPABASE_URL || !window.SUPABASE_KEY) throw new Error('Сервис авторизации ещё не загрузился. Обновите страницу.');
+      supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) throw error;
+      let session = data?.session || null;
+
+      if (!session) {
+        const { data: listenerData } = await supabaseClient.auth.onAuthStateChange((event, s) => {
+          if (s && !invitationReady) { session = s; invitationReady = true; }
+        });
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        const current = await supabaseClient.auth.getSession();
+        session = current.data?.session || session;
+      }
+
+      if (!session?.user) {
+        // The Supabase magic-link exchange may still be completing. Keep the invite UI,
+        // rather than allowing the normal app auth screen to overwrite it.
+        render(invitedEmail);
+        message('Ссылка приглашения открыта. Если форма не активировалась, откройте ссылку ещё раз в этой вкладке.');
+        return;
+      }
+
+      const email = String(session.user.email || invitedEmail).trim().toLowerCase();
+      if (invitedEmail && email !== invitedEmail) {
+        await supabaseClient.auth.signOut();
+        render(invitedEmail);
+        message('Эта ссылка приглашения предназначена для другого Email. Откройте письмо в почте, указанной в приглашении.');
+        return;
+      }
+      render(email);
+    } catch (e) {
+      console.error('[invite] init:', e);
+      render(invitedEmail);
+      message(e?.message || 'Не удалось подготовить приглашение.');
+    }
+  }
+
+  async function complete() {
+    const first = document.getElementById('inviteFirst')?.value.trim() || '';
+    const password = document.getElementById('invitePassword')?.value || '';
+    const button = document.getElementById('inviteComplete');
+    const error = document.getElementById('inviteError');
+    if (error) error.style.display = 'none';
+    if (!first) return message('Введите имя.');
+    if (password.length < 6) return message('Пароль должен содержать минимум 6 символов.');
+    if (!supabaseClient) return message('Авторизация ещё не готова. Обновите страницу.');
+    try {
+      button.disabled = true; button.textContent = 'Создаём аккаунт…';
+      const sessionResult = await supabaseClient.auth.getSession();
+      const user = sessionResult.data?.session?.user;
+      if (!user) throw new Error('Сессия приглашения не найдена. Откройте ссылку из письма ещё раз.');
+      if (invitedEmail && String(user.email || '').toLowerCase() !== invitedEmail) throw new Error('Email не совпадает с приглашением.');
+
+      const { data: updated, error: updateError } = await supabaseClient.auth.updateUser({ password, data: { first_name: first } });
+      if (updateError) throw updateError;
+
+      const { data: accepted, error: rpcError } = await supabaseClient.rpc('accept_company_invitation', { p_token: token });
+      if (rpcError) throw rpcError;
+      if (!accepted?.ok) throw new Error('Приглашение не было принято.');
+
+      success('Регистрация завершена. Перенаправляем в ваш кабинет…');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setTimeout(() => window.location.reload(), 700);
+    } catch (e) {
+      console.error('[invite] complete:', e);
+      message(e?.message || 'Не удалось завершить регистрацию.');
+      button.disabled = false; button.textContent = 'Завершить регистрацию';
+    }
+  }
+
+  // Stop the normal app from rendering over the isolated invitation page.
+  window.__SALE_TRAINING_INVITE_FLOW__ = true;
+  window.boot = function () { return Promise.resolve(); };
+  init();
 })();
