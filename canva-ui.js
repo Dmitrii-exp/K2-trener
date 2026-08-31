@@ -1,6 +1,26 @@
 (() => {
   'use strict';
-  /* SALETrening UI FORCE v7 — auth interaction fix */
+  /* SALETrening UI FORCE v8 — boot recovery */
+  const root = document.getElementById('root');
+  const showBoot = (message = 'SaleTrening загружается…') => {
+    if (root && !root.innerHTML.trim()) {
+      root.innerHTML = '<div id="boot-recovery" style="min-height:100vh;display:grid;place-items:center;background:#f7f7fb;font:16px Arial;color:#555"><div style="max-width:620px;padding:30px;text-align:center;background:#fff;border:1px solid #e8e7ef;border-radius:20px;box-shadow:0 20px 60px rgba(40,30,80,.08)"><b style="font-size:20px">SaleTrening</b><div style="margin-top:10px">'+message+'</div><small style="display:block;margin-top:12px;color:#85889a">Подключение к сервисам проверяется автоматически.</small></div></div>';
+    }
+  };
+  showBoot();
+  window.addEventListener('error', (event) => {
+    console.error('[SaleTrening] runtime error:', event.error || event.message);
+    const r = document.getElementById('root');
+    if (r && !r.querySelector('.auth,.shell,#boot-runtime-error')) {
+      const old = document.getElementById('boot-recovery');
+      if (old) old.remove();
+      r.insertAdjacentHTML('afterbegin','<div id="boot-runtime-error" style="position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:#f7f7fb;font:16px Arial;color:#555"><div style="max-width:680px;padding:30px;text-align:center;background:#fff;border:1px solid #eadff2;border-radius:20px;box-shadow:0 20px 60px rgba(40,30,80,.12)"><b>SaleTrening не удалось запустить</b><div style="margin-top:10px">Ошибка JavaScript. Обновите страницу через несколько секунд.</div><small style="display:block;margin-top:10px;color:#85889a">Консоль браузера и логи Vercel содержат подробности.</small><button onclick="location.reload()" style="margin-top:18px;border:0;border-radius:12px;padding:11px 18px;background:#7357ff;color:#fff;font-weight:700;cursor:pointer">Обновить</button></div></div>');
+    }
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('[SaleTrening] unhandled rejection:', event.reason);
+  });
+
   const css = `
     :root{--st-purple:#7357ff;--st-purple-2:#9b86ff;--st-bg:#f6f7fb;--st-card:#ffffff;--st-text:#171827;--st-muted:#85889a;--st-line:#e7e7ef;--st-dark:#15131f;--st-dark-2:#25213a}
     html,body{background:var(--st-bg)!important;color:var(--st-text)!important}
@@ -14,8 +34,7 @@
     .invite-locked{background:#f4f3f8!important;color:#626174!important;border-color:#ddd9ea!important;cursor:not-allowed!important}.invite-note{font-size:12px;color:var(--st-muted);line-height:1.45;margin-top:7px}
     @media(max-width:760px){.auth-card{display:block!important;min-height:auto!important;padding:0 25px 25px!important}.auth-card:before{position:relative!important;left:auto!important;top:auto!important;bottom:auto!important;width:calc(100% + 50px)!important;height:auto!important;min-height:150px!important;margin:0 -25px 25px!important;padding:28px!important;font-size:34px!important;pointer-events:none!important}.auth-card>*:not(:first-child){position:relative!important;z-index:1!important}.auth-brand{padding:0!important}.content{padding:18px 14px!important}}
   `;
-  function applyVisualLayer(){let style=document.getElementById('saletrening-ui-v7');if(!style){style=document.createElement('style');style.id='saletrening-ui-v7';document.head.appendChild(style)}style.textContent=css;document.documentElement.dataset.saletreningUi='v7'}
-  function showRecoveryMessage(){const root=document.getElementById('root');if(root&&!root.innerHTML.trim())root.innerHTML='<div style="min-height:100vh;display:grid;place-items:center;background:#f7f7fb;font:16px Arial;color:#555"><div style="max-width:560px;padding:28px;text-align:center;background:#fff;border:1px solid #e8e7ef;border-radius:18px"><b>SaleTrening не удалось запустить.</b><br><small style="display:block;margin-top:8px">Восстанавливаю подключение. Обновите страницу через несколько секунд.</small></div></div>'}
+  function applyVisualLayer(){let style=document.getElementById('saletrening-ui-v8');if(!style){style=document.createElement('style');style.id='saletrening-ui-v8';document.head.appendChild(style)}style.textContent=css;document.documentElement.dataset.saletreningUi='v8'}
   applyVisualLayer();
   new MutationObserver(applyVisualLayer).observe(document.documentElement,{childList:true,subtree:true});
   window.createCompanyInvitation=async function(){
@@ -26,6 +45,5 @@
     const button=document.querySelector('#inviteBox button.primary');if(button){button.disabled=true;button.textContent='Отправляем…'}
     try{const session=await sb.auth.getSession();const token=session?.data?.session?.access_token;if(!token)throw new Error('Сессия руководителя истекла. Войдите снова.');const {data,error}=await sb.functions.invoke('send-company-invitation',{body:{email,role,origin:location.origin}});if(error)throw error;if(!data?.ok)throw new Error(data?.message||'Не удалось отправить приглашение');if(out)out.innerHTML=`<div class="card" style="margin-top:14px;background:#faf9ff"><b>Приглашение отправлено</b><div class="muted" style="margin-top:6px">Письмо отправлено на <strong>${esc(email)}</strong>. Email менеджера закреплён за приглашением и не редактируется.</div><div class="invite-note">После перехода по ссылке менеджер увидит только поля «Имя» и «Пароль».</div></div>`;toast('Приглашение отправлено на почту')}catch(e){console.error('[SaleTrening] invitation:',e);if(out)out.innerHTML=`<div class="card" style="margin-top:14px;background:#fff5f5;border-color:#f0cccc"><b>Не удалось отправить письмо</b><div class="muted" style="margin-top:6px">${esc(e?.message||'Проверьте настройки почтового сервиса Supabase')}</div></div>`;toast(e?.message||'Ошибка отправки приглашения')}finally{if(button){button.disabled=false;button.textContent='Создать приглашение'}}
   };
-  (async()=>{if(window.supabase)return;if(!('serviceWorker'in navigator)){showRecoveryMessage();return}try{await navigator.serviceWorker.register('/sw.js',{scope:'/'});await navigator.serviceWorker.ready;if(!navigator.serviceWorker.controller){const key='k2_sw_recovery_reload_v2';if(!sessionStorage.getItem(key)){sessionStorage.setItem(key,'1');location.reload();return}}showRecoveryMessage()}catch(e){console.error('[SaleTrening] recovery service worker:',e);showRecoveryMessage()}})();
   const s=document.createElement('script');s.src='/cold-call-filters.js?v=2';s.defer=true;document.head.appendChild(s);
 })();
