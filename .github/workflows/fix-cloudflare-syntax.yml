@@ -1,0 +1,41 @@
+name: Fix SaleTrening syntax
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: ${{ !contains(github.event.head_commit.message, '[auto-fix]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repair literal newline escapes in index.html
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          replacements = {
+              ';\\n/* YANDEX_SPEECHKIT_TTS_V1 */': ';\n/* YANDEX_SPEECHKIT_TTS_V1 */',
+              '})();\\n\n(()=>{const nativeSpeechSynthesis': '})();\n\n(()=>{const nativeSpeechSynthesis',
+              '})();\\n\nlet state=': '})();\n\nlet state=',
+          }
+          before = s
+          for old, new in replacements.items():
+              s = s.replace(old, new)
+          if s == before:
+              raise SystemExit('No targeted syntax corruption found; refusing to commit')
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit repair and remove temporary workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git rm .github/workflows/fix-cloudflare-syntax.yml
+          git commit -m 'fix: repair SaleTrening browser syntax [auto-fix]'
+          git push
