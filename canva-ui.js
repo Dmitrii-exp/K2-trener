@@ -42,4 +42,18 @@
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',applyVisualLayer,{once:true});
   else applyVisualLayer();
+
+  // Restore the existing Cold Call filters/product field without touching app logic.
+  function loadColdCallFilters(){
+    if(window.__stColdFiltersLoaded || document.querySelector('script[data-st-cold-filters]')) return;
+    const script=document.createElement('script');
+    script.src='/cold-call-filters.js?v=restore-20260831';
+    script.async=false;
+    script.dataset.stColdFilters='1';
+    script.onload=()=>{window.__stColdFiltersLoaded=true};
+    script.onerror=()=>{console.warn('[SaleTrening] cold-call-filters.js failed to load')};
+    document.head.appendChild(script);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadColdCallFilters,{once:true});
+  else loadColdCallFilters();
 })();
