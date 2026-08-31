@@ -1,0 +1,1 @@
+The evaluator must distinguish ordinary training, free training, and cold calls; free training success requires explicit purchase/ordering/accounting action, not interest or email follow-up.
