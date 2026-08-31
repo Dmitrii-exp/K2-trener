@@ -28,7 +28,7 @@
       .chat{width:100%!important;height:calc(100dvh - 200px)!important;min-height:420px!important;max-height:none!important;border-radius:16px!important}.messages{padding:13px!important}.msg{max-width:88%!important;font-size:14px!important;padding:10px 12px!important}.composer{display:flex!important;flex-wrap:wrap!important;gap:7px!important;padding:8px!important}.composer textarea{width:100%!important;min-height:70px!important;order:2!important}.composer .primary{flex:1 1 auto!important;min-height:44px!important}.voice{min-height:44px!important}
       .table{display:block!important;width:100%!important;overflow-x:auto!important;white-space:nowrap!important;-webkit-overflow-scrolling:touch}.table th,.table td{padding:8px!important;font-size:12px!important}.empty{padding:26px 13px!important}.toast{left:10px!important;right:10px!important;bottom:10px!important;text-align:center!important}
       .call-shell{width:100%!important;max-width:none!important;border-radius:18px!important}.call-head{padding:19px 15px!important}.call-body{padding:13px!important}.call-live-text{font-size:17px!important}.call-controls{gap:7px!important}.call-btn{min-width:49px!important;height:50px!important;padding:0 13px!important}
-      .auth{min-height:100dvh!important;padding:12px!important;place-items:center!important}.auth-card{width:100%!important;min-height:0!important;padding:0 17px 20px!important;border-radius:20px!important}.auth-card:before{position:relative!important;left:auto!important;top:auto!important;bottom:auto!important;width:calc(100% + 34px)!important;height:auto!important;min-height:115px!important;margin:0 -17px 18px!important;padding:23px!important;font-size:29px!important;align-items:flex-end!important}.auth-brand{gap:8px!important}.auth-brand .logo{font-size:18px!important}.auth-brand .logo-b{width:38px!important;height:38px!important}h1{font-size:27px!important;margin:19px 0 8px!important}.auth-actions{display:flex!important;flex-direction:column!important;gap:8px!important}.auth-actions button{width:100%!important;min-height:44px!important}.field input,.field textarea,.field select{font-size:16px!important;min-height:44px!important}
+      .auth{min-height:100dvh!important;padding:12px!important;place-items:center!important}.auth-card{width:100%!important;min-height:0!important;padding:0 17px 20px!important;border-radius:20px!important}.auth-card:before{position:relative!important;left:auto!important;top:auto!important;bottom:auto!important;width:calc(100% + 34px)!important;height:auto!important;min-height:115px!important;margin:0 -17px 18px!important;padding:23px!important;font-size:29px!important;align-items:flex-end!important}.auth-brand{gap:8px!important}.auth-brand .logo{font-size:18px!important}.auth-brand .logo-b{width:38px!important;height:38px!important}.auth-actions{display:flex!important;flex-direction:column!important;gap:8px!important}.auth-actions button{width:100%!important;min-height:44px!important}.field input,.field textarea,.field select{font-size:16px!important;min-height:44px!important}
     }
     @media(max-width:380px){.content{padding-left:9px!important;padding-right:9px!important}.side{padding-left:8px!important;padding-right:8px!important}.nav button{font-size:11px!important;padding:8px 5px!important}.top h2{font-size:22px!important}.hero-card{padding:15px!important}.card{padding:13px!important}}
   `;
@@ -56,4 +56,18 @@
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadColdCallFilters,{once:true});
   else loadColdCallFilters();
+
+  // Enable continuous cold-call voice dialogue. Existing call logic remains the source of truth.
+  function loadColdCallVoice(){
+    if(window.__stColdVoiceLoaded || document.querySelector('script[data-st-cold-voice]')) return;
+    const script=document.createElement('script');
+    script.src='/cold-call-voice.js?v=20260831-1';
+    script.async=false;
+    script.dataset.stColdVoice='1';
+    script.onload=()=>{window.__stColdVoiceLoaded=true};
+    script.onerror=()=>{console.warn('[SaleTrening] cold-call-voice.js failed to load')};
+    document.head.appendChild(script);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadColdCallVoice,{once:true});
+  else loadColdCallVoice();
 })();
