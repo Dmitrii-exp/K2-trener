@@ -3,8 +3,7 @@
   if (window.__stContinuousColdCallVoice) return;
   window.__stContinuousColdCallVoice = true;
 
-  // The main UI renders onclick="logout()". Define it here because this
-  // script is loaded globally by canva-ui.js on every application screen.
+  // Keep logout here for compatibility with the existing UI.
   window.logout = async function () {
     try {
       const { error } = await sb.auth.signOut({ scope: 'local' });
@@ -27,90 +26,59 @@
     if (window.authScreen) window.authScreen();
   };
 
+  // TTS is intentionally NOT implemented here.
+  // speakCallClient() in index.html is the single source of truth for client audio.
+  // This prevents the previous browser-TTS/Yandex-TTS double playback.
   let active = false;
-  let speaking = false;
-  let lastSpoken = '';
-  let observer = null;
   let retryTimer = null;
+  let hookedButton = null;
 
   const text = el => (el?.textContent || '').replace(/\s+/g, ' ').trim();
-  const isCall = () => !!document.querySelector('.call-shell, .call-transcript, .call-live');
+  const isCall = () => !!document.querySelector('.call-shell');
   const buttons = () => Array.from(document.querySelectorAll('button'));
-  const talkButton = () => buttons().find(b => /говорите|говори|начать говорить|микрофон/i.test(text(b)) && !b.disabled);
+  const talkButton = () => buttons().find(b => /говорите|говори|начать говорить/i.test(text(b)) && !b.disabled);
 
-  function stopBrowserSpeech() {
+  function stop() {
+    active = false;
+    clearTimeout(retryTimer);
+    retryTimer = null;
     try { window.speechSynthesis?.cancel(); } catch {}
-    speaking = false;
-  }
-
-  function speakClient(message) {
-    const clean = String(message || '').trim();
-    if (!clean || clean === lastSpoken || !('speechSynthesis' in window)) return;
-    lastSpoken = clean;
-    speaking = true;
-    try { speechSynthesis.cancel(); } catch {}
-    const u = new SpeechSynthesisUtterance(clean);
-    u.lang = 'ru-RU';
-    u.rate = 0.98;
-    u.pitch = 1;
-    u.volume = 1;
-    u.onend = () => { speaking = false; if (active) armNextTurn(); };
-    u.onerror = () => { speaking = false; if (active) armNextTurn(); };
-    speechSynthesis.speak(u);
-  }
-
-  function latestClientMessage() {
-    const root = document.querySelector('.call-transcript');
-    if (!root) return null;
-    const nodes = Array.from(root.querySelectorAll('.msg.client'));
-    return nodes.length ? nodes[nodes.length - 1] : null;
   }
 
   function armNextTurn() {
-    if (!active || speaking) return;
+    if (!active || !isCall()) return;
     clearTimeout(retryTimer);
     retryTimer = setTimeout(() => {
-      if (!active || speaking) return;
+      if (!active || !isCall()) return;
       const b = talkButton();
-      if (b) b.click();
-      else armNextTurn();
-    }, 350);
+      if (b && b !== hookedButton && !b.disabled) b.click();
+      else if (b && !b.disabled) b.click();
+    }, 300);
   }
 
-  function watchTranscript() {
-    const root = document.querySelector('.call-transcript');
-    if (!root || root === observer?.root) return;
-    if (observer) observer.mo.disconnect();
-    const mo = new MutationObserver(() => {
-      if (!active) return;
-      const node = latestClientMessage();
-      const msg = text(node);
-      if (msg && msg !== lastSpoken) speakClient(msg);
-    });
-    mo.observe(root, { childList: true, subtree: true, characterData: true });
-    observer = { root, mo };
-  }
-
-  function activateOnTalk() {
-    if (!isCall()) return false;
+  function hookTalkButton() {
+    if (!isCall()) return;
     const b = talkButton();
-    if (!b || b.dataset.stContinuousHooked) return false;
-    b.dataset.stContinuousHooked = '1';
+    if (!b || b.dataset.stContinuousHookedV2 === '1') return;
+    b.dataset.stContinuousHookedV2 = '1';
+    hookedButton = b;
     b.addEventListener('click', () => {
       active = true;
-      watchTranscript();
+      clearTimeout(retryTimer);
     }, { capture: true });
-    return true;
   }
 
   function scan() {
-    activateOnTalk();
-    watchTranscript();
-    if (!isCall()) { active = false; lastSpoken = ''; stopBrowserSpeech(); }
+    if (!isCall()) {
+      stop();
+      hookedButton = null;
+      return;
+    }
+    hookTalkButton();
   }
 
-  const rootObserver = new MutationObserver(scan);
-  rootObserver.observe(document.body, { childList: true, subtree: true });
+  const observer = new MutationObserver(scan);
+  observer.observe(document.body, { childList: true, subtree: true });
   setInterval(scan, 1000);
   scan();
 })();
