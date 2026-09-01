@@ -1,0 +1,44 @@
+name: Fix index syntax
+on:
+  push:
+    branches: [main]
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repair malformed TTS injection
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          marker = '/* YANDEX_SPEECHKIT_TTS_V1 */\\n'
+          if marker not in s:
+              print('No malformed Yandex TTS injection found')
+              raise SystemExit(0)
+          start = s.index(marker)
+          end_marker = '\n ;\n'
+          end = s.find(end_marker, start)
+          if end == -1:
+              raise SystemExit('Could not find end of malformed TTS injection')
+          replacement = ''
+          s = s[:start] + s[end:]
+          p.write_text(s, encoding='utf-8')
+          print('Malformed TTS injection removed')
+          PY
+      - name: Commit fix
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'No changes to commit'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'fix: remove malformed TTS injection'
+          git push
