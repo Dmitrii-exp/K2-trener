@@ -1,49 +1,9 @@
 name: Connect Yandex SpeechKit TTS
 on:
-  push:
-    branches: [main]
-permissions:
-  contents: write
+  workflow_dispatch:
+
 jobs:
-  patch:
-    if: github.actor != 'github-actions[bot]'
+  disabled:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Repair malformed SpeechKit injection
-        shell: python
-        run: |
-          from pathlib import Path
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-          marker='/* YANDEX_SPEECHKIT_TTS_V1 */'
-          if marker in s:
-              start=s.index(marker)
-              state=s.find('let state=', start)
-              if state == -1:
-                  raise SystemExit('Application state anchor not found')
-              anchor='const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);'
-              a=s.find(anchor)
-              if a == -1 or a > start:
-                  raise SystemExit('Supabase client anchor not found')
-              s=s[:a+len(anchor)]+'\n'+s[state:]
-              p.write_text(s,encoding='utf-8')
-              print('Malformed Yandex TTS injection removed')
-          else:
-              print('No malformed Yandex TTS injection found')
-      - name: Validate JavaScript structure
-        shell: python
-        run: |
-          from pathlib import Path
-          s=Path('index.html').read_text(encoding='utf-8')
-          assert 'let state=' in s
-          assert 'YANDEX_SPEECHKIT_TTS_V1' not in s
-          print('index.html repaired')
-      - name: Commit
-        run: |
-          if git diff --quiet -- index.html; then echo 'No changes needed'; exit 0; fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html
-          git commit -m 'fix: remove malformed TTS injection'
-          git push
+      - run: echo "TTS auto-patching is disabled; cold-call voice code is maintained in index.html"
