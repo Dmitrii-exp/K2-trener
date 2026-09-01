@@ -12,8 +12,6 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: cors });
 
 function getAdminKey() {
-  // New Supabase projects expose named secret keys in SUPABASE_SECRET_KEYS.
-  // Keep legacy fallbacks for older projects.
   const secretKeys = Deno.env.get("SUPABASE_SECRET_KEYS");
   if (secretKeys) {
     try {
@@ -21,11 +19,17 @@ function getAdminKey() {
       if (parsed?.default) return parsed.default;
     } catch (_) {}
   }
-  return (
-    Deno.env.get("SUPABASE_SECRET_KEY") ||
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
-    ""
-  );
+  return Deno.env.get("SUPABASE_SECRET_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? "").replace(/[&<>\"']/g, (m) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#039;",
+  })[m] || m);
 }
 
 Deno.serve(async (req) => {
@@ -44,16 +48,12 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get("Authorization") || "";
   if (!authHeader) return json({ error: "unauthorized" }, 401);
 
-  // User-scoped client: used only for authentication and RLS-protected data.
   const caller = createClient(supabaseUrl, adminKey, {
     global: { headers: { Authorization: authHeader } },
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
 
-  const {
-    data: { user },
-    error: userError,
-  } = await caller.auth.getUser();
+  const { data: { user }, error: userError } = await caller.auth.getUser();
   if (userError || !user) {
     return json({ error: "unauthorized", message: userError?.message || "Пользователь не авторизован" }, 401);
   }
@@ -76,11 +76,7 @@ Deno.serve(async (req) => {
     .eq("id", user.id)
     .single();
 
-  if (
-    profileError ||
-    !profile?.company_id ||
-    !["director", "admin", "manager"].includes(profile.role)
-  ) {
+  if (profileError || !profile?.company_id || !["director", "admin", "manager"].includes(profile.role)) {
     return json({
       error: "forbidden",
       message: profileError?.message || `Недостаточно прав для приглашения. Роль профиля: ${profile?.role || "не определена"}`,
@@ -88,7 +84,9 @@ Deno.serve(async (req) => {
   }
 
   const origin = String(body?.origin || "").replace(/\/$/, "");
-  if (!origin) return json({ error: "origin_required", message: "Не передан адрес сайта" }, 400);
+  if (!origin || !/^https?:\/\//i.test(origin)) {
+    return json({ error: "origin_required", message: "Не передан корректный адрес сайта" }, 400);
+  }
 
   const token = crypto.randomUUID().replaceAll("-", "");
   const { error: invitationError } = await caller
@@ -108,21 +106,18 @@ Deno.serve(async (req) => {
 
   const redirectTo = `${origin}/?invite=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}&type=invite`;
 
-  // IMPORTANT: separate admin client. The caller JWT must not be present in
-  // the Authorization header of Auth Admin requests.
   const admin = createClient(supabaseUrl, adminKey, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
 
-  const { data: generated, error: generateError } =
-    await admin.auth.admin.generateLink({
-      type: "magiclink",
-      email,
-      options: { redirectTo },
-    });
+  const { data: generated, error: generateError } = await admin.auth.admin.generateLink({
+    type: "magiclink",
+    email,
+    options: { redirectTo },
+  });
 
   if (generateError || !generated?.properties?.action_link) {
-    await caller.from("company_invitations").delete().eq("token", token);
+    await caller.from("company_invitations").delete().eq("token", token).eq("invited_by", user.id);
     return json({
       error: "invite_link_failed",
       message: generateError?.message || "Не удалось создать ссылку приглашения",
@@ -139,6 +134,7 @@ Deno.serve(async (req) => {
   const from = Deno.env.get("INVITE_FROM_EMAIL") || "SaleTrening <onboarding@resend.dev>";
 
   if (!resendKey) {
+    await caller.from("company_invitations").delete().eq("token", token).eq("invited_by", user.id);
     return json({
       error: "email_service_not_configured",
       message: "RESEND_API_KEY не найден среди секретов Supabase Edge Functions. Ключ Vercel здесь не используется.",
@@ -146,7 +142,9 @@ Deno.serve(async (req) => {
     }, 503);
   }
 
-  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#f6f5fb;padding:32px"><div style="max-width:560px;margin:auto;background:#fff;border-radius:18px;padding:32px;box-shadow:0 10px 30px rgba(0,0,0,.08)"><h1 style="margin-top:0">Приглашение в SaleTrening</h1><p>Вас пригласили присоединиться к команде SaleTrening.</p><p>Нажмите кнопку ниже, чтобы войти и завершить регистрацию.</p><p><a href="${actionLink}" style="display:inline-block;background:#6d45ff;color:#fff;text-decoration:none;padding:13px 22px;border-radius:10px;font-weight:700">Принять приглашение</a></p><p style="color:#777;font-size:13px">Если кнопка не открывается, скопируйте эту ссылку в браузер:<br>${actionLink}</p></div></body></html>`;
+  const safeEmail = escapeHtml(email);
+  const safeActionLink = escapeHtml(actionLink);
+  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#f6f5fb;padding:32px"><div style="max-width:560px;margin:auto;background:#fff;border-radius:18px;padding:32px;box-shadow:0 10px 30px rgba(0,0,0,.08)"><h1 style="margin-top:0">Приглашение в SaleTrening</h1><p>Вас пригласили присоединиться к команде SaleTrening.</p><p>Нажмите кнопку ниже, чтобы войти и завершить регистрацию.</p><p><a href="${safeActionLink}" style="display:inline-block;background:#6d45ff;color:#fff;text-decoration:none;padding:13px 22px;border-radius:10px;font-weight:700">Принять приглашение</a></p><p style="color:#777;font-size:13px">Приглашение отправлено на ${safeEmail}. Если кнопка не открывается, скопируйте эту ссылку в браузер:<br>${safeActionLink}</p></div></body></html>`;
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -156,6 +154,7 @@ Deno.serve(async (req) => {
 
   const result = await res.json().catch(() => ({}));
   if (!res.ok) {
+    await caller.from("company_invitations").delete().eq("token", token).eq("invited_by", user.id);
     return json({
       error: "email_send_failed",
       message: result?.message || `Resend вернул HTTP ${res.status}`,
