@@ -1,4 +1,4 @@
-name: Patch application UI and cold call settings
+name: Patch training UI
 on:
   push:
     branches: [main]
@@ -10,58 +10,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch index UI
+      - name: Patch index.html
         shell: python
         run: |
           from pathlib import Path
           import re
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          changed=False
 
-          # Keep the existing cold-call voice selector fix idempotent.
-          for old,new in [("voice:'marina'","voice:(document.getElementById('coldVoice')?.value||'marina')"),("voice:\"marina\"","voice:(document.getElementById('coldVoice')?.value||'marina')")]:
-              if old in s:
-                  s=s.replace(old,new,1); changed=True; break
-          voice_field='<div class="field" style="margin-top:14px"><label>Голос клиента</label><select id="coldVoice"><option value="filipp">Филипп — мужской</option><option value="ermil">Ермил — мужской</option><option value="zahar">Захар — мужской</option><option value="alexander">Александр — мужской</option><option value="kirill">Кирилл — мужской</option><option value="anton">Антон — мужской</option></select></div>'
-          if 'id="coldVoice"' not in s:
-              m=re.search(r'(<select id="coldCharacter"[\s\S]*?</select>)',s,flags=re.S)
-              if m:
-                  s=s[:m.end()]+voice_field+s[m.end():]
-                  changed=True
+          training_chat=r'''function trainingChat(){const p=$("page");if(!p)return;p.innerHTML=`<div class="top"><div><h2>${esc(state.session.scenario.title)}</h2><div class="muted">${esc(state.session.scenario.client_role||"Клиент")} · ${esc(state.session.scenario.difficulty||"Средняя")}</div></div></div><div class="chat"><div id="messages" class="messages">${state.messages.map(m=>`<div class="msg ${m.speaker}"><b>${m.speaker==="client"?"Клиент":"Вы"}:</b> ${esc(m.content)}</div>`).join("")}</div><div class="composer"><button class="voice" onclick="voiceInput()" title="Голосовой ввод">🎙️</button><textarea id="msg" rows="2" placeholder="Ответьте клиенту..."></textarea><button class="primary" onclick="sendMessage()">Отправить</button></div><button class="secondary" style="width:100%;margin-top:10px" onclick="finishTraining()">⚑ Завершить тренировку</button><div class="muted" style="text-align:center;margin-top:7px">Тренировка будет завершена и отправлена на анализ AI</div></div>`;const messages=$("messages");if(messages)messages.scrollTop=messages.scrollHeight}'''
+          s,n=re.subn(r'function trainingChat\(\)\{.*?(?=async function saveSession\(\))',lambda m:training_chat+'\n',s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('trainingChat not found')
 
-          # Add compact manager AI chat once.
-          if '/* AI_CHAT_V2 */' not in s:
-              css='''\n/* AI_CHAT_V2 */\n.ai-chat-card{max-width:1100px;margin:auto}.ai-chat-shell{height:620px;display:grid;grid-template-rows:1fr auto;background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}.ai-chat-head{padding:18px 20px;border-bottom:1px solid var(--line);background:linear-gradient(135deg,#fff,#f8f5ff)}.ai-chat-head strong{font-size:18px}.ai-chat-messages{padding:20px;overflow:auto;background:#fafaff}.ai-chat-msg{max-width:82%;padding:12px 14px;border-radius:15px;margin:8px 0;line-height:1.5;white-space:pre-wrap}.ai-chat-msg.ai{background:#fff;border:1px solid var(--line)}.ai-chat-msg.user{background:#eeeaff;margin-left:auto}.ai-chat-composer{display:flex;gap:10px;padding:12px;border-top:1px solid var(--line);background:#fff}.ai-chat-composer textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:12px;padding:12px;outline:none}.ai-chat-composer textarea:focus{border-color:var(--p);box-shadow:0 0 0 3px #6d4aff12}.ai-chat-send{min-width:120px}@media(max-width:760px){.ai-chat-shell{height:calc(100vh - 210px);min-height:460px}.ai-chat-composer{flex-wrap:wrap}.ai-chat-composer textarea{width:100%;min-width:0}.ai-chat-send{width:100%}}\n'''
-              s=s.replace('</style>',css+'</style>',1)
-              nav='nav("ai","AI-наставник","✦")'
-              if nav in s:
-                  s=s.replace(nav,'nav("ai","AI-чат","✦")',1)
-              route='else if(state.view==="analytics")setPageHTML(p,analytics());else p.innerHTML=aiCoach()'
-              if route in s:
-                  s=s.replace(route,'else if(state.view==="analytics")setPageHTML(p,analytics());else if(state.view==="ai")setPageHTML(p,aiChat());else p.innerHTML=aiCoach()',1)
-              start=s.find('function aiCoach(){')
-              end=s.find('\n/* COLD_CALL_MODE_V1 */',start)
-              if start>=0 and end>=0:
-                  chat=r'''function aiChat(){return `<div class="top"><div><h2>AI-чат</h2><div class="muted">Задавай вопросы по продажам, переговорам, товарам и работе с клиентами.</div></div></div><div class="ai-chat-card"><div class="ai-chat-shell"><div><div class="ai-chat-head"><strong>AI-помощник SaleTrening</strong><div class="muted" style="margin-top:4px">Поможет разобрать ситуацию, подготовить аргументы и найти следующий шаг.</div></div><div id="aiChatMessages" class="ai-chat-messages"><div class="ai-chat-msg ai"><b>AI:</b> Привет! Задавай вопрос — помогу разобраться в ситуации по продажам.</div></div></div><form class="ai-chat-composer" onsubmit="sendAIChat(event)"><textarea id="aiChatInput" rows="2" placeholder="Напишите свой вопрос..."></textarea><button class="primary ai-chat-send" type="submit">Отправить</button></form></div></div>`}
-async function sendAIChat(e){e.preventDefault();const input=$("aiChatInput"),text=input?.value.trim();if(!text)return;const box=$("aiChatMessages");if(!box)return;box.innerHTML+=`<div class="ai-chat-msg user"><b>Вы:</b> ${esc(text)}</div>`;input.value="";box.innerHTML+=`<div id="aiChatTyping" class="ai-chat-msg ai">AI печатает...</div>`;box.scrollTop=box.scrollHeight;try{const {data,error}=await sb.auth.getSession();const token=data?.session?.access_token;if(error||!token)throw new Error("Сессия авторизации истекла. Войдите снова.");const history=Array.from(box.querySelectorAll(".ai-chat-msg")).slice(-12).map(x=>x.innerText).filter(x=>x&&!x.includes("AI печатает..."));const r=await fetch(SUPABASE_URL+"/functions/v1/chat-client",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+token},body:JSON.stringify({session_id:"ai-chat-"+state.user.id,scenario_id:"ai-chat",message:text,opening:false,transcript:history.map(x=>({speaker:x.startsWith("Вы:")?"manager":"client",content:x.replace(/^[^:]+:\s*/,"")})),scenario:{title:"AI-чат",client_role:"AI-помощник по продажам",client_mood:"деловой",difficulty:"свободный",description:"Отвечай менеджеру на вопросы о продажах, переговорах, работе с возражениями, клиентах и товарах. Не играй роль клиента. Давай практичный, точный и понятный ответ."},client_settings:{mode:"manager_chat"}}),cache:"no-store"});const raw=await r.text();let j=null;try{j=raw?JSON.parse(raw):null}catch(_){}if(!r.ok)throw new Error(j?.error||j?.message||raw||("HTTP "+r.status));const reply=j?.reply||j?.message||j?.content||j?.text;if(!reply)throw new Error("AI не вернул ответ");$("aiChatTyping")?.remove();box.innerHTML+=`<div class="ai-chat-msg ai"><b>AI:</b> ${esc(reply)}</div>`}catch(err){console.error("AI chat:",err);$("aiChatTyping")?.remove();box.innerHTML+=`<div class="ai-chat-msg ai">Не удалось получить ответ AI: ${esc(err.message||"неизвестная ошибка")}</div>`}box.scrollTop=box.scrollHeight}'''
-                  s=s[:start]+chat+s[end:]
-                  changed=True
-          if not changed:
-              print('No changes needed')
+          training_call=r'''function trainingCallPage(){const p=$("page");if(!p||!state.session)return;if(coldCall.timer)clearInterval(coldCall.timer);p.innerHTML=`<div class="top"><div><h2>Холодный звонок</h2><div class="muted">Соединение установлено · ${esc(coldCall.difficulty)}</div></div></div><div class="call-shell"><div class="call-head"><div class="call-status" id="callStatus">Ваш ход — начинайте разговор</div><div class="call-avatar" id="callAvatar">☎</div><div class="call-name">${esc(state.session.scenario.client_role||"Клиент")}</div><div class="call-sub">Холодный звонок · ${esc(coldCall.difficulty)}</div><div class="call-timer" id="callTimer">00:00</div></div><div class="call-body"><div class="call-live"><div class="call-live-label">Последняя реплика</div><div class="call-live-text" id="callLive">Начните разговор — клиент слушает.</div></div><div class="call-controls"><button id="callMic" class="call-btn primary-call" onclick="toggleVoice()">🎙 Говорить</button><button class="call-btn end-call" onclick="finishTraining()">Завершить звонок</button></div><div class="call-hint" id="callHint">Вы говорите первым. После вашей реплики клиент ответит.</div><div class="call-transcript" id="callTranscript">${state.messages.map(m=>`<div class="msg ${m.speaker}"><b>${m.speaker==="client"?"Клиент":"Вы"}:</b> ${esc(m.content)}</div>`).join("")}</div><button class="secondary" style="width:100%;margin-top:12px" onclick="finishTraining()">⚑ Завершить тренировку</button><div class="call-hint">Тренировка будет завершена и отправлена на анализ AI</div></div></div>`;coldCall.timer=setInterval(async()=>{const el=$("callTimer");if(!el||!state.session){clearInterval(coldCall.timer);coldCall.timer=null;return}const sec=Math.floor((Date.now()-coldCall.startedAt)/1000);el.textContent=`${String(Math.floor(sec/60)).padStart(2,"0")}:${String(sec%60).padStart(2,"0")}`;if(sec>=600&&!coldCall.processing){clearInterval(coldCall.timer);coldCall.timer=null;coldCall.processing=true;const n="У меня нет времени, мне не интересно, до свидания.";state.messages.push({speaker:"client",content:n});await saveSession();const live=$("callLive");if(live)live.textContent=n;setCallStatus("Звонок завершён",false);speakCallClient(n);setTimeout(()=>finishTraining(),2200)}},1000)}'''
+          s,n=re.subn(r'function trainingCallPage\(\)\{.*?(?=async function speakCallClient\()',lambda m:training_call+'\n',s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('trainingCallPage not found')
+
+          report_page=r'''function reportPage(){const r=state.report||{},x=r.session||{},s=r.score||{};const score=n=>{const v=Number(n);return Number.isFinite(v)&&v>0?Math.max(1,Math.min(20,Math.round(v))):null};const skills=[["Работа с возражениями",score(s.objection_score)],["Презентация продукта",score(s.value_score)],["Дожим / закрытие сделки",score(s.closing_score)],["Вовлечённость клиента в разговор / коммуникация",score(s.communication_score)],["Выявление потребности",score(s.discovery_score)]].filter(v=>v[1]!==null);const calculated=skills.reduce((a,v)=>a+v[1],0);const stored=Number(s.overall_score);const sessionTotal=Number(x.total_score);const total=Number.isFinite(stored)&&stored>0?Math.round(stored):Number.isFinite(sessionTotal)&&sessionTotal>0?Math.round(sessionTotal):calculated;const strengths=reportItems(s.strengths),weaknesses=reportItems(s.weaknesses),recommendations=reportItems(s.recommendations),transcript=Array.isArray(x.transcript)?x.transcript:[],names={};state.scenarios.forEach(z=>names[z.id]=z.title);const list=(items,empty)=>items.length?`<ul style="margin:10px 0 0;padding-left:20px">${items.map(v=>`<li style="margin:7px 0">${esc(v)}</li>`).join("")}</ul>`:`<div class="muted" style="margin-top:10px">${empty}</div>`;return `<div class="top"><div><h2>Отчёт тренировки</h2><div class="muted">${esc(names[x.scenario_id]||"Тренировка")} · ${new Date(x.created_at).toLocaleString("ru-RU")}</div></div><button class="secondary" onclick="state.report=null;page()">← Назад к тренировкам</button></div><div class="card" style="text-align:center;padding:28px"><div class="muted">ОБЩИЙ БАЛЛ</div><div class="metric" style="font-size:54px">${total}<span style="font-size:18px;color:var(--muted)"> / 100</span></div><div class="muted" style="margin-top:8px">Итоговый балл тренировки</div></div><div class="section card"><h3>Оценка навыков</h3>${skills.map(v=>`<div style="margin:18px 0"><div style="display:flex;justify-content:space-between;gap:12px"><span>${v[0]}</span><b>${v[1]} / 20</b></div><div class="bar" style="margin-top:8px"><i style="width:${v[1]*5}%"></i></div></div>`).join("")}<div style="display:flex;justify-content:space-between;margin-top:22px;padding-top:14px;border-top:1px solid var(--line)"><b>Итоговый балл</b><b>${total} / 100</b></div></div><div class="section card"><h3>Анализ тренировки</h3><div style="margin-top:18px"><b>🟢 Сильные стороны</b>${list(strengths,"Сильные стороны не указаны.")}</div><div style="margin-top:22px"><b>🔴 Слабые стороны</b>${list(weaknesses,"Слабые стороны не указаны.")}</div><div style="margin-top:22px"><b>💡 Рекомендации</b>${list(recommendations,"Рекомендации не указаны.")}</div>${x.ai_summary?`<div style="margin-top:22px"><b>Краткий вывод ИИ</b><p class="muted" style="line-height:1.55">${esc(x.ai_summary)}</p></div>`:""}</div><div class="section card"><h3>Полный диалог</h3><div class="messages" style="margin-top:14px;max-height:none">${transcript.length?transcript.map(m=>{const speaker=String(m?.speaker||m?.role||"").toLowerCase(),manager=["manager","user","employee"].includes(speaker),text=m?.content??m?.text??m?.message??"";return `<div class="msg ${manager?"manager":"client"}"><b>${manager?"Менеджер":"Клиент"}:</b> ${esc(text)}</div>`}).join(""):`<div class="empty">Полный диалог не сохранён.</div>`}</div></div>`}'''
+          s,n=re.subn(r'function reportPage\(\)\{.*?(?=function toggleInviteBox\(\))',lambda m:report_page+'\n',s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('reportPage not found')
+
           p.write_text(s,encoding='utf-8')
-      - name: Validate and commit
+          print('training UI patched')
+      - name: Validate
+        shell: python
         run: |
-          python - <<'PY'
           from pathlib import Path
           s=Path('index.html').read_text(encoding='utf-8')
-          required=['AI_CHAT_V2','AI-чат','function aiChat(){','function sendAIChat(']
-          for x in required:
-              if x not in s: raise SystemExit('Missing: '+x)
-          PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for x in ['⚑ Завершить тренировку','function trainingChat()','function trainingCallPage()','function reportPage()']:
+            if x not in s: raise SystemExit('Missing: '+x)
+          print('validation passed')
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name 'SaleTrening Bot'
+          git config user.email 'actions@github.com'
           git add index.html
           git diff --cached --quiet && exit 0
-          git commit -m 'feat: add manager AI chat UI'
+          git commit -m 'fix: place finish action in training modes and sync scores'
           git push
