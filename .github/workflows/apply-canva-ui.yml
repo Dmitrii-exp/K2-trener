@@ -18,20 +18,41 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Inject Canva UI script
+      - name: Apply UI and scoring fixes
         shell: python
         run: |
           from pathlib import Path
-          p = Path('index.html')
-          s = p.read_text(encoding='utf-8')
-          marker = '<script src="/canva-ui.js"></script>'
-          if marker not in s:
-              s = s.replace('</body>', marker + '\n</body>')
-              p.write_text(s, encoding='utf-8')
-              print('Canva UI script injected')
-          else:
-              print('Canva UI script already present')
+          import re
 
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          training_chat=r'''function trainingChat(){const p=$("page");if(!p)return;p.innerHTML=`<div class="top"><div><h2>${esc(state.session.scenario.title)}</h2><div class="muted">${esc(state.session.scenario.client_role||"Клиент")} · ${esc(state.session.scenario.difficulty||"Средняя")}</div></div></div><div class="chat"><div id="messages" class="messages">${state.messages.map(m=>`<div class="msg ${m.speaker}"><b>${m.speaker==="client"?"Клиент":"Вы"}:</b> ${esc(m.content)}</div>`).join("")}</div><div class="composer"><button class="voice" onclick="voiceInput()" title="Голосовой ввод">🎙️</button><textarea id="msg" rows="2" placeholder="Ответьте клиенту..."></textarea><button class="primary" onclick="sendMessage()">Отправить</button></div><button class="secondary" style="width:100%;margin-top:10px" onclick="finishTraining()">⚑ Завершить тренировку</button><div class="muted" style="text-align:center;margin-top:7px">Тренировка будет завершена и отправлена на анализ AI</div></div>`;const messages=$("messages");if(messages)messages.scrollTop=messages.scrollHeight}'''
+          s,n=re.subn(r'function trainingChat\(\)\{.*?(?=async function saveSession\(\))',lambda m:training_chat+'\n',s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('trainingChat not found')
+
+          training_call=r'''function trainingCallPage(){const p=$("page");if(!p||!state.session)return;if(coldCall.timer)clearInterval(coldCall.timer);p.innerHTML=`<div class="top"><div><h2>Холодный звонок</h2><div class="muted">Соединение установлено · ${esc(coldCall.difficulty)}</div></div></div><div class="call-shell"><div class="call-head"><div class="call-status" id="callStatus">Ваш ход — начинайте разговор</div><div class="call-avatar" id="callAvatar">☎</div><div class="call-name">${esc(state.session.scenario.client_role||"Клиент")}</div><div class="call-sub">Холодный звонок · ${esc(coldCall.difficulty)}</div><div class="call-timer" id="callTimer">00:00</div></div><div class="call-body"><div class="call-live"><div class="call-live-label">Последняя реплика</div><div class="call-live-text" id="callLive">Начните разговор — клиент слушает.</div></div><div class="call-controls"><button id="callMic" class="call-btn primary-call" onclick="toggleVoice()">🎙 Говорить</button><button class="call-btn end-call" onclick="finishTraining()">Завершить звонок</button></div><div class="call-hint" id="callHint">Вы говорите первым. После вашей реплики клиент ответит.</div><div class="call-transcript" id="callTranscript">${state.messages.map(m=>`<div class="msg ${m.speaker}"><b>${m.speaker==="client"?"Клиент":"Вы"}:</b> ${esc(m.content)}</div>`).join("")}</div><button class="secondary" style="width:100%;margin-top:12px" onclick="finishTraining()">⚑ Завершить тренировку</button><div class="call-hint">Тренировка будет завершена и отправлена на анализ AI</div></div></div>`;coldCall.timer=setInterval(async()=>{const el=$("callTimer");if(!el||!state.session){clearInterval(coldCall.timer);coldCall.timer=null;return}const sec=Math.floor((Date.now()-coldCall.startedAt)/1000);el.textContent=`${String(Math.floor(sec/60)).padStart(2,"0")}:${String(sec%60).padStart(2,"0")}`;if(sec>=600&&!coldCall.processing){clearInterval(coldCall.timer);coldCall.timer=null;coldCall.processing=true;const n="У меня нет времени, мне не интересно, до свидания.";state.messages.push({speaker:"client",content:n});await saveSession();const live=$("callLive");if(live)live.textContent=n;setCallStatus("Звонок завершён",false);speakCallClient(n);setTimeout(()=>finishTraining(),2200)}},1000)}'''
+          s,n=re.subn(r'function trainingCallPage\(\)\{.*?(?=async function speakCallClient\()',lambda m:training_call+'\n',s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('trainingCallPage not found')
+
+          report_page=r'''function reportPage(){const r=state.report||{},x=r.session||{},s=r.score||{};const score=n=>{const v=Number(n);return Number.isFinite(v)&&v>0?Math.max(1,Math.min(20,Math.round(v))):null};const skills=[["Работа с возражениями",score(s.objection_score)],["Презентация продукта",score(s.value_score)],["Дожим / закрытие сделки",score(s.closing_score)],["Вовлечённость клиента в разговор / коммуникация",score(s.communication_score)],["Выявление потребности",score(s.discovery_score)]].filter(v=>v[1]!==null);const calculated=skills.reduce((a,v)=>a+v[1],0);const stored=Number(s.overall_score);const sessionTotal=Number(x.total_score);const total=Number.isFinite(stored)&&stored>0?Math.round(stored):Number.isFinite(sessionTotal)&&sessionTotal>0?Math.round(sessionTotal):calculated;const strengths=reportItems(s.strengths),weaknesses=reportItems(s.weaknesses),recommendations=reportItems(s.recommendations),transcript=Array.isArray(x.transcript)?x.transcript:[],names={};state.scenarios.forEach(z=>names[z.id]=z.title);const list=(items,empty)=>items.length?`<ul style="margin:10px 0 0;padding-left:20px">${items.map(v=>`<li style="margin:7px 0">${esc(v)}</li>`).join("")}</ul>`:`<div class="muted" style="margin-top:10px">${empty}</div>`;return `<div class="top"><div><h2>Отчёт тренировки</h2><div class="muted">${esc(names[x.scenario_id]||"Тренировка")} · ${new Date(x.created_at).toLocaleString("ru-RU")}</div></div><button class="secondary" onclick="state.report=null;page()">← Назад к тренировкам</button></div><div class="card" style="text-align:center;padding:28px"><div class="muted">ОБЩИЙ БАЛЛ</div><div class="metric" style="font-size:54px">${total}<span style="font-size:18px;color:var(--muted)"> / 100</span></div><div class="muted" style="margin-top:8px">Итоговый балл тренировки</div></div><div class="section card"><h3>Оценка навыков</h3>${skills.map(v=>`<div style="margin:18px 0"><div style="display:flex;justify-content:space-between;gap:12px"><span>${v[0]}</span><b>${v[1]} / 20</b></div><div class="bar" style="margin-top:8px"><i style="width:${v[1]*5}%"></i></div></div>`).join("")}<div style="display:flex;justify-content:space-between;margin-top:22px;padding-top:14px;border-top:1px solid var(--line)"><b>Итоговый балл</b><b>${total} / 100</b></div></div><div class="section card"><h3>Анализ тренировки</h3><div style="margin-top:18px"><b>🟢 Сильные стороны</b>${list(strengths,"Сильные стороны не указаны.")}</div><div style="margin-top:22px"><b>🔴 Слабые стороны</b>${list(weaknesses,"Слабые стороны не указаны.")}</div><div style="margin-top:22px"><b>💡 Рекомендации</b>${list(recommendations,"Рекомендации не указаны.")}</div>${x.ai_summary?`<div style="margin-top:22px"><b>Краткий вывод ИИ</b><p class="muted" style="line-height:1.55">${esc(x.ai_summary)}</p></div>`:""}</div><div class="section card"><h3>Полный диалог</h3><div class="messages" style="margin-top:14px;max-height:none">${transcript.length?transcript.map(m=>{const speaker=String(m?.speaker||m?.role||"").toLowerCase(),manager=["manager","user","employee"].includes(speaker),text=m?.content??m?.text??m?.message??"";return `<div class="msg ${manager?"manager":"client"}"><b>${manager?"Менеджер":"Клиент"}:</b> ${esc(text)}</div>`}).join(""):`<div class="empty">Полный диалог не сохранён.</div>`}</div></div>`}'''
+          s,n=re.subn(r'function reportPage\(\)\{.*?(?=function toggleInviteBox\(\))',lambda m:report_page+'\n',s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('reportPage not found')
+
+          marker='<script src="/canva-ui.js"></script>'
+          if marker not in s:
+              s=s.replace('</body>',marker+'\n</body>',1)
+          p.write_text(s,encoding='utf-8')
+          print('UI patch applied')
+      - name: Validate
+        shell: python
+        run: |
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          required=['⚑ Завершить тренировку','function trainingChat()','function trainingCallPage()','function reportPage()','window.historyPage=async function()']
+          for x in required:
+              if x not in s: raise SystemExit('Missing: '+x)
+          print('Validation passed')
       - name: Commit and push
         shell: bash
         run: |
@@ -42,5 +63,5 @@ jobs:
           git config user.name 'SaleTrening Bot'
           git config user.email 'actions@github.com'
           git add index.html
-          git commit -m 'style: activate real Canva UI shell'
+          git commit -m 'fix: place finish action in training modes and sync scores'
           git push
