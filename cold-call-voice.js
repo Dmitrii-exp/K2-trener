@@ -3,6 +3,30 @@
   if (window.__stContinuousColdCallVoice) return;
   window.__stContinuousColdCallVoice = true;
 
+  // The main UI renders onclick="logout()". Define it here because this
+  // script is loaded globally by canva-ui.js on every application screen.
+  window.logout = async function () {
+    try {
+      const { error } = await sb.auth.signOut({ scope: 'local' });
+      if (error) throw error;
+    } catch (e) {
+      console.error('[SaleTrening] logout:', e);
+      toast('Не удалось выйти. Попробуйте ещё раз.');
+      return;
+    }
+    state.user = null;
+    state.profile = null;
+    state.company = null;
+    state.session = null;
+    state.messages = [];
+    state.history = [];
+    state.team = [];
+    state.stats = null;
+    state.report = null;
+    state.view = 'home';
+    if (window.authScreen) window.authScreen();
+  };
+
   let active = false;
   let speaking = false;
   let lastSpoken = '';
