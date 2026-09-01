@@ -37,3 +37,5 @@ jobs:
           git add index.html
           git commit -m 'fix: render only available training scores [auto-report-fix]'
           git push
+
+# trigger after workflow installation
