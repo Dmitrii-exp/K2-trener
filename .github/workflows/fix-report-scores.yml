@@ -1,0 +1,39 @@
+name: Fix report score rendering
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[auto-report-fix]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch report score handling
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = 'const score=n=>Math.max(1,Math.min(20,Math.round(Number(n)||1)));const skills=[["Работа с возражениями",score(s.objection_score)],["Презентация продукта",score(s.value_score)],["Дожим / закрытие сделки",score(s.closing_score)],["Вовлечённость клиента в разговор / коммуникация",score(s.communication_score)],["Выявление потребности",score(s.discovery_score)]];const total=skills.reduce((a,v)=>a+v[1],0);'
+          new = 'const score=n=>{const v=Number(n);return Number.isFinite(v)&&v>0?Math.max(1,Math.min(20,Math.round(v))):null};const skills=[["Работа с возражениями",score(s.objection_score)],["Презентация продукта",score(s.value_score)],["Дожим / закрытие сделки",score(s.closing_score)],["Вовлечённость клиента в разговор / коммуникация",score(s.communication_score)],["Выявление потребности",score(s.discovery_score)]].filter(v=>v[1]!==null);const total=skills.reduce((a,v)=>a+v[1],0);'
+          if old not in s:
+              print('Report pattern already patched or not found')
+              raise SystemExit(0)
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          print('Patched report score rendering')
+          PY
+      - name: Commit patch
+        shell: bash
+        run: |
+          if git diff --quiet -- index.html; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'fix: render only available training scores [auto-report-fix]'
+          git push
