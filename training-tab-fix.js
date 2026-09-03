@@ -1,88 +1,84 @@
 (() => {
   'use strict';
-  const $ = id => document.getElementById(id);
-  const escText = v => String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-  function safeTrainingList() {
-    const p = $('page');
-    if (!p) return;
-    const scenarios = Array.isArray(window.state?.scenarios) ? window.state.scenarios : [];
-    p.innerHTML = `<div class="top"><div><h2>ИИ-тренировки</h2><div class="muted">Выберите сценарий и откройте текстовый диалог с AI-клиентом</div></div></div>` +
-      (scenarios.length ? `<div class="scenario-grid">${scenarios.map(s => `<div class="card scenario"><div><span class="tag">${escText(s.difficulty || 'Средняя')}</span><span class="tag">${escText(s.client_mood || 'Нейтральный')}</span></div><div class="grow"><div class="scenario-title">${escText(s.title || 'Тренировка')}</div><div class="muted">${escText(s.description || s.objective || 'Практика продаж с AI-клиентом')}</div></div><button class="primary" data-start-text-training="${Number(s.id) || 0}">Начать тренировку</button></div>`).join('')}</div>` : `<div class="empty">Сценариев пока нет. Обновите страницу через несколько секунд.</div>`);
-    p.querySelectorAll('[data-start-text-training]').forEach(btn => btn.addEventListener('click', () => startTextTraining(Number(btn.dataset.startTextTraining))));
-  }
-
-  function renderTextChat() {
-    if (!window.state?.session || !$('page')) return false;
-    const s = window.state.session.scenario || {};
-    const tr = Array.isArray(window.state.transcript) ? window.state.transcript : [];
-    $('page').innerHTML = `<div class="top"><div><h2>${escText(s.title || 'Текстовая тренировка')}</h2><div class="muted">Диалог с AI-клиентом</div></div><button class="secondary" id="endTextTraining">Завершить</button></div><div class="chat"><div class="messages" id="textTrainingMessages">${tr.map(m => `<div class="msg ${m.speaker==='manager'?'manager':'client'}">${escText(m.content)}</div>`).join('')}</div><div class="composer"><textarea id="textTrainingInput" rows="2" placeholder="Введите ответ клиенту..."></textarea><button class="primary" id="sendTextTraining">Отправить</button></div></div>`;
-
-    const send = async () => {
-      const input = $('textTrainingInput');
-      const message = String(input?.value || '').trim();
-      if (!message || !window.state?.session) return;
-      input.value = '';
-      const transcript = Array.isArray(window.state.transcript) ? window.state.transcript : [];
-      window.state.transcript = [...transcript,{speaker:'manager',content:message}];
-      renderTextChat();
-      try {
-        const r = await sb.functions.invoke('chat-client', {body:{message,scenario:window.state.session.scenario,transcript,mode:'text',voice:false}});
-        if (r.error) throw r.error;
-        const reply = String(r.data?.reply || '').trim();
-        window.state.transcript = [...window.state.transcript,{speaker:'client',content:reply}];
-        renderTextChat();
-      } catch (e) {
-        if (typeof window.toast === 'function') window.toast(e?.message || 'Ошибка AI');
-      }
-    };
-    $('sendTextTraining')?.addEventListener('click', send);
-    $('textTrainingInput')?.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }});
-    $('endTextTraining')?.addEventListener('click', async () => {
-      if (typeof window.endTraining === 'function') await window.endTraining();
-      else { window.state.session = null; window.state.transcript = []; window.state.view = 'training'; safeTrainingList(); }
-    });
-    return true;
-  }
-
-  async function startTextTraining(id) {
-    const scenarios = Array.isArray(window.state?.scenarios) ? window.state.scenarios : [];
-    const scenario = scenarios.find(x => Number(x.id) === Number(id));
-    if (!scenario) return;
-    // Standard AI training is always text. Voice/call mode is never activated here.
-    window.state.view = 'training';
-    window.state.session = {scenario};
-    window.state.transcript = [];
-    renderTextChat();
-    try {
-      const r = await sb.functions.invoke('chat-client', {body:{opening:true,scenario,transcript:[],mode:'text',voice:false}});
-      if (r.error) throw r.error;
-      const reply = String(r.data?.reply || '').trim();
-      window.state.transcript = reply ? [{speaker:'client',content:reply}] : [];
-      renderTextChat();
-    } catch (e) {
-      if (typeof window.toast === 'function') window.toast(e?.message || 'Не удалось запустить AI-клиента');
-    }
-  }
-
+  // TEXT TRAINING ONLY.
+  // Do not replace navigation or the original training UI.
+  // Keep the existing DB/session/trainingChat flow and only disable speech in standard training.
   function install() {
-    if (window.__stTrainingTabFixV4) return;
-    window.__stTrainingTabFixV4 = true;
-    document.addEventListener('click', e => {
-      const btn = e.target.closest('.nav button');
-      if (!btn || !(btn.textContent || '').trim().includes('Тренировки')) return;
-      e.preventDefault(); e.stopImmediatePropagation();
-      if (!window.state) return;
-      window.state.session = null;
-      window.state.transcript = [];
-      window.state.report = null;
-      window.state.view = 'training';
-      try { safeTrainingList(); } catch (err) { console.error('[SaleTrening] training tab:', err); }
-      document.querySelectorAll('.nav button').forEach(x => x.classList.toggle('active', x === btn));
-    }, true);
-    window.__stSafeTrainingPage = safeTrainingList;
+    if (window.__saleTreningTextOnlyV5) return;
+    window.__saleTreningTextOnlyV5 = true;
+
+    if (typeof startTraining === 'function') {
+      window.startTraining = async function(id) {
+        const s = state.scenarios.find(x => Number(x.id) === Number(id));
+        if (!s) return;
+
+        const {data, error} = await sb.from('saletrening_sessions').insert({
+          employee_id: state.user.id,
+          company_id: state.profile.company_id,
+          scenario_id: id,
+          status: 'started',
+          transcript: [],
+          voice_mode: false
+        }).select().single();
+
+        if (error) {
+          toast(error.message);
+          return;
+        }
+
+        state.session = {...data, scenario: s};
+        state.messages = [];
+        state.view = 'training';
+        await saveSession();
+        trainingChat();
+
+        try {
+          const opening = await aiClientReply('', true);
+          state.messages.push({speaker:'client', content:opening});
+          await saveSession();
+          trainingChat();
+          // NO speech here. Standard training is text-only.
+        } catch (e) {
+          console.error('chat-client opening:', e);
+          trainingChat();
+          toast('Не удалось получить первую реплику AI-клиента: ' + (e.message || 'ошибка'));
+        }
+      };
+    }
+
+    if (typeof sendMessage === 'function') {
+      window.sendMessage = async function() {
+        const input = document.getElementById('msg');
+        const text = input?.value.trim();
+        if (!text) return;
+
+        state.messages.push({speaker:'manager', content:text});
+        input.value = '';
+        await saveSession();
+        trainingChat();
+
+        try {
+          const reply = await aiClientReply(text);
+          state.messages.push({speaker:'client', content:reply});
+          await saveSession();
+          trainingChat();
+          // NO speech here. Standard training is text-only.
+        } catch (e) {
+          console.error('chat-client:', e);
+          trainingChat();
+          toast('AI-клиент временно недоступен: ' + (e.message || 'ошибка'));
+        }
+      };
+    }
+
+    // Clear any speech left queued by an earlier version.
+    try { window.speechSynthesis?.cancel(); } catch (_) {}
   }
-  window.__stRenderTextChat = renderTextChat;
-  window.__stStartTextTraining = startTextTraining;
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, {once:true}); else install();
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', install, {once:true});
+  } else {
+    install();
+  }
 })();
