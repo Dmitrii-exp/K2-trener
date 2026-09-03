@@ -1,4 +1,5 @@
 /* SaleTrening training launcher V6 — real text training dialog */
+/* FORCE PRODUCTION DEPLOY 2026-09-03 */
 (function(){
   'use strict';
   if(window.__stTrainingLauncherV6)return;
