@@ -1,0 +1,42 @@
+name: Fix Supabase CDN
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix-cdn:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Switch Supabase CDN to resilient loader
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">'
+          new = '<script src="https://unpkg.com/@supabase/supabase-js@2.109.0/dist/umd/supabase.js" onerror="this.onerror=null;this.src=\'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.109.0/dist/umd/supabase.js\'">'
+          if old not in s:
+              raise SystemExit('Expected Supabase CDN tag not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          print('Supabase CDN updated')
+      - name: Validate
+        shell: python
+        run: |
+          from pathlib import Path
+          s = Path('index.html').read_text(encoding='utf-8')
+          assert 'https://unpkg.com/@supabase/supabase-js@2.109.0/dist/umd/supabase.js' in s
+          assert 'onerror="this.onerror=null;this.src=' in s
+          print('validation passed')
+      - name: Commit and remove one-time workflow
+        shell: bash
+        run: |
+          git config user.name 'SaleTrening Bot'
+          git config user.email 'actions@github.com'
+          git add index.html
+          git rm .github/workflows/fix-supabase-cdn.yml
+          git commit -m 'fix: use resilient Supabase CDN for app bootstrap'
+          git push
