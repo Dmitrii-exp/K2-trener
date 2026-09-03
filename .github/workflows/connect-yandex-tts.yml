@@ -1,9 +1,0 @@
-name: Connect Yandex SpeechKit TTS
-on:
-  workflow_dispatch:
-
-jobs:
-  disabled:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "TTS auto-patching is disabled; cold-call voice code is maintained in index.html"
