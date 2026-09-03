@@ -1,0 +1,39 @@
+name: Add AI training tab fix
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add training fix script
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          tag = '<script src="/training-tab-fix.js?v=20260903-1"></script>'
+          if tag not in s:
+              marker = '</body>'
+              if marker not in s:
+                  raise SystemExit('body marker not found')
+              s = s.replace(marker, tag + '\n' + marker, 1)
+              p.write_text(s, encoding='utf-8')
+              print('training fix added')
+          else:
+              print('training fix already present')
+          PY
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name 'SaleTrening Bot'
+          git config user.email 'actions@github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: load AI training tab fallback'
+          git push
