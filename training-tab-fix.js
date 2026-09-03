@@ -17,19 +17,20 @@
     const s = window.state.session.scenario || {};
     const tr = Array.isArray(window.state.transcript) ? window.state.transcript : [];
     $('page').innerHTML = `<div class="top"><div><h2>${escText(s.title || 'Текстовая тренировка')}</h2><div class="muted">Диалог с AI-клиентом</div></div><button class="secondary" id="endTextTraining">Завершить</button></div><div class="chat"><div class="messages" id="textTrainingMessages">${tr.map(m => `<div class="msg ${m.speaker==='manager'?'manager':'client'}">${escText(m.content)}</div>`).join('')}</div><div class="composer"><textarea id="textTrainingInput" rows="2" placeholder="Введите ответ клиенту..."></textarea><button class="primary" id="sendTextTraining">Отправить</button></div></div>`;
+
     const send = async () => {
       const input = $('textTrainingInput');
       const message = String(input?.value || '').trim();
       if (!message || !window.state?.session) return;
       input.value = '';
-      const msgs = $('textTrainingMessages');
-      if (msgs) msgs.insertAdjacentHTML('beforeend', `<div class="msg manager">${escText(message)}</div>`);
       const transcript = Array.isArray(window.state.transcript) ? window.state.transcript : [];
+      window.state.transcript = [...transcript,{speaker:'manager',content:message}];
+      renderTextChat();
       try {
-        const r = await sb.functions.invoke('chat-client', {body:{message,scenario:window.state.session.scenario,transcript}});
+        const r = await sb.functions.invoke('chat-client', {body:{message,scenario:window.state.session.scenario,transcript,mode:'text',voice:false}});
         if (r.error) throw r.error;
         const reply = String(r.data?.reply || '').trim();
-        window.state.transcript = [...transcript,{speaker:'manager',content:message},{speaker:'client',content:reply}];
+        window.state.transcript = [...window.state.transcript,{speaker:'client',content:reply}];
         renderTextChat();
       } catch (e) {
         if (typeof window.toast === 'function') window.toast(e?.message || 'Ошибка AI');
@@ -48,7 +49,7 @@
     const scenarios = Array.isArray(window.state?.scenarios) ? window.state.scenarios : [];
     const scenario = scenarios.find(x => Number(x.id) === Number(id));
     if (!scenario) return;
-    // Standard training is always text. Do not pass or inherit voice mode.
+    // Standard AI training is always text. Voice/call mode is never activated here.
     window.state.view = 'training';
     window.state.session = {scenario};
     window.state.transcript = [];
@@ -65,14 +66,17 @@
   }
 
   function install() {
-    if (window.__stTrainingTabFixV3) return;
-    window.__stTrainingTabFixV3 = true;
+    if (window.__stTrainingTabFixV4) return;
+    window.__stTrainingTabFixV4 = true;
     document.addEventListener('click', e => {
       const btn = e.target.closest('.nav button');
       if (!btn || !(btn.textContent || '').trim().includes('Тренировки')) return;
       e.preventDefault(); e.stopImmediatePropagation();
       if (!window.state) return;
-      window.state.session = null; window.state.transcript = []; window.state.report = null; window.state.view = 'training';
+      window.state.session = null;
+      window.state.transcript = [];
+      window.state.report = null;
+      window.state.view = 'training';
       try { safeTrainingList(); } catch (err) { console.error('[SaleTrening] training tab:', err); }
       document.querySelectorAll('.nav button').forEach(x => x.classList.toggle('active', x === btn));
     }, true);
