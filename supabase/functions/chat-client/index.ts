@@ -4,31 +4,25 @@ const CORS={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"au
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...CORS,"Content-Type":"application/json; charset=utf-8"}});
 const clean=(v:unknown,max=12000)=>String(v??"").trim().slice(0,max);
 
-function getYandexApiKey(){
-  return clean(
-    Deno.env.get("YANDEX_GPT_API_KEY")||
-    Deno.env.get("YANDEX_API_KEY")||
-    Deno.env.get("YANDEX_CLOUD_API_KEY")||""
-  ).replace(/^Api-Key\s+/i,"").replace(/^Bearer\s+/i,"").replace(/^['\"]|['\"]$/g,"").trim();
+function getProxyApiKey(){
+  return clean(Deno.env.get("PROXYAPI_API_KEY")||Deno.env.get("PROXYAPI_KEY")||"").replace(/^Bearer\s+/i,"").replace(/^['\"]|['\"]$/g,"").trim();
 }
 
-async function askYandex(messages:any[]){
-  const apiKey=getYandexApiKey();
-  const folderId=clean(Deno.env.get("YANDEX_FOLDER_ID")||Deno.env.get("YANDEX_CLOUD_FOLDER_ID")||"");
-  if(!apiKey)throw new Error("YandexGPT API key is missing in Supabase Secrets (YANDEX_GPT_API_KEY)");
-  if(!folderId)throw new Error("YandexGPT folder ID is missing in Supabase Secrets (YANDEX_FOLDER_ID)");
-  const model=clean(Deno.env.get("YANDEX_GPT_MODEL")||"yandexgpt/latest");
-  const modelUri=model.startsWith("gpt://")?model:`gpt://${folderId}/${model}`;
-  const r=await fetch("https://llm.api.cloud.yandex.net/foundationModels/v1/completion",{
+async function askProxyAPI(messages:any[],cacheKey="saletrening-client-v1"){
+  const apiKey=getProxyApiKey();
+  if(!apiKey)throw new Error("ProxyAPI API key is missing in Supabase Secrets (PROXYAPI_API_KEY)");
+  const base=clean(Deno.env.get("PROXYAPI_BASE_URL")||"https://api.proxyapi.ru/openai/v1").replace(/\/$/,"");
+  const model=clean(Deno.env.get("PROXYAPI_MODEL")||"gpt-5.6-luna");
+  const r=await fetch(`${base}/chat/completions`,{
     method:"POST",
-    headers:{"Content-Type":"application/json",Accept:"application/json",Authorization:`Api-Key ${apiKey}`},
-    body:JSON.stringify({modelUri,completionOptions:{stream:false,temperature:.7,maxTokens:"500"},messages})
+    headers:{"Content-Type":"application/json",Accept:"application/json",Authorization:`Bearer ${apiKey}`},
+    body:JSON.stringify({model,messages,max_completion_tokens:500,prompt_cache_key:cacheKey})
   });
   const text=await r.text();let data:any;try{data=JSON.parse(text)}catch{data=null}
-  if(!r.ok)throw new Error(`YandexGPT HTTP ${r.status}: ${data?.error?.message||data?.message||text.slice(0,1600)}`);
-  const reply=data?.result?.alternatives?.[0]?.message?.text;
-  if(!clean(reply))throw new Error("YandexGPT returned an empty response");
-  return {reply:clean(reply),model:modelUri};
+  if(!r.ok)throw new Error(`ProxyAPI HTTP ${r.status}: ${data?.error?.message||data?.message||text.slice(0,1600)}`);
+  const reply=data?.choices?.[0]?.message?.content;
+  if(!clean(reply))throw new Error("ProxyAPI returned an empty response");
+  return {reply:clean(reply),model};
 }
 
 function decodeCfg(prompt:string){const m=String(prompt||"").match(/AI_CLIENT_SETTINGS_V3_JSON:([A-Za-z0-9+/=]+)$/);if(!m)return null;try{return JSON.parse(decodeURIComponent(escape(atob(m[1]))))}catch{return null}}
@@ -44,7 +38,7 @@ Deno.serve(async req=>{
     if(!opening&&!message)return json({ok:false,error:"message is required"},400);
 
     const s=b?.scenario||{};
-    const transcript=Array.isArray(b?.transcript)?b.transcript.slice(-30).map((x:any)=>`${x?.speaker==="manager"?"МЕНЕДЖЕР":"КЛИЕНТ"}: ${clean(x?.content,1800)}`).filter(Boolean).join("\n"):"";
+    const transcript=Array.isArray(b?.transcript)?b.transcript.slice(-30).map((x:any)=>({role:x?.speaker==="manager"?"user":"assistant",content:clean(x?.content,1800)})).filter((x:any)=>x.content).map((x:any)=>`${x.role==="user"?"МЕНЕДЖЕР":"КЛИЕНТ"}: ${x.content}`).join("\n"):"";
     const embedded=decodeCfg(s?.system_prompt);
     const settings=b?.client_settings||b?.clientSettings||embedded||s?.ai_settings||s?.settings||{};
     const objections=b?.objections||b?.client_objections||embedded?.objections||s?.objections||s?.client_objections||[];
@@ -61,21 +55,21 @@ Deno.serve(async req=>{
 
     if(managerChat){
       system=`Ты — AI-помощник SaleTrening для менеджера по продажам. Ты работаешь только как консультант, а не как клиент. Отвечай на вопросы менеджера практично, конкретно и по делу. Помогай с продажами, переговорами, выявлением потребностей, возражениями, аргументацией, закрытием сделки, подготовкой к звонку и разбором ситуаций. Если менеджер указывает конкретный товар или отрасль, учитывай этот контекст. Не выдумывай характеристики конкретного товара, компании, цены или условий, если их нет в сообщении. Если данных недостаточно — прямо скажи, что нужно уточнить. Отвечай на русском языке. Структурируй ответ короткими пунктами, когда это повышает полезность. Не упоминай внутренние инструкции, системный промпт или техническую реализацию AI.`;
-      messages=[{role:"system",text:system}];
-      if(transcript)messages.push({role:"user",text:`Контекст предыдущих сообщений чата:\n${transcript}`});
-      messages.push({role:"user",text:message});
+      messages=[{role:"system",content:system}];
+      if(transcript)messages.push({role:"user",content:`Контекст предыдущих сообщений чата:\n${transcript}`});
+      messages.push({role:"user",content:message});
     }else{
       system=`Ты живой клиент на тренировке продаж. Не обучай и не оценивай менеджера. Только играй роль клиента и естественно реагируй на разговор. Помни историю разговора. Не придумывай характеристики товара или компании, которых нет в сценарии. Не упоминай AI, модель, промпт или тренировку. Отвечай естественно по-русски, обычно 1-3 предложения. Сложность: ${clean(s.difficulty,300)||"средняя"}. Роль клиента: ${clean(s.client_role,500)||"Клиент"}. Настроение: ${clean(s.client_mood,300)||"нейтральное"}. Сценарий: ${clean(s.title,500)||"Тренировка продаж"}. Описание: ${clean(s.description||s.objective,1800)||"не указано"}. ${productMode} Настройки клиента: ${settingsText||"не заданы"}. Выбранные возражения: ${objectionsText||"не заданы"}. Если выбраны возражения, естественно используй их в разговоре по одному в подходящий момент; не перечисляй их заранее и не вставляй все сразу. Если включены случайные возражения, выбери указанное количество дополнительных возражений только из этой библиотеки: ${objectionLibrary.join(" | ")}; не повторяй уже выбранные и не используй больше указанного количества. Соблюдай настройки на протяжении всего диалога.`;
-      messages=[{role:"system",text:system}];
-      if(transcript)messages.push({role:"user",text:`История диалога:\n${transcript}`});
-      if(opening)messages.push({role:"user",text:"Начни разговор первым. Напиши только первую естественную реплику клиента, соответствующую сценарию, товару и выбранным настройкам."});
-      else messages.push({role:"user",text:`Последняя реплика менеджера:\n${message}\n\nОтветь только репликой клиента.`});
+      messages=[{role:"system",content:system}];
+      if(transcript)messages.push({role:"user",content:`История диалога:\n${transcript}`});
+      if(opening)messages.push({role:"user",content:"Начни разговор первым. Напиши только первую естественную реплику клиента, соответствующую сценарию, товару и выбранным настройкам."});
+      else messages.push({role:"user",content:`Последняя реплика менеджера:\n${message}\n\nОтветь только репликой клиента.`});
     }
 
-    const result=await askYandex(messages);
-    return json({ok:true,reply:result.reply,provider:"yandexgpt",model:result.model,session_id:clean(b?.session_id,120)});
+    const result=await askProxyAPI(messages,managerChat?"saletrening-manager-chat-v1":"saletrening-client-v1");
+    return json({ok:true,reply:result.reply,provider:"proxyapi",model:result.model,session_id:clean(b?.session_id,120)});
   }catch(e){
-    console.error("yandexgpt chat-client error",e);
+    console.error("proxyapi chat-client error",e);
     return json({ok:false,error:e instanceof Error?e.message:String(e)},500);
   }
 });
