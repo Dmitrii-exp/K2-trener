@@ -1,45 +1,61 @@
-/* SaleTrening single training launcher V2 */
+/* SaleTrening training launcher V3 */
 (function(){
   'use strict';
+  if(window.__stTrainingLauncherV3)return;
+  window.__stTrainingLauncherV3=true;
+
   function show(msg){
     var el=document.getElementById('toast');
     if(el){el.textContent=String(msg);el.classList.remove('hidden');clearTimeout(window.__stTrainingToast);window.__stTrainingToast=setTimeout(function(){el.classList.add('hidden')},6000)}
     console.error('[SaleTrening training]',msg);
   }
-  function install(){
-    if(typeof window.startTraining!=='function'||typeof window.state==='undefined'||typeof window.sb==='undefined'){setTimeout(install,100);return}
-    if(window.__stTrainingLauncherV2)return;
-    window.__stTrainingLauncherV2=true;
-    window.startTraining=async function(id){
-      try{
-        if(!id)throw new Error('Не передан ID сценария');
-        var scenario=window.state.scenarios&&window.state.scenarios.find(function(x){return String(x.id)===String(id)});
-        if(!scenario)throw new Error('Сценарий не найден');
-        if(!window.state.user||!window.state.user.id)throw new Error('Пользователь не авторизован');
-        if(!window.state.profile||!window.state.profile.company_id)throw new Error('Профиль компании не загружен');
-        show('Запускаем тренировку…');
-        var result=await window.sb.from('saletrening_sessions').insert({employee_id:window.state.user.id,company_id:window.state.profile.company_id,scenario_id:id,status:'started',transcript:[],voice_mode:false}).select().single();
-        if(result.error)throw new Error(result.error.message||'Не удалось создать сессию тренировки');
-        window.state.session=Object.assign({},result.data,{scenario:scenario});
-        window.state.messages=[];
-        if(typeof window.saveSession==='function')await window.saveSession();
-        window.state.view='training';
-        if(typeof window.trainingChat==='function')window.trainingChat();
-        try{
-          var opening=await window.aiClientReply('',true);
-          window.state.messages.push({speaker:'client',content:opening});
-          if(typeof window.saveSession==='function')await window.saveSession();
-          if(typeof window.trainingChat==='function')window.trainingChat();
-        }catch(aiError){
-          console.error('[SaleTrening] AI opening failed',aiError);
-          if(typeof window.trainingChat==='function')window.trainingChat();
-          show('Тренировка открыта, но AI пока не ответил: '+(aiError&&aiError.message?aiError.message:'ошибка AI'));
-        }
-      }catch(e){
-        console.error('[SaleTrening] startTraining failed',e);
-        show('Ошибка запуска тренировки: '+(e&&e.message?e.message:String(e)));
-      }
-    };
+
+  async function launch(id){
+    try{
+      if(!id)throw new Error('Не передан ID сценария');
+      if(typeof state==='undefined'||!state)throw new Error('Состояние приложения не загружено');
+      if(typeof sb==='undefined'||!sb)throw new Error('Supabase не инициализирован');
+      var scenario=state.scenarios&&state.scenarios.find(function(x){return String(x.id)===String(id)});
+      if(!scenario)throw new Error('Сценарий не найден: '+id);
+      if(!state.user||!state.user.id)throw new Error('Пользователь не авторизован');
+      if(!state.profile||!state.profile.company_id)throw new Error('Профиль компании не загружен');
+
+      show('Запускаем тренировку…');
+      var result=await sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:id,status:'started',transcript:[],voice_mode:false}).select().single();
+      if(result.error)throw new Error(result.error.message||'Не удалось создать сессию тренировки');
+
+      state.session=Object.assign({},result.data,{scenario:scenario});
+      state.messages=[];
+      if(typeof saveSession==='function')await saveSession();
+      state.view='training';
+      if(typeof trainingChat==='function')trainingChat();
+
+      if(typeof aiClientReply!=='function')throw new Error('AI-функция aiClientReply не найдена');
+      var opening=await aiClientReply('',true);
+      if(opening)state.messages.push({speaker:'client',content:opening});
+      if(typeof saveSession==='function')await saveSession();
+      if(typeof trainingChat==='function')trainingChat();
+    }catch(e){
+      console.error('[SaleTrening] V3 launch failed',e);
+      show('Ошибка запуска тренировки: '+(e&&e.message?e.message:String(e)));
+    }
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+
+  function intercept(){
+    document.addEventListener('click',function(e){
+      var el=e.target&&e.target.closest?e.target.closest('button,[role="button"],a'):null;
+      if(!el)return;
+      var code=el.getAttribute('onclick')||'';
+      if(!code)return;
+      var m=code.match(/startTraining\s*\(\s*[\'\"]([^\'\"]+)[\'\"]\s*\)/);
+      if(!m)m=code.match(/startTraining\s*\(\s*([^\)]+)\s*\)/);
+      if(!m)return;
+      var id=String(m[1]).trim().replace(/^['\"]|['\"]$/g,'');
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      launch(id);
+    },true);
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',intercept);else intercept();
 })();
