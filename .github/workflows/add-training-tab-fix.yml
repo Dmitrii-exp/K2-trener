@@ -18,7 +18,11 @@ jobs:
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
 
-          # Restore the original text-training flow and remove automatic speech.
+          # Remove the old fallback: it intercepted the navigation and used window.state incorrectly.
+          s = s.replace('<script src="/training-tab-fix.js?v=20260903-1"></script>\n', '')
+          s = s.replace('<script src="/training-tab-fix.js?v=20260903-1"></script>', '')
+
+          # Keep standard training text-only: no automatic speech synthesis.
           s = s.replace('state.view="training";trainingChat();try{const opening=await aiClientReply("",true);state.messages.push({speaker:"client",content:opening});await saveSession();trainingChat();speakClient(opening)}', 'state.view="training";trainingChat();try{const opening=await aiClientReply("",true);state.messages.push({speaker:"client",content:opening});await saveSession();trainingChat()}')
           s = s.replace('state.messages.push({speaker:"client",content:r});await saveSession();trainingChat();speakClient(r)', 'state.messages.push({speaker:"client",content:r});await saveSession();trainingChat()')
 
@@ -39,5 +43,5 @@ jobs:
           git config user.email 'actions@github.com'
           git add index.html
           git diff --cached --quiet && exit 0
-          git commit -m 'fix: text training dialog without voice'
+          git commit -m 'fix: remove broken training fallback'
           git push
