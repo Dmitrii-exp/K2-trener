@@ -81,3 +81,5 @@
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',intercept);else intercept();
 })();
+
+/* Force production deployment marker — no runtime behavior change. */
