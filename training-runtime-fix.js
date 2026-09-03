@@ -1,47 +1,45 @@
-/* SaleTrening training runtime fix V1 */
+/* SaleTrening single training launcher V2 */
 (function(){
   'use strict';
-  function toast(msg){
+  function show(msg){
     var el=document.getElementById('toast');
-    if(el){el.textContent=String(msg);el.style.display='block';clearTimeout(window.__stToastTimer);window.__stToastTimer=setTimeout(function(){el.style.display='none'},7000)}
+    if(el){el.textContent=String(msg);el.classList.remove('hidden');clearTimeout(window.__stTrainingToast);window.__stTrainingToast=setTimeout(function(){el.classList.add('hidden')},6000)}
     console.error('[SaleTrening training]',msg);
   }
-  function waitForStart(){
-    if(typeof window.startTraining!=='function'){setTimeout(waitForStart,100);return}
-    if(window.__stTrainingWrapped)return;
-    var original=window.startTraining;
+  function install(){
+    if(typeof window.startTraining!=='function'||typeof window.state==='undefined'||typeof window.sb==='undefined'){setTimeout(install,100);return}
+    if(window.__stTrainingLauncherV2)return;
+    window.__stTrainingLauncherV2=true;
     window.startTraining=async function(id){
       try{
-        toast('Запускаем тренировку…');
-        var result=await original(id);
-        setTimeout(function(){
-          var messages=document.getElementById('messages');
-          var composer=document.getElementById('msg');
-          if(!messages || !composer){
-            toast('Тренировка не открылась. Проверьте подключение к Supabase и сессию пользователя.');
-          }
-        },1200);
-        return result;
+        if(!id)throw new Error('Не передан ID сценария');
+        var scenario=window.state.scenarios&&window.state.scenarios.find(function(x){return String(x.id)===String(id)});
+        if(!scenario)throw new Error('Сценарий не найден');
+        if(!window.state.user||!window.state.user.id)throw new Error('Пользователь не авторизован');
+        if(!window.state.profile||!window.state.profile.company_id)throw new Error('Профиль компании не загружен');
+        show('Запускаем тренировку…');
+        var result=await window.sb.from('saletrening_sessions').insert({employee_id:window.state.user.id,company_id:window.state.profile.company_id,scenario_id:id,status:'started',transcript:[],voice_mode:false}).select().single();
+        if(result.error)throw new Error(result.error.message||'Не удалось создать сессию тренировки');
+        window.state.session=Object.assign({},result.data,{scenario:scenario});
+        window.state.messages=[];
+        if(typeof window.saveSession==='function')await window.saveSession();
+        window.state.view='training';
+        if(typeof window.trainingChat==='function')window.trainingChat();
+        try{
+          var opening=await window.aiClientReply('',true);
+          window.state.messages.push({speaker:'client',content:opening});
+          if(typeof window.saveSession==='function')await window.saveSession();
+          if(typeof window.trainingChat==='function')window.trainingChat();
+        }catch(aiError){
+          console.error('[SaleTrening] AI opening failed',aiError);
+          if(typeof window.trainingChat==='function')window.trainingChat();
+          show('Тренировка открыта, но AI пока не ответил: '+(aiError&&aiError.message?aiError.message:'ошибка AI'));
+        }
       }catch(e){
-        toast('Ошибка запуска тренировки: '+(e&&e.message?e.message:String(e)));
-        throw e;
+        console.error('[SaleTrening] startTraining failed',e);
+        show('Ошибка запуска тренировки: '+(e&&e.message?e.message:String(e)));
       }
     };
-    window.__stTrainingWrapped=true;
   }
-  function clickFallback(e){
-    var b=e.target.closest && e.target.closest('button');
-    if(!b)return;
-    var code=b.getAttribute('onclick')||'';
-    if(!/startTraining\s*\(/.test(code))return;
-    if(typeof window.startTraining!=='function'){
-      e.preventDefault();
-      toast('Функция запуска тренировки не загрузилась. Обновите страницу.');
-    }
-  }
-  document.addEventListener('click',clickFallback,true);
-  window.addEventListener('error',function(e){
-    if(/startTraining|training|aiClientReply|saletrening_sessions|Supabase/i.test(String(e.message||'')))toast('Ошибка тренировки: '+(e.message||'неизвестная ошибка'));
-  });
-  waitForStart();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 })();
