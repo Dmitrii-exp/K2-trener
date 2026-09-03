@@ -40,7 +40,6 @@
         show('Ошибка запуска тренировки: '+(e&&e.message?e.message:String(e)));
       }
     };
-    window.startTraining.__saleTrainingWrapped=true;
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 })();
