@@ -26,17 +26,69 @@
     }catch(e){ console.error('[SaleTrening] voice runtime load failed',e); }
   }
 
+  function installColdAiBridge(){
+    try{
+      if(window.__stColdAiBridgeInstalled || typeof window.aiClientReply!=='function') return;
+      var original=window.aiClientReply;
+      window.aiClientReply=async function(userMessage,opening){
+        var was=typeof state!=='undefined' ? state.view : null;
+        if(window.__stColdCallActive && typeof state!=='undefined') state.view='coldcall';
+        try{return await original(userMessage,opening)}
+        finally{if(window.__stColdCallActive && typeof state!=='undefined') state.view='coldcall';else if(typeof state!=='undefined'&&was!==null) state.view=was;}
+      };
+      window.__stColdAiBridgeInstalled=true;
+    }catch(e){console.error('[SaleTrening] cold AI bridge failed',e);}
+  }
+
   function startResolvedColdCall(difficulty){
     difficulty=String(difficulty||'Средний');
+    var replacedIndex=-1, originalScenario=null, syntheticScenario=null;
     try{
       if(typeof coldCallScenario !== 'function') throw new Error('Функция выбора сценария холодного звонка не загрузилась');
-      var scenario=coldCallScenario(difficulty);
-      var id=scenario && scenario.id;
-      if(!id) throw new Error('Сценарий «Холодный звонок» не найден');
+      var resolved=coldCallScenario(difficulty);
+      var id=resolved && resolved.id;
+      var scenarios=(typeof state!=='undefined' && Array.isArray(state.scenarios))?state.scenarios:[];
+
+      /* В базе проекта сейчас могут отсутствовать отдельные строки «Холодный звонок».
+         Тогда используем существующий активный сценарий как технический FK, но передаём
+         в AI полноценный синтетический объект холодного звонка. */
+      if(!id){
+        if(!scenarios.length) throw new Error('В базе нет активных сценариев');
+        originalScenario=scenarios[0];
+        id=originalScenario.id;
+        syntheticScenario=Object.assign({},originalScenario,{
+          title:'Холодный звонок — '+difficulty,
+          description:'Голосовая тренировка холодного звонка: выход на клиента и назначение следующего шага.',
+          difficulty:difficulty,
+          client_role:'Потенциальный клиент',
+          client_mood:difficulty==='Сложный'?'Занят, скептически настроен':'Сдержанный',
+          objective:'Заинтересовать клиента и договориться о следующем шаге'
+        });
+        replacedIndex=scenarios.indexOf(originalScenario);
+        if(replacedIndex>=0) scenarios[replacedIndex]=syntheticScenario;
+        resolved=syntheticScenario;
+      }
+
       if(typeof window.launchColdCall!=='function') throw new Error('Голосовой модуль ещё не загрузился');
-      console.log('[SaleTrening] native cold call scenario resolved',{id:id,difficulty:difficulty,title:scenario.title||scenario.name||''});
-      return window.launchColdCall(id);
+      installColdAiBridge();
+
+      if(typeof coldCall!=='undefined'){
+        coldCall.character=document.getElementById('coldCharacter')?.value||'Лояльный';
+        coldCall.facts=document.getElementById('coldFacts')?.value?.trim()||'';
+        coldCall.voice=document.getElementById('coldVoice')?.value||'coral';
+        coldCall.difficulty=difficulty;
+        coldCall.processing=false;
+      }
+
+      window.__stColdCallActive=true;
+      console.log('[SaleTrening] cold call scenario resolved',{id:id,difficulty:difficulty,title:resolved.title||'' ,synthetic:!!syntheticScenario});
+      return Promise.resolve(window.launchColdCall(id)).finally(function(){
+        window.__stColdCallActive=false;
+        if(replacedIndex>=0 && originalScenario) scenarios[replacedIndex]=originalScenario;
+      });
     }catch(e){
+      window.__stColdCallActive=false;
+      if(replacedIndex>=0 && originalScenario && typeof state!=='undefined' && Array.isArray(state.scenarios)) state.scenarios[replacedIndex]=originalScenario;
       console.error('[SaleTrening] cold call start failed',e);
       if(typeof toast==='function') toast('Ошибка запуска голосовой тренировки: '+(e.message||e));
       else alert('Ошибка запуска голосовой тренировки: '+(e.message||e));
@@ -45,6 +97,7 @@
 
   function patchColdCall(){
     try{
+      installColdAiBridge();
       if(typeof window.launchColdCall==='function' && !window.__stColdCallIsolated){
         window.__stColdCallIsolated=true;
         window.startColdCall=function(difficulty){ return startResolvedColdCall(difficulty); };
