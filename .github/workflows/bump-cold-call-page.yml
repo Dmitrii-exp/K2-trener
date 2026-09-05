@@ -15,14 +15,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Update cold call runtime tags
+      - name: Normalize cold call runtime tags
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          s=s.replace('/cold-call-voice-v5.js?v=20260905-voice-v5','/cold-call-voice-v5.js?v=20260906-page-2')
-          import re
+          s=re.sub(r'/cold-call-voice-v5\.js\?v=[^"\']+','/cold-call-voice-v5.js?v=20260906-page-3',s)
           s=re.sub(r'\s*<script src="/cold-call-page-mode\.js\?v=[^"]+"></script>','',s)
           s=re.sub(r'\s*<script src="/cold-call-page-v4\.js\?v=[^"]+"></script>','',s)
           p.write_text(s,encoding='utf-8')
@@ -33,5 +33,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
           git diff --cached --quiet && exit 0
-          git commit -m 'fix: use normal cold call training page'
+          git commit -m 'fix: finalize normal cold call page loader'
           git push
