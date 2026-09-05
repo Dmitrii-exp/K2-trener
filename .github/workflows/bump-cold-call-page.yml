@@ -1,0 +1,36 @@
+name: Bump cold call page asset
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cold-call-voice-v5.js'
+      - 'site-repair.js'
+      - '.github/workflows/bump-cold-call-page.yml'
+permissions:
+  contents: write
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Update asset version
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='/cold-call-voice-v5.js?v=20260905-voice-v5'
+          new='/cold-call-voice-v5.js?v=20260906-page-1'
+          if old in s:
+              p.write_text(s.replace(old,new),encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: load cold call page runtime v2'
+          git push
