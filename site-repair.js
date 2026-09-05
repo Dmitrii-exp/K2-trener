@@ -12,24 +12,48 @@
 
   window.SALETRENING_TRAINING_SUBSCRIPTION_GATE = false;
 
+  function loadVoiceRuntime(){
+    try{
+      if(window.__stVoiceRuntimeLoader) return;
+      window.__stVoiceRuntimeLoader=true;
+      var existing=document.querySelector('script[data-st-voice-runtime="1"]');
+      if(!existing){
+        var script=document.createElement('script');
+        script.src='/cold-call-voice.js?v=20260905-voice-runtime-1';
+        script.async=false;
+        script.dataset.stVoiceRuntime='1';
+        document.head.appendChild(script);
+      }
+    }catch(e){ console.error('[SaleTrening] voice runtime load failed',e); }
+  }
+
+  function patchColdCall(){
+    try{
+      /* The dedicated runtime is the ONLY owner of cold-call start-up. */
+      if(typeof window.launchColdCall==='function' && !window.__stColdCallIsolated){
+        window.__stColdCallIsolated=true;
+        window.startColdCall=function(){
+          var args=arguments;
+          var id=args[0];
+          if(!id){
+            var difficulty=(args.length && args[0]) || document.querySelector('[onclick*="startColdCall"]')?.getAttribute('onclick')?.match(/startColdCall\(['"]([^'"]+)/)?.[1] || 'Средний';
+            var s=typeof coldCallScenario==='function'?coldCallScenario(difficulty):null;
+            id=s?.id;
+          }
+          return window.launchColdCall(id);
+        };
+        /* Prevent the legacy in-page implementation from being called directly. */
+        window.__stLegacyColdCallDisabled=true;
+        console.log('[SaleTrening] dedicated cold-call voice runtime active');
+      }
+    }catch(e){ console.error('[SaleTrening] cold-call isolation failed',e); }
+  }
+
   window.addEventListener('load',function(){
     setTimeout(function(){
-      /* Always load the dedicated voice runtime before the user can start a call. */
-      try{
-        if(!window.__stVoiceRuntimeLoader){
-          window.__stVoiceRuntimeLoader=true;
-          var existing=document.querySelector('script[data-st-voice-runtime="1"]');
-          if(!existing){
-            var script=document.createElement('script');
-            script.src='/cold-call-voice.js?v=20260903-voice-dialog-2';
-            script.async=false;
-            script.dataset.stVoiceRuntime='1';
-            document.head.appendChild(script);
-          }
-        }
-      }catch(e){ console.error('[SaleTrening] voice runtime load failed',e); }
+      loadVoiceRuntime();
 
-      /* Cold-call voice names: keep technical TTS IDs hidden behind three stable client names. */
+      /* Cold-call voice names: stable UI names mapped to supported ProxyAPI TTS IDs. */
       try{
         var coldVoice=document.getElementById('coldVoice');
         if(coldVoice){
@@ -40,7 +64,7 @@
             option.textContent=v[1];
             coldVoice.appendChild(option);
           });
-          if(!coldVoice.value) coldVoice.value='onyx';
+          coldVoice.value=coldVoice.value||'onyx';
         }
       }catch(e){ console.error('[SaleTrening] cold voice names patch failed',e); }
 
@@ -82,6 +106,15 @@
         startTraining.__saleTrainingWrapped=true;
         window.startTraining=startTraining;
       }catch(e){ console.error('[SaleTrening] training patch failed',e); }
+
+      /* Give the dynamically loaded voice file time to define launchColdCall, then bind it. */
+      patchColdCall();
+      var tries=0;
+      var timer=setInterval(function(){
+        tries++;
+        patchColdCall();
+        if(window.__stColdCallIsolated || tries>=20) clearInterval(timer);
+      },250);
     },1000);
   });
 })();
