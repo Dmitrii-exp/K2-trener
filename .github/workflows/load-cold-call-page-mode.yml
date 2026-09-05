@@ -1,0 +1,44 @@
+name: Load cold call full-screen page mode
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load page mode after voice runtime
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          tag = '<script src="/cold-call-page-mode.js?v=20260905-page-1"></script>'
+          if tag not in s:
+              marker = '<script src="/cold-call-voice-v5.js?v=20260905-voice-v5"></script>'
+              if marker in s:
+                  s = s.replace(marker, marker + '\n' + tag, 1)
+              else:
+                  s = s.replace('</body>', tag + '\n</body>', 1)
+              p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit if changed
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "fix: load cold call full-screen page mode"
+            git push
+          fi
