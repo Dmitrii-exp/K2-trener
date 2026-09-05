@@ -22,16 +22,21 @@ jobs:
           import re
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          s=re.sub(r'/cold-call-voice-v5\.js\?v=[^"\']+','/cold-call-voice-v5.js?v=20260906-page-3',s)
+          s=re.sub(r'/cold-call-voice-v5\.js\?v=[^"\']+','/cold-call-voice-v5.js?v=20260906-page-4',s)
           s=re.sub(r'\s*<script src="/cold-call-page-mode\.js\?v=[^"]+"></script>','',s)
           s=re.sub(r'\s*<script src="/cold-call-page-v4\.js\?v=[^"]+"></script>','',s)
           p.write_text(s,encoding='utf-8')
           PY
+      - name: Validate cold call page
+        run: |
+          grep -q 'cold-call-voice-v5.js?v=20260906-page-4' index.html
+          ! grep -q 'cold-call-page-mode.js' index.html
+          ! grep -q 'cold-call-page-v4.js' index.html
       - name: Commit
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
           git diff --cached --quiet && exit 0
-          git commit -m 'fix: finalize normal cold call page loader'
+          git commit -m 'fix: lock normal cold call page runtime'
           git push
