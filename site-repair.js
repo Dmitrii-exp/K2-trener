@@ -9,7 +9,6 @@
   }
   window.addEventListener('error',function(e){console.error('SaleTrening runtime error',e.error||e.message);setTimeout(function(){showFatal(e.message||'JavaScript error')},0)});
   window.addEventListener('unhandledrejection',function(e){console.error('SaleTrening promise error',e.reason);setTimeout(function(){showFatal(e.reason?.message||String(e.reason||'Promise error'))},0)});
-
   window.SALETRENING_TRAINING_SUBSCRIPTION_GATE = false;
 
   function loadVoiceRuntime(){
@@ -29,20 +28,16 @@
 
   function patchColdCall(){
     try{
-      /* The dedicated runtime is the ONLY owner of cold-call start-up. */
       if(typeof window.launchColdCall==='function' && !window.__stColdCallIsolated){
         window.__stColdCallIsolated=true;
-        window.startColdCall=function(){
-          var args=arguments;
-          var id=args[0];
-          if(!id){
-            var difficulty=(args.length && args[0]) || document.querySelector('[onclick*="startColdCall"]')?.getAttribute('onclick')?.match(/startColdCall\(['"]([^'"]+)/)?.[1] || 'Средний';
-            var s=typeof coldCallScenario==='function'?coldCallScenario(difficulty):null;
-            id=s?.id;
-          }
+        window.startColdCall=function(difficulty){
+          difficulty=String(difficulty||'Средний');
+          var scenario=typeof coldCallScenario==='function'?coldCallScenario(difficulty):null;
+          var id=scenario?.id;
+          if(!id) throw new Error('Сценарий «Холодный звонок» не найден');
+          /* Dedicated runtime owns the entire voice dialog; legacy startColdCall is bypassed. */
           return window.launchColdCall(id);
         };
-        /* Prevent the legacy in-page implementation from being called directly. */
         window.__stLegacyColdCallDisabled=true;
         console.log('[SaleTrening] dedicated cold-call voice runtime active');
       }
@@ -52,8 +47,6 @@
   window.addEventListener('load',function(){
     setTimeout(function(){
       loadVoiceRuntime();
-
-      /* Cold-call voice names: stable UI names mapped to supported ProxyAPI TTS IDs. */
       try{
         var coldVoice=document.getElementById('coldVoice');
         if(coldVoice){
@@ -75,7 +68,6 @@
         if(typeof state==='undefined' || !state || typeof window.startTraining!=='function') return;
         var originalStartTraining=window.startTraining;
         if(originalStartTraining.__saleTrainingWrapped) return;
-
         var startTraining=async function(id){
           try{
             if(window.SALETRENING_TRAINING_SUBSCRIPTION_GATE) return await originalStartTraining(id);
@@ -85,7 +77,6 @@
             if(!state.user || !state.user.id) throw new Error('Пользователь не авторизован');
             if(!state.profile || !state.profile.company_id) throw new Error('Профиль компании не загружен');
             if(typeof sb==='undefined' || !sb) throw new Error('Supabase не инициализирован');
-
             var result=await sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:id,status:'started',transcript:[],voice_mode:false}).select().single();
             if(result.error) throw new Error(result.error.message||'Не удалось создать тренировочную сессию');
             state.session=Object.assign({},result.data,{scenario:scenario});
@@ -107,7 +98,6 @@
         window.startTraining=startTraining;
       }catch(e){ console.error('[SaleTrening] training patch failed',e); }
 
-      /* Give the dynamically loaded voice file time to define launchColdCall, then bind it. */
       patchColdCall();
       var tries=0;
       var timer=setInterval(function(){
