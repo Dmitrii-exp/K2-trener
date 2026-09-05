@@ -28,23 +28,20 @@
   }
 
   function applyPageMode() {
-    const oldOverlay = document.getElementById('st-phone-overlay');
+    const host = document.getElementById('st-phone-overlay');
     const phone = document.getElementById('st-phone');
-    if (!oldOverlay || !phone) return false;
-
+    if (!host || !phone) return false;
     const content = document.querySelector('.content') || document.getElementById('root');
     if (!content) return false;
 
     document.documentElement.classList.add('st-cold-call-page');
     document.body.classList.add('st-cold-call-page');
 
-    // This is NOT a modal anymore. Reparent the call into the application's
-    // normal content area and hide the previous page content while the call runs.
-    if (oldOverlay.parentElement !== content) content.appendChild(oldOverlay);
-    hideAppContent(content, oldOverlay);
+    // Convert the old modal container into a normal application page section.
+    if (host.parentElement !== content) content.appendChild(host);
+    hideAppContent(content, host);
 
-    oldOverlay.style.cssText = 'position:static;inset:auto;width:100%;height:auto;min-height:calc(100vh - 60px);padding:0;margin:0;background:transparent;backdrop-filter:none;z-index:auto;display:block;';
-
+    host.style.cssText = 'position:static;width:100%;height:auto;min-height:calc(100vh - 60px);padding:0;margin:0;background:transparent;backdrop-filter:none;z-index:auto;display:block;';
     phone.style.cssText += 'width:100%;height:auto;min-height:calc(100vh - 60px);max-width:none;max-height:none;border:0;border-radius:18px;box-shadow:none;background:#15131f;overflow:hidden;';
 
     const head = phone.querySelector('.st-phone-head');
@@ -52,37 +49,14 @@
     const controls = phone.querySelector('.st-phone-controls');
     const transcript = phone.querySelector('.st-phone-transcript');
     const now = phone.querySelector('.st-phone-now');
-
-    if (head) {
-      head.style.borderRadius = '18px 18px 0 0';
-      head.style.paddingTop = '20px';
-    }
-    if (body) {
-      body.style.display = 'flex';
-      body.style.flexDirection = 'column';
-      body.style.minHeight = '0';
-      body.style.padding = '18px';
-    }
+    if (head) { head.style.borderRadius = '18px 18px 0 0'; head.style.paddingTop = '20px'; }
+    if (body) { body.style.display = 'flex'; body.style.flexDirection = 'column'; body.style.minHeight = '0'; body.style.padding = '18px'; }
     if (now) now.style.order = '1';
-    if (transcript) {
-      transcript.style.order = '2';
-      transcript.style.maxHeight = 'none';
-      transcript.style.minHeight = '180px';
-      transcript.style.flex = '1 1 auto';
-      transcript.style.marginTop = '12px';
-    }
-    if (controls) {
-      controls.style.order = '3';
-      controls.style.paddingBottom = '20px';
-    }
+    if (transcript) { transcript.style.order = '2'; transcript.style.maxHeight = 'none'; transcript.style.minHeight = '220px'; transcript.style.flex = '1 1 auto'; transcript.style.marginTop = '12px'; }
+    if (controls) { controls.style.order = '3'; controls.style.paddingBottom = '20px'; }
 
-    // Clear modal-specific presentation left by the V5 runtime.
     const close = phone.querySelector('.st-phone-close');
-    if (close) {
-      close.textContent = '←';
-      close.setAttribute('aria-label', 'Выйти из тренировки');
-    }
-
+    if (close) { close.textContent = '←'; close.setAttribute('aria-label', 'Выйти из тренировки'); }
     document.body.style.overflow = 'auto';
     return true;
   }
@@ -90,8 +64,7 @@
   function watch() {
     if (window.__stColdCallPageObserverV2) return;
     const observer = new MutationObserver(() => {
-      const exists = !!document.getElementById('st-phone-overlay');
-      if (exists) applyPageMode();
+      if (document.getElementById('st-phone-overlay')) applyPageMode();
       else restoreAppContent();
     });
     observer.observe(document.body, { childList: true, subtree: true });
@@ -104,10 +77,7 @@
     const original = window.launchColdCall;
     const wrapped = async function () {
       const result = await original.apply(this, arguments);
-      requestAnimationFrame(() => {
-        applyPageMode();
-        watch();
-      });
+      requestAnimationFrame(() => { applyPageMode(); watch(); });
       return result;
     };
     wrapped.__stPageWrappedV2 = true;
@@ -119,15 +89,9 @@
     watch();
     if (patchLauncher()) return;
     let tries = 0;
-    const timer = setInterval(() => {
-      tries++;
-      if (patchLauncher() || tries >= 100) clearInterval(timer);
-    }, 250);
+    const timer = setInterval(() => { tries++; if (patchLauncher() || tries >= 100) clearInterval(timer); }, 250);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
-  } else {
-    boot();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+  else boot();
 })();
