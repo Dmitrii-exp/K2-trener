@@ -18,7 +18,7 @@
       var existing=document.querySelector('script[data-st-voice-runtime="1"]');
       if(!existing){
         var script=document.createElement('script');
-        script.src='/cold-call-voice.js?v=20260905-voice-runtime-2';
+        script.src='/cold-call-voice.js?v=20260905-voice-runtime-3';
         script.async=false;
         script.dataset.stVoiceRuntime='1';
         document.head.appendChild(script);
@@ -26,14 +26,27 @@
     }catch(e){ console.error('[SaleTrening] voice runtime load failed',e); }
   }
 
+  function getLoadedScenarios(){
+    try{
+      if(typeof state !== 'undefined' && state && Array.isArray(state.scenarios)) return state.scenarios;
+    }catch(e){}
+    return [];
+  }
+
   function resolveColdScenario(difficulty){
-    var list=Array.isArray(window.state?.scenarios)?window.state.scenarios:[];
+    var list=getLoadedScenarios();
     if(!list.length) return null;
     var wanted=String(difficulty||'Средний').trim().toLowerCase();
     var cold=list.filter(function(x){
       var text=[x?.title,x?.name,x?.category,x?.type,x?.description].filter(Boolean).join(' ').toLowerCase();
       return /холод|cold/.test(text);
     });
+    if(!cold.length){
+      cold=list.filter(function(x){
+        var text=[x?.title,x?.name].filter(Boolean).join(' ').toLowerCase();
+        return text.includes('звон');
+      });
+    }
     if(!cold.length) return null;
     var exact=cold.find(function(x){
       var text=[x?.title,x?.name,x?.difficulty,x?.level].filter(Boolean).join(' ').toLowerCase();
@@ -42,17 +55,29 @@
     return exact||cold[0];
   }
 
+  async function startResolvedColdCall(difficulty){
+    difficulty=String(difficulty||'Средний');
+    var scenario=resolveColdScenario(difficulty);
+    if(!scenario){
+      await new Promise(function(resolve){setTimeout(resolve,300);});
+      scenario=resolveColdScenario(difficulty);
+    }
+    if(!scenario) throw new Error('Сценарий «Холодный звонок» не найден в загруженных сценариях');
+    if(typeof window.launchColdCall!=='function') throw new Error('Голосовой модуль ещё не загрузился');
+    console.log('[SaleTrening] cold call scenario resolved',{id:scenario.id,difficulty:difficulty,title:scenario.title||scenario.name||''});
+    return window.launchColdCall(scenario.id);
+  }
+
   function patchColdCall(){
     try{
       if(typeof window.launchColdCall==='function' && !window.__stColdCallIsolated){
         window.__stColdCallIsolated=true;
         window.startColdCall=function(difficulty){
-          difficulty=String(difficulty||'Средний');
-          var scenario=resolveColdScenario(difficulty);
-          var id=scenario?.id;
-          if(!id) throw new Error('Сценарий «Холодный звонок» не найден в загруженных сценариях');
-          console.log('[SaleTrening] cold call scenario resolved', {id:id,difficulty:difficulty,title:scenario.title||scenario.name||''});
-          return window.launchColdCall(id);
+          return startResolvedColdCall(difficulty).catch(function(e){
+            console.error('[SaleTrening] cold call start failed',e);
+            if(typeof toast==='function') toast('Ошибка запуска голосовой тренировки: '+(e.message||e));
+            else alert('Ошибка запуска голосовой тренировки: '+(e.message||e));
+          });
         };
         window.__stLegacyColdCallDisabled=true;
         console.log('[SaleTrening] dedicated cold-call voice runtime active');
