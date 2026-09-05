@@ -25,7 +25,6 @@
 </style>
 </head>
 <body><div id="root"></div><div id="toast" class="toast hidden"></div>
-<script src="/training-runtime-fix.js?v=20260903-6"></script>
 <script src="/site-repair.js?v=20260903-2"></script>
 <script>
 async function startTraining(id){const s=state.scenarios.find(x=>x.id===id);if(!s)return;const {data,error}=await sb.from("saletrening_sessions").insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:id,status:"started",transcript:[],voice_mode:false}).select().single();if(error){toast(error.message);return}state.session={...data,scenario:s};state.messages=[];await saveSession();state.view="training";trainingChat();try{const opening=await aiClientReply("",true);state.messages.push({speaker:"client",content:opening});await saveSession();trainingChat()}catch(e){console.error("chat-client opening:",e);trainingChat();toast("Не удалось получить первую реплику AI-клиента: "+(e.message||"ошибка"))}}
@@ -92,4 +91,5 @@ const oldPage=window.page;window.page=function(){if(state.report){setPageHTML($(
 <script src="/cold-call-voice-v5.js?v=20260905-voice-v5"></script>
 <script src="/cold-call-page-v4.js?v=20260906-cold-v4"></script>
 <script src="/cold-call-page-mode.js?v=20260905-page-1"></script>
+<script src="/training-runtime-fix.js?v=20260903-1"></script>
 </body></html>
