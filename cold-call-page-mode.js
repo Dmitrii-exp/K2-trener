@@ -27,6 +27,15 @@
     document.body.style.overflow = '';
   }
 
+  function loadV4() {
+    if (window.__stColdCallPageV4 || document.querySelector('script[data-st-cold-v4="1"]')) return;
+    const s=document.createElement('script');
+    s.src='/cold-call-page-v4.js?v=20260906-cold-v4';
+    s.async=false;
+    s.dataset.stColdV4='1';
+    document.head.appendChild(s);
+  }
+
   function applyPageMode() {
     const host = document.getElementById('st-phone-overlay');
     const phone = document.getElementById('st-phone');
@@ -36,8 +45,6 @@
 
     document.documentElement.classList.add('st-cold-call-page');
     document.body.classList.add('st-cold-call-page');
-
-    // Convert the old modal container into a normal application page section.
     if (host.parentElement !== content) content.appendChild(host);
     hideAppContent(content, host);
 
@@ -54,7 +61,6 @@
     if (now) now.style.order = '1';
     if (transcript) { transcript.style.order = '2'; transcript.style.maxHeight = 'none'; transcript.style.minHeight = '220px'; transcript.style.flex = '1 1 auto'; transcript.style.marginTop = '12px'; }
     if (controls) { controls.style.order = '3'; controls.style.paddingBottom = '20px'; }
-
     const close = phone.querySelector('.st-phone-close');
     if (close) { close.textContent = '←'; close.setAttribute('aria-label', 'Выйти из тренировки'); }
     document.body.style.overflow = 'auto';
@@ -86,10 +92,11 @@
   }
 
   function boot() {
+    loadV4();
     watch();
     if (patchLauncher()) return;
     let tries = 0;
-    const timer = setInterval(() => { tries++; if (patchLauncher() || tries >= 100) clearInterval(timer); }, 250);
+    const timer = setInterval(() => { tries++; loadV4(); if (patchLauncher() || tries >= 100) clearInterval(timer); }, 250);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
