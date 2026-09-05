@@ -18,12 +18,28 @@
       var existing=document.querySelector('script[data-st-voice-runtime="1"]');
       if(!existing){
         var script=document.createElement('script');
-        script.src='/cold-call-voice.js?v=20260905-voice-runtime-1';
+        script.src='/cold-call-voice.js?v=20260905-voice-runtime-2';
         script.async=false;
         script.dataset.stVoiceRuntime='1';
         document.head.appendChild(script);
       }
     }catch(e){ console.error('[SaleTrening] voice runtime load failed',e); }
+  }
+
+  function resolveColdScenario(difficulty){
+    var list=Array.isArray(window.state?.scenarios)?window.state.scenarios:[];
+    if(!list.length) return null;
+    var wanted=String(difficulty||'Средний').trim().toLowerCase();
+    var cold=list.filter(function(x){
+      var text=[x?.title,x?.name,x?.category,x?.type,x?.description].filter(Boolean).join(' ').toLowerCase();
+      return /холод|cold/.test(text);
+    });
+    if(!cold.length) return null;
+    var exact=cold.find(function(x){
+      var text=[x?.title,x?.name,x?.difficulty,x?.level].filter(Boolean).join(' ').toLowerCase();
+      return text.indexOf(wanted)>=0;
+    });
+    return exact||cold[0];
   }
 
   function patchColdCall(){
@@ -32,10 +48,10 @@
         window.__stColdCallIsolated=true;
         window.startColdCall=function(difficulty){
           difficulty=String(difficulty||'Средний');
-          var scenario=typeof coldCallScenario==='function'?coldCallScenario(difficulty):null;
+          var scenario=resolveColdScenario(difficulty);
           var id=scenario?.id;
-          if(!id) throw new Error('Сценарий «Холодный звонок» не найден');
-          /* Dedicated runtime owns the entire voice dialog; legacy startColdCall is bypassed. */
+          if(!id) throw new Error('Сценарий «Холодный звонок» не найден в загруженных сценариях');
+          console.log('[SaleTrening] cold call scenario resolved', {id:id,difficulty:difficulty,title:scenario.title||scenario.name||''});
           return window.launchColdCall(id);
         };
         window.__stLegacyColdCallDisabled=true;
