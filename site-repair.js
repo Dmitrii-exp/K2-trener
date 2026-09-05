@@ -1,4 +1,4 @@
-/* SaleTrening emergency runtime repair V2 */
+/* SaleTrening emergency runtime repair V3 */
 (function(){
   'use strict';
 
@@ -14,6 +14,7 @@
 
   function loadVoiceRuntime(){
     try{
+      if(window.__stProxyVoiceV5)return;
       if(window.__stVoiceRuntimeLoader)return;
       window.__stVoiceRuntimeLoader=true;
       var existing=document.querySelector('script[data-st-voice-runtime="1"]');
