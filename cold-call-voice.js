@@ -113,7 +113,7 @@
     if (activeAudio) { try { activeAudio.pause(); activeAudio.currentTime = 0; } catch {} }
     const h = await authHeaders();
     h['Content-Type'] = 'application/json';
-    const r = await fetch(`${PROJECT}/proxy-tts`, {method:'POST',headers:h,body:JSON.stringify({input:String(input),voice:'coral',instructions:'Говори естественно по-русски как живой клиент в телефонном разговоре. Разговорная интонация, естественные паузы и эмоции. Не читай как диктор.'})});
+    const r = await fetch(`${PROJECT}/proxy-tts`, {method:'POST',headers:h,body:JSON.stringify({input:String(input),voice:document.getElementById('coldVoice')?.value || 'coral',instructions:'Говори естественно по-русски как живой клиент в телефонном разговоре. Разговорная интонация, естественные паузы и эмоции. Не читай как диктор.'})});
     if (!r.ok) throw new Error(`TTS: HTTP ${r.status}`);
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);
