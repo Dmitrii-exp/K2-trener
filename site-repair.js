@@ -29,6 +29,21 @@
         }
       }catch(e){ console.error('[SaleTrening] voice runtime load failed',e); }
 
+      /* Cold-call voice names: keep technical TTS IDs hidden behind three stable client names. */
+      try{
+        var coldVoice=document.getElementById('coldVoice');
+        if(coldVoice){
+          coldVoice.innerHTML='';
+          [['onyx','Олег'],['ash','Николай'],['coral','Даша']].forEach(function(v){
+            var option=document.createElement('option');
+            option.value=v[0];
+            option.textContent=v[1];
+            coldVoice.appendChild(option);
+          });
+          if(!coldVoice.value) coldVoice.value='onyx';
+        }
+      }catch(e){ console.error('[SaleTrening] cold voice names patch failed',e); }
+
       var root=document.getElementById('root');
       if(root && root.innerHTML.trim()==='') showFatal('Приложение не выполнило bootstrap. Проверьте загрузку Supabase и авторизацию.');
 
