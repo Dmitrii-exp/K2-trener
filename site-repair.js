@@ -8,7 +8,7 @@
     }
   }
   window.addEventListener('error',function(e){console.error('SaleTrening runtime error',e.error||e.message);setTimeout(function(){showFatal(e.message||'JavaScript error')},0)});
-  window.addEventListener('unhandledrejection',function(e){console.error('SaleTrening promise error',e.reason);setTimeout(function(){showFatal(e.reason?.message||String(e.reason||'Promise error')},0)});
+  window.addEventListener('unhandledrejection',function(e){console.error('SaleTrening promise error',e.reason);setTimeout(function(){showFatal(e.reason?.message||String(e.reason||'Promise error'))},0)});
   window.SALETRENING_TRAINING_SUBSCRIPTION_GATE = false;
 
   function loadVoiceRuntime(){
@@ -18,7 +18,7 @@
       var existing=document.querySelector('script[data-st-voice-runtime="1"]');
       if(!existing){
         var script=document.createElement('script');
-        script.src='/cold-call-voice.js?v=20260905-voice-runtime-4';
+        script.src='/cold-call-voice.js?v=20260905-voice-runtime-5';
         script.async=false;
         script.dataset.stVoiceRuntime='1';
         document.head.appendChild(script);
