@@ -14,16 +14,10 @@
 
   function loadVoiceRuntime(){
     try{
-      if(window.__stProxyVoiceV5)return;
-      if(window.__stVoiceRuntimeLoader)return;
-      window.__stVoiceRuntimeLoader=true;
-      var existing=document.querySelector('script[data-st-voice-runtime="1"]');
-      if(!existing){
-        var script=document.createElement('script');
-        script.src='/cold-call-voice.js?v=20260905-voice-runtime-6';
-        script.async=false;script.dataset.stVoiceRuntime='1';document.head.appendChild(script);
+      if(typeof window.launchColdCall!=='function'){
+        console.warn('[SaleTrening] V5 voice runtime is not ready yet');
       }
-    }catch(e){console.error('[SaleTrening] voice runtime load failed',e)}
+    }catch(e){console.error('[SaleTrening] voice runtime check failed',e)}
   }
 
   function installColdAiBridge(){
