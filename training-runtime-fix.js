@@ -14,7 +14,6 @@
   }
   function boot(){
     load('/training-ui-v7.js?v=20260904-2').catch(function(e){console.error('[SaleTrening] training UI load failed',e);});
-    load('/cold-call-voice.js?v=20260904-2').catch(function(e){console.error('[SaleTrening] cold call UI load failed',e);});
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
