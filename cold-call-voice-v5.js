@@ -66,9 +66,9 @@
   function render(){
     const p=$('page');if(!p||!state.session)return;css();
     const scenario=state.session.scenario||{};const difficulty=coldCall?.difficulty||scenario.difficulty||'Средний';
-    p.innerHTML=`<div class="st-cold-page"><div class="st-cold-head"><div><h2>Холодный звонок</h2><div class="st-cold-sub">Живой диалог с AI-клиентом · ${esc(difficulty)}</div></div><button id="st-cold-back" class="st-cold-back">← Назад</button></div><div class="st-cold-card"><div class="st-cold-top"><div class="st-cold-avatar">👤</div><div class="st-cold-name">Потенциальный клиент</div><div class="st-cold-meta">Холодный звонок · ${esc(difficulty)}</div><div class="st-cold-time" id="st-cold-time">00:00</div></div><div class="st-cold-live"><div class="st-cold-live-label">Статус</div><div id="st-cold-live" class="st-cold-live-text">Вы говорите первым. Начинайте разговор.</div></div><div class="st-cold-main"><div class="st-cold-live" style="margin-top:0"><div class="st-cold-live-label">Голосовой диалог</div><div class="st-cold-live-text">Текстовые реплики не выводятся — разговор сохраняется в истории тренировки.</div></div><div class="st-cold-compose"><textarea id="st-cold-input" rows="2" placeholder="Напишите ответ менеджера…"></textarea><button id="st-cold-send" class="st-cold-send">Отправить</button></div><div class="st-cold-controls"><button id="st-cold-mic" class="st-cold-mic">🎙 Начать говорить</button><button id="st-cold-end" class="st-cold-end">Завершить разговор</button></div><div class="st-cold-hint">Говорите первым → пауза → AI-клиент отвечает голосом → продолжайте разговор. Текст всего разговора сохраняется ниже.</div></div></div></div>`;
+    p.innerHTML=`<div class="st-cold-page"><div class="st-cold-head"><div><h2>Холодный звонок</h2><div class="st-cold-sub">Живой диалог с AI-клиентом · ${esc(difficulty)}</div></div><button id="st-cold-back" class="st-cold-back">← Назад</button></div><div class="st-cold-card"><div class="st-cold-top"><div class="st-cold-avatar">👤</div><div class="st-cold-name">Потенциальный клиент</div><div class="st-cold-meta">Холодный звонок · ${esc(difficulty)}</div><div class="st-cold-time" id="st-cold-time">00:00</div></div><div class="st-cold-live"><div class="st-cold-live-label">Статус</div><div id="st-cold-live" class="st-cold-live-text">Вы говорите первым. Начинайте разговор.</div></div><div class="st-cold-main"><div class="st-cold-controls"><button id="st-cold-mic" class="st-cold-mic">🎙 Начать говорить</button><button id="st-cold-end" class="st-cold-end">Завершить разговор</button></div><div class="st-cold-hint">Говорите естественно. После паузы клиент отвечает автоматически. Диалог сохраняется в истории тренировки.</div></div></div></div>`;
     $('st-cold-back').onclick=()=>{if(!processing){cleanup();state.session=null;state.messages=[];state.view='coldcall';render()}};
-    $('st-cold-end').onclick=finish;$('st-cold-send').onclick=typedTurn;$('st-cold-input').onkeydown=e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')typedTurn()};$('st-cold-mic').onclick=()=>{if(!continuousMode)startContinuousConversation()};updateUI();scrollTranscript();
+    $('st-cold-end').onclick=finish;$('st-cold-mic').onclick=()=>{if(!continuousMode)startContinuousConversation()};updateUI();scrollTranscript();
   }
 
   function scrollTranscript(){const x=$('st-cold-transcript');if(x)x.scrollTop=x.scrollHeight;}
@@ -202,11 +202,6 @@
     analyserSource=null;
     analyser=null;
     recorder=null;
-
-    if(stream){
-      try{stream.getTracks().forEach(t=>t.stop())}catch{}
-      stream=null;
-    }
 
     if(!blob?.size||!speechDetected){
       setStatus('Речь не обнаружена. Слушаю вас снова…');
