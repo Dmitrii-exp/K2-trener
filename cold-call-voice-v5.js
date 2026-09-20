@@ -5,7 +5,7 @@
 
   const PROJECT = 'https://svxykakyrloqzloerygb.supabase.co/functions/v1';
   let stream = null, recorder = null, chunks = [], analyser = null, analyserSource = null, vadTimer = null;
-  let audio = null, audioCtx = null, recording = false, processing = false, callOpen = false;
+  let audio = null, audioCtx = null, recording = false, processing = false, callOpen = false, continuousMode = false;
   let speechDetected = false, startedAt = 0, timer = null;
 
   const $ = id => document.getElementById(id);
@@ -33,6 +33,7 @@
 
   function cleanup(){
     callOpen=false;
+    continuousMode=false;
     if(timer){clearInterval(timer);timer=null;}
     stopMic();
     closeAudio();
@@ -67,12 +68,55 @@
     const scenario=state.session.scenario||{};const difficulty=coldCall?.difficulty||scenario.difficulty||'Средний';
     p.innerHTML=`<div class="st-cold-page"><div class="st-cold-head"><div><h2>Холодный звонок</h2><div class="st-cold-sub">Живой диалог с AI-клиентом · ${esc(difficulty)}</div></div><button id="st-cold-back" class="st-cold-back">← Назад</button></div><div class="st-cold-card"><div class="st-cold-top"><div class="st-cold-avatar">👤</div><div class="st-cold-name">Потенциальный клиент</div><div class="st-cold-meta">Холодный звонок · ${esc(difficulty)}</div><div class="st-cold-time" id="st-cold-time">00:00</div></div><div class="st-cold-live"><div class="st-cold-live-label">Статус</div><div id="st-cold-live" class="st-cold-live-text">Вы говорите первым. Начинайте разговор.</div></div><div class="st-cold-main"><div id="st-cold-transcript" class="st-cold-transcript">${(state.messages||[]).map(m=>bubble(m.speaker,m.content)).join('')}</div><div class="st-cold-compose"><textarea id="st-cold-input" rows="2" placeholder="Напишите ответ менеджера…"></textarea><button id="st-cold-send" class="st-cold-send">Отправить</button></div><div class="st-cold-controls"><button id="st-cold-mic" class="st-cold-mic">🎙 Начать говорить</button><button id="st-cold-end" class="st-cold-end">Завершить разговор</button></div><div class="st-cold-hint">Говорите первым → пауза → AI-клиент отвечает голосом → продолжайте разговор. Текст всего разговора сохраняется ниже.</div></div></div></div>`;
     $('st-cold-back').onclick=()=>{if(!processing){cleanup();state.session=null;state.messages=[];state.view='coldcall';render()}};
-    $('st-cold-end').onclick=finish;$('st-cold-send').onclick=typedTurn;$('st-cold-input').onkeydown=e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')typedTurn()};$('st-cold-mic').onclick=()=>recording?stopRecording():startRecording();updateUI();scrollTranscript();
+    $('st-cold-end').onclick=finish;$('st-cold-send').onclick=typedTurn;$('st-cold-input').onkeydown=e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')typedTurn()};$('st-cold-mic').onclick=()=>{if(!continuousMode)startContinuousConversation()};updateUI();scrollTranscript();
   }
 
   function scrollTranscript(){const x=$('st-cold-transcript');if(x)x.scrollTop=x.scrollHeight;}
   function setStatus(text){const x=$('st-cold-live');if(x)x.textContent=text;}
-  function updateUI(){const b=$('st-cold-mic');if(!b)return;if(recording){b.textContent='⏹ Остановить запись';b.classList.add('recording');b.disabled=false}else if(processing){b.textContent='⏳ AI отвечает…';b.classList.remove('recording');b.disabled=true}else{b.textContent='🎙 Начать говорить';b.classList.remove('recording');b.disabled=false}}
+  function updateUI(){
+    const b=$('st-cold-mic');
+    if(!b)return;
+    if(recording){
+      b.textContent='🔴 Говорите…';
+      b.classList.add('recording');
+      b.disabled=true;
+    }else if(processing){
+      b.textContent='⏳ ИИ отвечает…';
+      b.classList.remove('recording');
+      b.disabled=true;
+    }else if(continuousMode){
+      b.textContent='🔴 Разговор идёт автоматически';
+      b.classList.add('recording');
+      b.disabled=true;
+    }else{
+      b.textContent='🎙 Начать говорить';
+      b.classList.remove('recording');
+      b.disabled=false;
+    }
+  }
+
+  async function startContinuousConversation(){
+    if(processing||recording||!callOpen||continuousMode)return;
+    continuousMode=true;
+    try{
+      if(!navigator.mediaDevices?.getUserMedia)throw new Error('Браузер не поддерживает доступ к микрофону');
+      const Ctx=window.AudioContext||window.webkitAudioContext;
+      if(Ctx){
+        audioCtx=audioCtx||new Ctx();
+        await audioCtx.resume().catch(()=>{});
+      }
+      setStatus('Слушаю вас… Говорите первым. После паузы клиент ответит автоматически.');
+      updateUI();
+      await startRecording();
+    }catch(e){
+      console.error('[SaleTrening] continuous voice start',e);
+      continuousMode=false;
+      setStatus('Ошибка микрофона: '+e.message);
+      updateUI();
+      if(typeof toast==='function')toast('Не удалось начать разговор: '+e.message);
+    }
+  }
+
   function addMessage(speaker,text){state.messages=Array.isArray(state.messages)?state.messages:[];state.messages.push({speaker,content:text});const x=$('st-cold-transcript');if(x){x.insertAdjacentHTML('beforeend',bubble(speaker,text));x.scrollTop=x.scrollHeight}}
   async function save(){if(typeof saveSession==='function')await saveSession();}
   function pickMime(){for(const m of ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus']){try{if(MediaRecorder.isTypeSupported?.(m))return m}catch{}}return '';}
@@ -83,8 +127,107 @@
   function stopRecording(){if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch(e){console.warn(e)}}else recording=false;}
   async function recognize(blob,mime){const fd=new FormData(),typ=String(mime||blob.type),ext=typ.includes('mp4')?'m4a':typ.includes('ogg')?'ogg':'webm';fd.append('file',blob,`manager.${ext}`);fd.append('prompt','Разговор менеджера по продажам с потенциальным клиентом. Русская речь, цены, бренды, модели, размеры шин и профессиональные термины.');const r=await fetch(`${PROJECT}/proxy-stt`,{method:'POST',headers:await authHeaders(),body:fd});const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error(j.error||`STT HTTP ${r.status}`);return String(j.text||'').trim()}
   async function speak(text){const r=await fetch(`${PROJECT}/proxy-tts`,{method:'POST',headers:await authHeaders(true),body:JSON.stringify({input:String(text),voice:document.getElementById('coldVoice')?.value||coldCall?.voice||'coral',instructions:'Говори естественно по-русски как живой потенциальный клиент в телефонном разговоре. Разговорная интонация, естественные паузы и эмоции. Не читай как диктор.'})});if(!r.ok)throw new Error(`TTS HTTP ${r.status}`);const blob=await r.blob();if(!blob.size)throw new Error('TTS вернул пустой аудиофайл');const url=URL.createObjectURL(blob);try{audio=new Audio(url);audio.preload='auto';await audio.play();await new Promise(resolve=>{audio.onended=resolve})}finally{URL.revokeObjectURL(url);audio=null}}
-  async function processSpeech(blob,mime){recording=false;if(vadTimer){clearTimeout(vadTimer);vadTimer=null}try{analyserSource?.disconnect()}catch{}analyserSource=null;analyser=null;recorder=null;if(!blob?.size||!speechDetected){setStatus('Речь не обнаружена. Попробуйте ещё раз.');updateUI();return}processing=true;updateUI();setStatus('Распознаю речь менеджера…');try{const text=await recognize(blob,mime);if(!text)throw new Error('Речь не распознана');await turn(text)}catch(e){console.error('[SaleTrening] STT turn',e);setStatus('Ошибка STT: '+e.message);if(typeof toast==='function')toast('Ошибка STT: '+e.message)}finally{processing=false;updateUI();if(callOpen&&state.session)setStatus('Ваш ход — говорите или ответьте текстом.')}}
-  async function startRecording(){if(!callOpen||processing||recording)return;try{await ensureStream();chunks=[];speechDetected=false;const m=pickMime();recorder=m?new MediaRecorder(stream,{mimeType:m}):new MediaRecorder(stream);const actual=recorder.mimeType||m||'audio/webm';recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};recorder.onstop=async()=>{const blob=new Blob(chunks,{type:actual});chunks=[];await processSpeech(blob,actual)};recorder.onerror=e=>console.error('[SaleTrening] MediaRecorder',e);recorder.start(250);recording=true;updateUI();setStatus('Слушаю вас… Говорите первым. После паузы я передам фразу AI-клиенту.');startVAD()}catch(e){recording=false;setStatus('Ошибка микрофона: '+e.message);updateUI();if(typeof toast==='function')toast('Ошибка микрофона: '+e.message)}}
+  async function processSpeech(blob,mime){
+    recording=false;
+    if(vadTimer){clearTimeout(vadTimer);vadTimer=null}
+    try{analyserSource?.disconnect()}catch{}
+    analyserSource=null;
+    analyser=null;
+    recorder=null;
+
+    if(stream){
+      try{stream.getTracks().forEach(t=>t.stop())}catch{}
+      stream=null;
+    }
+
+    if(!blob?.size||!speechDetected){
+      setStatus('Речь не обнаружена. Слушаю вас снова…');
+      updateUI();
+      if(continuousMode&&callOpen&&!processing){
+        setTimeout(()=>{if(continuousMode&&callOpen&&!processing)startRecording().catch(console.error)},120);
+      }
+      return;
+    }
+
+    processing=true;
+    updateUI();
+    setStatus('Распознаю речь менеджера…');
+
+    try{
+      const text=await recognize(blob,mime);
+      if(!text)throw new Error('Речь не распознана');
+
+      addMessage('manager',text);
+      await save();
+
+      setStatus('AI-клиент формирует ответ…');
+      const reply=await aiClientReply(text,false);
+      if(!reply)throw new Error('AI не вернул реплику клиента');
+
+      addMessage('client',reply);
+      await save();
+
+      setStatus('AI-клиент отвечает голосом…');
+      await speak(reply);
+      setStatus('Ваш ход — говорите. После паузы клиент ответит автоматически.');
+    }catch(e){
+      console.error('[SaleTrening] voice turn',e);
+      setStatus('Ошибка голосового хода: '+e.message);
+      if(typeof toast==='function')toast('Ошибка голосового хода: '+e.message);
+    }finally{
+      processing=false;
+      updateUI();
+      if(continuousMode&&callOpen){
+        setTimeout(()=>{
+          if(continuousMode&&callOpen&&!processing){
+            setStatus('Слушаю вас… Говорите.');
+            startRecording().catch(e=>{
+              console.error('[SaleTrening] restart recording',e);
+              setStatus('Ошибка повторного запуска микрофона: '+e.message);
+              if(typeof toast==='function')toast('Ошибка микрофона: '+e.message);
+            });
+          }
+        },250);
+      }
+    }
+  }
+
+  async function startRecording(){
+    if(processing||recording||!callOpen||!continuousMode)return;
+    try{
+      await ensureStream();
+      chunks=[];
+      speechDetected=false;
+
+      const m=pickMime();
+      recorder=m?new MediaRecorder(stream,{mimeType:m}):new MediaRecorder(stream);
+      const actual=recorder.mimeType||m||'audio/webm';
+
+      recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};
+      recorder.onstop=async()=>{
+        const blob=new Blob(chunks,{type:actual});
+        chunks=[];
+        await processSpeech(blob,actual);
+      };
+      recorder.onerror=e=>console.error('[SaleTrening] MediaRecorder',e);
+
+      recorder.start(250);
+      recording=true;
+      updateUI();
+      setStatus('Слушаю вас… Говорите. После паузы я передам фразу AI-клиенту.');
+      startVAD();
+    }catch(e){
+      recording=false;
+      if(recorder){try{if(recorder.state!=='inactive')recorder.stop()}catch{}}
+      recorder=null;
+      if(stream){try{stream.getTracks().forEach(t=>t.stop())}catch{}}
+      stream=null;
+      setStatus('Ошибка микрофона: '+e.message);
+      updateUI();
+      if(typeof toast==='function')toast('Ошибка микрофона: '+e.message);
+    }
+  }
+
   async function typedTurn(){if(processing||!callOpen)return;const input=$('st-cold-input');const text=input?.value.trim();if(!text)return;input.value='';await turn(text)}
   async function turn(text){if(processing||!callOpen||!state.session)return;processing=true;updateUI();addMessage('manager',text);setStatus('AI-клиент формирует ответ…');await save();try{const reply=await aiClientReply(text,false);if(!reply)throw new Error('AI не вернул реплику клиента');addMessage('client',reply);await save();setStatus('AI-клиент отвечает голосом…');try{await speak(reply)}catch(e){console.error('[SaleTrening] TTS',e);if(typeof toast==='function')toast('Ошибка TTS: '+e.message)}setStatus('Ваш ход — говорите или ответьте текстом.')}catch(e){console.error('[SaleTrening] AI client',e);setStatus('Ошибка AI-клиента: '+e.message);if(typeof toast==='function')toast('Ошибка AI-клиента: '+e.message)}finally{processing=false;updateUI()}}
   function finish(){if(processing){if(typeof toast==='function')toast('Дождитесь ответа AI-клиента');return}const f=window.finishTraining;cleanup();if(typeof f==='function')f();}
@@ -93,19 +236,32 @@
     const difficulty=coldCall?.difficulty||override?.difficulty||'Средний';
     cleanup();
     try{
-      // Запрашиваем микрофон непосредственно из клика пользователя.
-      await ensureStream();
       const base=override||((typeof coldCallScenario==='function'&&coldCallScenario(difficulty))||state.scenarios?.[0]);
       if(!base?.id)throw new Error('В базе нет активных сценариев');
       const hard=String(difficulty).toLowerCase().includes('слож');
       const scenario={...base,cold_call:true,difficulty,resistance_level:hard?7:4,cold_call_difficulty:(hard?7:4)+'/10'};
       const r=await sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:scenario.id,status:'started',transcript:[],voice_mode:true}).select().single();
       if(r.error)throw new Error(r.error.message||'Не удалось создать сессию');
-      state.session={...r.data,scenario};state.messages=[];state.view='coldcall';window.__stColdCallActive=true;callOpen=true;startedAt=Date.now();render();
-      if(timer)clearInterval(timer);timer=setInterval(()=>{const x=$('st-cold-time');if(!x||!callOpen){clearInterval(timer);timer=null;return}const sec=Math.floor((Date.now()-startedAt)/1000);x.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')},1000);
-      // Раньше здесь запись не запускалась автоматически и экран оставался в режиме ожидания.
-      setTimeout(()=>{if(callOpen&&state.session&&!processing&&!recording)startRecording()},0);
-    }catch(e){cleanup();console.error('[SaleTrening] launchColdCall',e);if(typeof toast==='function')toast('Ошибка запуска голосовой тренировки: '+e.message)}
+      state.session={...r.data,scenario};
+      state.messages=[];
+      state.view='coldcall';
+      window.__stColdCallActive=true;
+      callOpen=true;
+      startedAt=Date.now();
+      render();
+      if(timer)clearInterval(timer);
+      timer=setInterval(()=>{
+        const x=$('st-cold-time');
+        if(!x||!callOpen){clearInterval(timer);timer=null;return}
+        const sec=Math.floor((Date.now()-startedAt)/1000);
+        x.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
+      },1000);
+      setStatus('Нажмите «Начать говорить» один раз. После этого разговор пойдёт автоматически.');
+    }catch(e){
+      cleanup();
+      console.error('[SaleTrening] launchColdCall',e);
+      if(typeof toast==='function')toast('Ошибка запуска голосовой тренировки: '+e.message);
+    }
   }
   window.launchColdCall=launchColdCall;
 })();
