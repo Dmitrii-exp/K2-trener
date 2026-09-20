@@ -66,7 +66,7 @@
   function render(){
     const p=$('page');if(!p||!state.session)return;css();
     const scenario=state.session.scenario||{};const difficulty=coldCall?.difficulty||scenario.difficulty||'Средний';
-    p.innerHTML=`<div class="st-cold-page"><div class="st-cold-head"><div><h2>Холодный звонок</h2><div class="st-cold-sub">Живой диалог с AI-клиентом · ${esc(difficulty)}</div></div><button id="st-cold-back" class="st-cold-back">← Назад</button></div><div class="st-cold-card"><div class="st-cold-top"><div class="st-cold-avatar">👤</div><div class="st-cold-name">Потенциальный клиент</div><div class="st-cold-meta">Холодный звонок · ${esc(difficulty)}</div><div class="st-cold-time" id="st-cold-time">00:00</div></div><div class="st-cold-live"><div class="st-cold-live-label">Статус</div><div id="st-cold-live" class="st-cold-live-text">Вы говорите первым. Начинайте разговор.</div></div><div class="st-cold-main"><div id="st-cold-transcript" class="st-cold-transcript">${(state.messages||[]).map(m=>bubble(m.speaker,m.content)).join('')}</div><div class="st-cold-compose"><textarea id="st-cold-input" rows="2" placeholder="Напишите ответ менеджера…"></textarea><button id="st-cold-send" class="st-cold-send">Отправить</button></div><div class="st-cold-controls"><button id="st-cold-mic" class="st-cold-mic">🎙 Начать говорить</button><button id="st-cold-end" class="st-cold-end">Завершить разговор</button></div><div class="st-cold-hint">Говорите первым → пауза → AI-клиент отвечает голосом → продолжайте разговор. Текст всего разговора сохраняется ниже.</div></div></div></div>`;
+    p.innerHTML=`<div class="st-cold-page"><div class="st-cold-head"><div><h2>Холодный звонок</h2><div class="st-cold-sub">Живой диалог с AI-клиентом · ${esc(difficulty)}</div></div><button id="st-cold-back" class="st-cold-back">← Назад</button></div><div class="st-cold-card"><div class="st-cold-top"><div class="st-cold-avatar">👤</div><div class="st-cold-name">Потенциальный клиент</div><div class="st-cold-meta">Холодный звонок · ${esc(difficulty)}</div><div class="st-cold-time" id="st-cold-time">00:00</div></div><div class="st-cold-live"><div class="st-cold-live-label">Статус</div><div id="st-cold-live" class="st-cold-live-text">Вы говорите первым. Начинайте разговор.</div></div><div class="st-cold-main"><div class="st-cold-live" style="margin-top:0"><div class="st-cold-live-label">Голосовой диалог</div><div class="st-cold-live-text">Текстовые реплики не выводятся — разговор сохраняется в истории тренировки.</div></div><div class="st-cold-compose"><textarea id="st-cold-input" rows="2" placeholder="Напишите ответ менеджера…"></textarea><button id="st-cold-send" class="st-cold-send">Отправить</button></div><div class="st-cold-controls"><button id="st-cold-mic" class="st-cold-mic">🎙 Начать говорить</button><button id="st-cold-end" class="st-cold-end">Завершить разговор</button></div><div class="st-cold-hint">Говорите первым → пауза → AI-клиент отвечает голосом → продолжайте разговор. Текст всего разговора сохраняется ниже.</div></div></div></div>`;
     $('st-cold-back').onclick=()=>{if(!processing){cleanup();state.session=null;state.messages=[];state.view='coldcall';render()}};
     $('st-cold-end').onclick=finish;$('st-cold-send').onclick=typedTurn;$('st-cold-input').onkeydown=e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')typedTurn()};$('st-cold-mic').onclick=()=>{if(!continuousMode)startContinuousConversation()};updateUI();scrollTranscript();
   }
@@ -117,16 +117,84 @@
     }
   }
 
-  function addMessage(speaker,text){state.messages=Array.isArray(state.messages)?state.messages:[];state.messages.push({speaker,content:text});const x=$('st-cold-transcript');if(x){x.insertAdjacentHTML('beforeend',bubble(speaker,text));x.scrollTop=x.scrollHeight}}
+  function addMessage(speaker,text){state.messages=Array.isArray(state.messages)?state.messages:[];state.messages.push({speaker,content:text});}
   async function save(){if(typeof saveSession==='function')await saveSession();}
   function pickMime(){for(const m of ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus']){try{if(MediaRecorder.isTypeSupported?.(m))return m}catch{}}return '';}
   async function ensureStream(){if(stream?.active)return;if(!navigator.mediaDevices?.getUserMedia)throw new Error('Браузер не поддерживает микрофон');stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});if(window.AudioContext||window.webkitAudioContext){audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();await audioCtx.resume().catch(()=>{})}}
 
   function startVAD(){
-    if(!stream||!audioCtx)return;try{analyser=audioCtx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.2;analyserSource=audioCtx.createMediaStreamSource(stream);analyserSource.connect(analyser);const data=new Uint8Array(analyser.fftSize),begin=Date.now();let lastSpeech=0,above=0;const tick=()=>{if(!recording||!recorder||recorder.state==='inactive'){try{analyserSource?.disconnect()}catch{}return}analyser.getByteTimeDomainData(data);let sum=0;for(let i=0;i<data.length;i++){const v=(data[i]-128)/128;sum+=v*v}const rms=Math.sqrt(sum/data.length),now=Date.now();if(rms>.018){above++;if(above>=2){speechDetected=true;lastSpeech=now}}else above=0;if(speechDetected&&now-lastSpeech>1050){stopRecording();return}if(!speechDetected&&now-begin>30000){stopRecording();return}if(speechDetected&&now-begin>45000){stopRecording();return}vadTimer=setTimeout(tick,100)};tick()}catch(e){console.warn('[SaleTrening] VAD unavailable',e)}}
+    if(!stream||!audioCtx)return;try{analyser=audioCtx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.2;analyserSource=audioCtx.createMediaStreamSource(stream);analyserSource.connect(analyser);const data=new Uint8Array(analyser.fftSize),begin=Date.now();let lastSpeech=0,above=0;const tick=()=>{if(!recording||!recorder||recorder.state==='inactive'){try{analyserSource?.disconnect()}catch{}return}analyser.getByteTimeDomainData(data);let sum=0;for(let i=0;i<data.length;i++){const v=(data[i]-128)/128;sum+=v*v}const rms=Math.sqrt(sum/data.length),now=Date.now();if(rms>.018){above++;if(above>=2){speechDetected=true;lastSpeech=now}}else above=0;if(speechDetected&&now-lastSpeech>550){stopRecording();return}if(!speechDetected&&now-begin>30000){stopRecording();return}if(speechDetected&&now-begin>45000){stopRecording();return}vadTimer=setTimeout(tick,100)};tick()}catch(e){console.warn('[SaleTrening] VAD unavailable',e)}}
   function stopRecording(){if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch(e){console.warn(e)}}else recording=false;}
   async function recognize(blob,mime){const fd=new FormData(),typ=String(mime||blob.type),ext=typ.includes('mp4')?'m4a':typ.includes('ogg')?'ogg':'webm';fd.append('file',blob,`manager.${ext}`);fd.append('prompt','Разговор менеджера по продажам с потенциальным клиентом. Русская речь, цены, бренды, модели, размеры шин и профессиональные термины.');const r=await fetch(`${PROJECT}/proxy-stt`,{method:'POST',headers:await authHeaders(),body:fd});const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error(j.error||`STT HTTP ${r.status}`);return String(j.text||'').trim()}
   async function speak(text){const r=await fetch(`${PROJECT}/proxy-tts`,{method:'POST',headers:await authHeaders(true),body:JSON.stringify({input:String(text),voice:document.getElementById('coldVoice')?.value||coldCall?.voice||'coral',instructions:'Говори естественно по-русски как живой потенциальный клиент в телефонном разговоре. Разговорная интонация, естественные паузы и эмоции. Не читай как диктор.'})});if(!r.ok)throw new Error(`TTS HTTP ${r.status}`);const blob=await r.blob();if(!blob.size)throw new Error('TTS вернул пустой аудиофайл');const url=URL.createObjectURL(blob);try{audio=new Audio(url);audio.preload='auto';await audio.play();await new Promise(resolve=>{audio.onended=resolve})}finally{URL.revokeObjectURL(url);audio=null}}
+  async function aiClientReplyStreamAndSpeak(userMessage){
+    if(!state.session?.scenario)throw new Error('Нет активной тренировки');
+    const s=await sb.auth.getSession();
+    const token=s?.data?.session?.access_token;
+    if(!token)throw new Error('Сессия авторизации истекла');
+    const settings=state.clientSettings||state.client_settings||state.session.client_settings||state.session.scenario.client_settings||{};
+    const objections=state.clientObjections||state.client_objections||state.session.objections||state.session.client_objections||[];
+    const r=await fetch(PROJECT+'/chat-client',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({
+        session_id:state.session.id,
+        scenario_id:state.session.scenario.id,
+        message:userMessage,
+        transcript:state.messages,
+        scenario:state.session.scenario,
+        client_settings:settings,
+        objections,
+        cold_call:{character:coldCall?.character||'Лояльный',facts:coldCall?.facts||'',voice:coldCall?.voice||'coral',difficulty:coldCall?.difficulty||'Средний'},
+        stream:true
+      }),
+      cache:'no-store'
+    });
+    if(!r.ok)throw new Error((await r.text())||('HTTP '+r.status));
+    if(!r.body){
+      const j=await r.json().catch(()=>({}));
+      return String(j?.reply||'').trim();
+    }
+    const reader=r.body.getReader(),decoder=new TextDecoder();
+    let buf='',full='',spoken=0,ttsQueue=Promise.resolve();
+    const speakSentence=s=>{const clean=s.trim();if(clean)ttsQueue=ttsQueue.then(()=>speak(clean));};
+    const consume=chunk=>{
+      buf+=chunk;
+      const lines=buf.split(/\r?\n/);buf=lines.pop()||'';
+      for(const line of lines){
+        const raw=line.trim();
+        if(!raw.startsWith('data:'))continue;
+        const data=raw.slice(5).trim();
+        if(data==='[DONE]')continue;
+        try{
+          const j=JSON.parse(data);
+          const delta=j?.delta||j?.text||j?.output_text?.delta||'';
+          if(delta){
+            full+=String(delta);
+            const tail=full.slice(spoken);
+            const m=tail.match(/^([\s\S]*?[.!?…](?:[»”'\")])?)(?:\s+|$)/);
+            if(m){
+              const sentence=m[1].trim();
+              spoken+=m[0].length;
+              speakSentence(sentence);
+            }
+          }
+        }catch{}
+      }
+    };
+    while(true){
+      const {value,done}=await reader.read();
+      if(done)break;
+      consume(decoder.decode(value,{stream:true}));
+    }
+    consume(decoder.decode());
+    const tail=full.slice(spoken).trim();
+    if(tail)speakSentence(tail);
+    await ttsQueue;
+    if(!full.trim())throw new Error('AI не вернул реплику клиента');
+    return full.trim();
+  }
+
   async function processSpeech(blob,mime){
     recording=false;
     if(vadTimer){clearTimeout(vadTimer);vadTimer=null}
@@ -165,10 +233,7 @@
       if(!reply)throw new Error('AI не вернул реплику клиента');
 
       addMessage('client',reply);
-      await save();
-
-      setStatus('AI-клиент отвечает голосом…');
-      await speak(reply);
+      save().catch(e=>console.warn('[SaleTrening] background save',e));
       setStatus('Ваш ход — говорите. После паузы клиент ответит автоматически.');
     }catch(e){
       console.error('[SaleTrening] voice turn',e);
