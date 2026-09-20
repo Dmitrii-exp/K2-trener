@@ -93,6 +93,8 @@
     const difficulty=coldCall?.difficulty||override?.difficulty||'Средний';
     cleanup();
     try{
+      // Запрашиваем микрофон непосредственно из клика пользователя.
+      await ensureStream();
       const base=override||((typeof coldCallScenario==='function'&&coldCallScenario(difficulty))||state.scenarios?.[0]);
       if(!base?.id)throw new Error('В базе нет активных сценариев');
       const hard=String(difficulty).toLowerCase().includes('слож');
@@ -100,7 +102,9 @@
       const r=await sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:scenario.id,status:'started',transcript:[],voice_mode:true}).select().single();
       if(r.error)throw new Error(r.error.message||'Не удалось создать сессию');
       state.session={...r.data,scenario};state.messages=[];state.view='coldcall';window.__stColdCallActive=true;callOpen=true;startedAt=Date.now();render();
-      if(timer)clearInterval(timer);timer=setInterval(()=>{const x=$('st-cold-time');if(!x||!callOpen){clearInterval(timer);timer=null;return}const sec=Math.floor((Date.now()-startedAt)/1000);x.textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`},1000);
+      if(timer)clearInterval(timer);timer=setInterval(()=>{const x=$('st-cold-time');if(!x||!callOpen){clearInterval(timer);timer=null;return}const sec=Math.floor((Date.now()-startedAt)/1000);x.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')},1000);
+      // Раньше здесь запись не запускалась автоматически и экран оставался в режиме ожидания.
+      setTimeout(()=>{if(callOpen&&state.session&&!processing&&!recording)startRecording()},0);
     }catch(e){cleanup();console.error('[SaleTrening] launchColdCall',e);if(typeof toast==='function')toast('Ошибка запуска голосовой тренировки: '+e.message)}
   }
   window.launchColdCall=launchColdCall;
