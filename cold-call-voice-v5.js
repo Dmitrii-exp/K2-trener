@@ -151,12 +151,16 @@
       cache:'no-store'
     });
     if(!r.ok)throw new Error((await r.text())||('HTTP '+r.status));
-    if(!r.body){
+    const contentType=String(r.headers.get('content-type')||'').toLowerCase();
+    if(contentType.includes('application/json')){
       const j=await r.json().catch(()=>({}));
-      const reply=String(j?.reply||'').trim();
-      if(reply)await speak(reply);
+      if(j?.ok===false)throw new Error(j?.error||'AI-клиент вернул ошибку');
+      const reply=String(j?.reply||j?.message||j?.content||'').trim();
+      if(!reply)throw new Error('AI не вернул реплику клиента');
+      await speak(reply);
       return reply;
     }
+    if(!r.body)throw new Error('AI не вернул поток ответа');
     const reader=r.body.getReader(),decoder=new TextDecoder();
     let buf='',full='',spoken=0,ttsQueue=Promise.resolve();
     const speakSentence=s=>{const clean=s.trim();if(clean)ttsQueue=ttsQueue.then(()=>speak(clean));};
