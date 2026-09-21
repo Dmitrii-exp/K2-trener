@@ -106,49 +106,37 @@ async function startColdCall(difficulty="Средний"){
   if(typeof window.launchColdCall==='function') return window.launchColdCall();
   toast("Голосовой модуль не загружен");
 }
-function S(){return window.state?.editingScenario||window.state?.currentScenario||window.state?.scenarioDraft||window.state?.selectedScenario||null}function C(s){let m=String(s?.system_prompt||'').match(/AI_CLIENT_SETTINGS_V3_JSON:([A-Za-z0-9+/=]+)$/);if(m)try{return JSON.parse(decodeURIComponent(escape(atob(m[1]))))}catch{}return{random:false,randomCount:0,objections:Array.isArray(s?.objections)?s.objections:[],product:'',productCustom:'',productKnowledge:''}}function B(x){return btoa(unescape(encodeURIComponent(JSON.stringify(x))))}function draw(){if(!document.body.innerText.includes('Сохранить сценарий')||document.getElementById('ai-client-settings-v3'))return;let s=S();if(!s?.id||!window.sb)return;let c=C(s),p=document.getElementById('page');if(!p)return;let d=document.createElement('div');d.id='ai-client-settings-v3';d.className='card';d.style.marginTop='16px';d.innerHTML=`<h3 style="margin:0 0 6px">Настройки AI-клиента</h3><div class="muted">Клиент учитывает выбранные возражения и знает выбранный товар/тему.</div><div class="field"><label>Товар / продукт</label><select id="aip"><option value="">Не выбран</option>${Object.keys(P).map(x=>`<option>${E(x)}</option>`).join('')}</select><input id="aipc" placeholder="Или свой товар / тема" style="margin-top:8px"></div><div class="field"><label>Знания AI-клиента о товаре</label><textarea id="aik" rows="4"></textarea></div><div class="field"><label><input id="air" type="checkbox" style="width:auto"> 🎲 Случайные возражения</label><input id="ain" type="number" min="0" max="10" value="0" placeholder="Количество" style="margin-top:8px"></div><div class="field"><label>Возражения клиента</label><div id="aio"></div><button id="aiall" class="secondary" type="button">Все возражения</button></div><button id="aisave" class="primary" type="button">Сохранить настройки AI-клиента</button>`;p.appendChild(d);let sel=d.querySelector('#aip'),custom=d.querySelector('#aipc'),know=d.querySelector('#aik'),rnd=d.querySelector('#air'),num=d.querySelector('#ain'),list=d.querySelector('#aio');sel.value=c.product||'';custom.value=c.productCustom||'';know.value=c.productKnowledge||P[c.product]||'';rnd.checked=!!c.random;num.value=c.randomCount||0;function render(){list.innerHTML=O.map((x,i)=>'<label style="display:block;padding:9px 11px;border:1px solid var(--line);border-radius:10px;margin:5px 0"><input type="checkbox" data-i="'+i+'" '+(c.objections.includes(x)?'checked':'')+' style="width:auto"> '+(i+1)+'. '+E(x)+'</label>').join('');list.querySelectorAll('input').forEach(z=>z.onchange=()=>{let x=O[+z.dataset.i];c.objections=c.objections||[];if(z.checked&&!c.objections.includes(x))c.objections.push(x);if(!z.checked)c.objections=c.objections.filter(v=>v!==x)})}render();sel.onchange=()=>{c.product=sel.value;know.value=P[c.product]||''};custom.oninput=()=>c.productCustom=custom.value;know.oninput=()=>c.productKnowledge=know.value;rnd.onchange=()=>c.random=rnd.checked;num.oninput=()=>c.randomCount=+num.value||0;d.querySelector('#aiall').onclick=()=>{let m=document.createElement('div');m.style='position:fixed;inset:5%;z-index:9999;background:var(--dark);color:#fff;padding:20px;border-radius:18px;overflow:auto';m.innerHTML='<h2>Все возражения <button id="x" class="secondary">✕</button></h2>'+O.map((x,i)=>'<div style="padding:10px;border:1px solid #444;border-radius:10px;margin:5px 0">'+(i+1)+'. '+E(x)+' <button data-i="'+i+'" class="primary">Добавить</button></div>').join('');document.body.appendChild(m);m.querySelector('#x').onclick=()=>m.remove();m.querySelectorAll('[data-i]').forEach(z=>z.onclick=()=>{let x=O[+z.dataset.i];if(!c.objections.includes(x))c.objections.push(x);render();z.textContent='Выбрано'})};d.querySelector('#aisave').onclick=async()=>{let prompt=String(s.system_prompt||'').replace(/\n?AI_CLIENT_SETTINGS_V3_JSON:[A-Za-z0-9+/=]+$/,'')+'\nAI_CLIENT_SETTINGS_V3_JSON:'+B(c);let r=await sb.from('saletrening_scenarios').update({objections:c.objections,system_prompt:prompt}).eq('id',s.id);if(r.error)toast('Ошибка сохранения: '+r.error.message);else{state.clientSettings=c;state.clientObjections=c.objections;toast('Настройки AI-клиента сохранены')}};new MutationObserver(draw).observe(document.body,{childList:true,subtree:true});setTimeout(draw,500)}</script><script src="/canva-ui.js"></script>
-<script>
-(function(){
-  'use strict';
-  async function startApp(){
-    try{
-      if(typeof sb==='undefined'||!sb?.auth)throw new Error('Supabase client не загрузился');
-
-      const hash=new URLSearchParams((location.hash||'').replace(/^#/,''));
-      const params=new URLSearchParams(location.search);
-      const recoveryFromUrl=params.get('reset')==='1' || hash.get('type')==='recovery';
-
-      sb.auth.onAuthStateChange((event,session)=>{
-        if(event==='PASSWORD_RECOVERY'){
-          state.recoveryMode=true;
-          passwordRecoveryScreen();
-          return;
-        }
-        if(event==='SIGNED_OUT' && state.recoveryMode){
-          state.recoveryMode=false;
-        }
-      });
-
-      const r=await sb.auth.getSession();
-      const session=r?.data?.session;
-
-      if(recoveryFromUrl){
-        state.recoveryMode=true;
-        passwordRecoveryScreen();
-        return;
-      }
-
-      if(session?.user) await boot(session.user);
-      else authScreen();
-    }catch(e){
-      console.error('[SaleTrening] bootstrap failed',e);
-      if(typeof showFatal==='function')showFatal(e?.message||String(e));
-    }
+function S(){return window.state?.editingScenario||window.state?.currentScenario||window.state?.scenarioDraft||window.state?.selectedScenario||null}function C(s){let m=String(s?.system_prompt||'').match(/AI_CLIENT_SETTINGS_V3_JSON:([A-Za-z0-9+/=]+)$/);if(m)try{return JSON.parse(decodeURIComponent(escape(atob(m[1]))))}catch{}return{random:false,randomCount:0,objections:Array.isArray(s?.objections)?s.objections:[],product:'',productCustom:'',productKnowledge:''}}function B(x){return btoa(unescape(encodeURIComponent(JSON.stringify(x))))}function draw(){
+  if(!document.body.innerText.includes('Сохранить сценарий')||document.getElementById('ai-client-settings-v3'))return;
+  let s=S();if(!s?.id||!window.sb)return;
+  let c=C(s),p=document.getElementById('page');if(!p)return;
+  let d=document.createElement('div');d.id='ai-client-settings-v3';d.className='card';d.style.marginTop='16px';
+  let products=Object.keys(P).map(x=>'<option value="'+E(x)+'">'+E(x)+'</option>').join('');
+  d.innerHTML='<h3 style="margin:0 0 6px">Настройки AI-клиента</h3><div class="muted">Клиент учитывает выбранные возражения и знает выбранный товар/тему.</div><div class="field"><label>Товар / продукт</label><select id="aip"><option value="">Не выбран</option>'+products+'</select><input id="aipc" placeholder="Или свой товар / тема" style="margin-top:8px"></div><div class="field"><label>Знания AI-клиента о товаре</label><textarea id="aik" rows="4"></textarea></div><div class="field"><label><input id="air" type="checkbox" style="width:auto"> 🎲 Случайные возражения</label><input id="ain" type="number" min="0" max="10" value="0" placeholder="Количество" style="margin-top:8px"></div><div class="field"><label>Возражения клиента</label><div id="aio"></div><button id="aiall" class="secondary" type="button">Все возражения</button></div><button id="aisave" class="primary" type="button">Сохранить настройки AI-клиента</button>';
+  p.appendChild(d);
+  let sel=d.querySelector('#aip'),custom=d.querySelector('#aipc'),know=d.querySelector('#aik'),rnd=d.querySelector('#air'),num=d.querySelector('#ain'),list=d.querySelector('#aio');
+  sel.value=c.product||'';custom.value=c.productCustom||'';know.value=c.productKnowledge||P[c.product]||'';rnd.checked=!!c.random;num.value=c.randomCount||0;
+  function render(){
+    list.innerHTML=O.map(function(x,i){return '<label style="display:block;padding:9px 11px;border:1px solid var(--line);border-radius:10px;margin:5px 0"><input type="checkbox" data-i="'+i+'" '+(c.objections.includes(x)?'checked':'')+' style="width:auto"> '+(i+1)+'. '+E(x)+'</label>'}).join('');
+    list.querySelectorAll('input').forEach(function(z){z.onchange=function(){let x=O[+z.dataset.i];c.objections=c.objections||[];if(z.checked&&!c.objections.includes(x))c.objections.push(x);if(!z.checked)c.objections=c.objections.filter(function(v){return v!==x})}});
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startApp,{once:true});
-  else startApp();
-})();
-</script>
-<script src="/cold-call-voice-v5.js?v=20260906-page-4"></script>
-<script src="/training-runtime-fix.js?v=20260903-1"></script>
-</body></html>
+  render();
+  sel.onchange=function(){c.product=sel.value;know.value=P[c.product]||''};
+  custom.oninput=function(){c.productCustom=custom.value};
+  know.oninput=function(){c.productKnowledge=know.value};
+  rnd.onchange=function(){c.random=rnd.checked};
+  num.oninput=function(){c.randomCount=+num.value||0};
+  d.querySelector('#aiall').onclick=function(){
+    let m=document.createElement('div');m.style='position:fixed;inset:5%;z-index:9999;background:var(--dark);color:#fff;padding:20px;border-radius:18px;overflow:auto';
+    m.innerHTML='<h2>Все возражения <button id="x" class="secondary">✕</button></h2>'+O.map(function(x,i){return '<div style="padding:10px;border:1px solid #444;border-radius:10px;margin:5px 0">'+(i+1)+'. '+E(x)+' <button data-i="'+i+'" class="primary">Добавить</button></div>'}).join('');
+    document.body.appendChild(m);m.querySelector('#x').onclick=function(){m.remove()};
+    m.querySelectorAll('[data-i]').forEach(function(z){z.onclick=function(){let x=O[+z.dataset.i];if(!c.objections.includes(x))c.objections.push(x);render();z.textContent='Выбрано'}});
+  };
+  d.querySelector('#aisave').onclick=async function(){
+    let prompt=String(s.system_prompt||'').replace(/\n?AI_CLIENT_SETTINGS_V3_JSON:[A-Za-z0-9+/=]+$/,'')+'\nAI_CLIENT_SETTINGS_V3_JSON:'+B(c);
+    let r=await sb.from('saletrening_scenarios').update({objections:c.objections,system_prompt:prompt}).eq('id',s.id);
+    if(r.error)toast('Ошибка сохранения: '+r.error.message);else{state.clientSettings=c;state.clientObjections=c.objections;toast('Настройки AI-клиента сохранены')}
+  };
+  new MutationObserver(draw).observe(document.body,{childList:true,subtree:true});
+  setTimeout(draw,500);
+}
