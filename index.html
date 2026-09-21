@@ -25,7 +25,6 @@
 </style>
 </head>
 <body><div id="root"></div><div id="toast" class="toast hidden"></div>
-<script src="/training-runtime-fix.js?v=20260903-6"></script>
 <script src="/site-repair.js?v=20260903-2"></script>
 <script>
 async function startTraining(id){const s=state.scenarios.find(x=>x.id===id);if(!s)return;const {data,error}=await sb.from("saletrening_sessions").insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:id,status:"started",transcript:[],voice_mode:false}).select().single();if(error){toast(error.message);return}state.session={...data,scenario:s};state.messages=[];await saveSession();state.view="training";trainingChat();try{const opening=await aiClientReply("",true);state.messages.push({speaker:"client",content:opening});await saveSession();trainingChat()}catch(e){console.error("chat-client opening:",e);trainingChat();toast("Не удалось получить первую реплику AI-клиента: "+(e.message||"ошибка"))}}
@@ -72,21 +71,21 @@ async function boot(user){state.user=user;await acceptPendingInvitation(user.id)
 async function loadAll(){let q=await sb.from("saletrening_scenarios").select("*").eq("active",true).order("id");state.scenarios=q.data||[];let ss=await sb.from("my_training_stats").select("*").eq("employee_id",state.user.id).maybeSingle();state.stats=ss.data||{completed_sessions:0,avg_score:0,best_score:0,active_sessions:0};const h=await sb.from("saletrening_sessions").select("id,scenario_id,status,total_score,ai_summary,created_at,completed_at").eq("employee_id",state.user.id).order("created_at",{ascending:false}).limit(50);state.history=h.data||[];if(["director","admin"].includes(state.profile.role)&&state.profile.company_id){let t=await sb.from("manager_team_stats").select("*").eq("company_id",state.profile.company_id).order("avg_score",{ascending:false});state.team=t.data||[]}}
 function historyPage(){
   const items=Array.isArray(state.history)?state.history:[];
-  const statusLabel=s=>({completed:"Завершена",started:"Не завершена",in_progress:"В процессе",cancelled:"Отменена"}[s]||s||"—");
-  const date=v=>v?new Date(v).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
+  const statusLabel=function(s){return({completed:"Завершена",started:"Не завершена",in_progress:"В процессе",cancelled:"Отменена"}[s]||s||"—")};
+  const date=function(v){return v?new Date(v).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—"};
   if(!items.length)return '<div class="top"><div><h2>История тренировок</h2><div class="muted">Здесь будут сохраняться все ваши тренировки</div></div></div><div class="empty">История пока пуста.</div>';
-  return '<div class="top"><div><h2>История тренировок</h2><div class="muted">Последние тренировки менеджера</div></div><span class="pill">'+items.length+' записей</span></div><div class="card" style="padding:0;overflow:hidden"><div style="display:grid;gap:0">'+items.map((x,i)=>{const sc=state.scenarios.find(s=>String(s.id)===String(x.scenario_id));return '<button type="button" class="history-row" onclick="openHistorySession(\''+String(x.id).replace(/'/g,"\\'")+'\')" style="border:0;border-bottom:'+(i===items.length-1?'0':'1px')+' solid var(--line);background:#fff;text-align:left;padding:18px 20px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;width:100%"><div><div style="font-weight:800;font-size:16px">'+esc(sc?.title||"Тренировка")+'</div><div class="muted" style="margin-top:5px">'+date(x.created_at)+' · '+statusLabel(x.status)+'</div></div><div style="text-align:right"><div style="font-size:22px;font-weight:850">'+(x.total_score==null?'—':esc(x.total_score))+'</div><div class="muted">балл</div></div></button>'}).join('')}</div></div><style>.history-row:hover{background:#faf9ff!important}.history-row:last-child{border-bottom:0!important}</style>';
+  return '<div class="top"><div><h2>История тренировок</h2><div class="muted">Последние тренировки менеджера</div></div><span class="pill">'+items.length+' записей</span></div><div class="card" style="padding:0;overflow:hidden"><div style="display:grid;gap:0">'+items.map(function(x,i){const sc=state.scenarios.find(function(s){return String(s.id)===String(x.scenario_id)});return '<button type="button" class="history-row" data-id="'+esc(String(x.id))+'" onclick="openHistorySession(this.dataset.id)" style="border:0;border-bottom:'+(i===items.length-1?'0':'1px')+' solid var(--line);background:#fff;text-align:left;padding:18px 20px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;width:100%"><div><div style="font-weight:800;font-size:16px">'+esc(sc?.title||"Тренировка")+'</div><div class="muted" style="margin-top:5px">'+date(x.created_at)+' · '+statusLabel(x.status)+'</div></div><div style="text-align:right"><div style="font-size:22px;font-weight:850">'+(x.total_score==null?'—':esc(x.total_score))+'</div><div class="muted">балл</div></div></button>'}).join('')+'</div></div><style>.history-row:hover{background:#faf9ff!important}.history-row:last-child{border-bottom:0!important}</style>';
 }
 async function openHistorySession(id){
   const p=$("page");if(!p)return;
   p.innerHTML='<div class="empty">Загрузка тренировки…</div>';
   const r=await sb.from("saletrening_sessions").select("*").eq("id",id).eq("employee_id",state.user.id).maybeSingle();
   if(r.error||!r.data){p.innerHTML='<div class="empty">Не удалось открыть тренировку.</div>';return}
-  const x=r.data,sc=state.scenarios.find(s=>String(s.id)===String(x.scenario_id));
-  const transcript=Array.isArray(x.transcript)?x.transcript:[];
-  const date=v=>v?new Date(v).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
+  const x=r.data,sc=state.scenarios.find(function(s){return String(s.id)===String(x.scenario_id)}),transcript=Array.isArray(x.transcript)?x.transcript:[];
+  const date=function(v){return v?new Date(v).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—"};
   const status=({completed:"Завершена",started:"Не завершена",in_progress:"В процессе",cancelled:"Отменена"}[x.status]||x.status||"—");
-  p.innerHTML='<div class="top"><div><button class="secondary" onclick="state.view=\'history\';page()">← К истории</button><h2 style="margin-top:16px">'+esc(sc?.title||"Тренировка")+'</h2><div class="muted">'+date(x.created_at)+' · '+status+'</div></div></div><div class="grid"><div class="card"><div class="metric-label">Итоговый балл</div><div class="metric">'+(x.total_score==null?'—':esc(x.total_score))+'</div></div><div class="card"><div class="metric-label">Завершена</div><div class="metric" style="font-size:20px">'+date(x.completed_at)+'</div></div></div>'+(x.ai_summary?'<div class="section card"><h3>Анализ AI</h3><p class="muted" style="line-height:1.6;white-space:pre-wrap">'+esc(x.ai_summary)+'</p></div>':'')+'<div class="section card"><h3>Полный диалог</h3><div class="messages" style="margin-top:14px;max-height:none">'+(transcript.length?transcript.map(m=>{const speaker=String(m?.speaker||m?.role||"").toLowerCase(),manager=["manager","user","employee"].includes(speaker),text=m?.content??m?.text??m?.message??"";return '<div class="msg '+(manager?"manager":"client")+'"><b>'+(manager?"Менеджер":"Клиент")+':</b> '+esc(text)+'</div>'}).join(""):'<div class="empty">Диалог не сохранён.</div>')+'</div></div>';
+  const dialog=transcript.length?transcript.map(function(m){const speaker=String(m?.speaker||m?.role||"").toLowerCase(),manager=["manager","user","employee"].includes(speaker),txt=m?.content??m?.text??m?.message??"";return '<div class="msg '+(manager?"manager":"client")+'"><b>'+(manager?"Менеджер":"Клиент")+':</b> '+esc(txt)+'</div>'}).join(""):'<div class="empty">Диалог не сохранён.</div>';
+  p.innerHTML='<div class="top"><div><button class="secondary" onclick="state.view=\'history\';page()">← К истории</button><h2 style="margin-top:16px">'+esc(sc?.title||"Тренировка")+'</h2><div class="muted">'+date(x.created_at)+' · '+status+'</div></div></div><div class="grid"><div class="card"><div class="metric-label">Итоговый балл</div><div class="metric">'+(x.total_score==null?'—':esc(x.total_score))+'</div></div><div class="card"><div class="metric-label">Завершена</div><div class="metric" style="font-size:20px">'+date(x.completed_at)+'</div></div></div>'+(x.ai_summary?'<div class="section card"><h3>Анализ AI</h3><p class="muted" style="line-height:1.6;white-space:pre-wrap">'+esc(x.ai_summary)+'</p></div>':'')+'<div class="section card"><h3>Полный диалог</h3><div class="messages" style="margin-top:14px;max-height:none">'+dialog+'</div></div>';
 }
 function nav(v,t,icon){return `<button class="${state.view===v?"active":""}" onclick="state.view='${v}';page()"><span class="nav-icon">${icon}</span>${t}</button>`}function render(){if(!state.user){authScreen();return}$("root").innerHTML=`<div class="shell"><aside class="side"><div class="logo"><div class="logo-b">S</div>SaleTrening</div><div class="nav">${nav("home","Главная","⌂")}${nav("training","Тренировки","◉")}${nav("coldcall","Холодный звонок","☎")}${nav("scenarios","Сценарии","▣")}${nav("progress","Мой прогресс","↗")}${nav("history","История","◷")}${nav("ai","AI-чат","✦")}${["director","admin"].includes(state.profile.role)?nav("team","Команда","♙")+nav("analytics","Аналитика","▥"):""}</div><div class="side-bottom"><div class="user-mini">${esc(state.profile.first_name||state.user.email)}<br>${roleName(state.profile.role)}${state.company?" · "+esc(state.company.name):""}</div><button class="secondary" style="width:100%" onclick="logout()">Выйти</button></div></aside><main class="content"><div id="page"></div></main></div>`;page()}
 function setPageHTML(el,value){try{if(value&&typeof value.then==='function'){value.then(html=>{el.innerHTML=html}).catch(err=>{console.error('Page render promise:',err);el.innerHTML='<div class="empty">Не удалось загрузить страницу. Откройте консоль для диагностики.</div>'})}else el.innerHTML=value}catch(err){console.error('Page render:',err);el.innerHTML='<div class="empty">Ошибка отображения страницы.</div>'}}
@@ -107,37 +106,49 @@ async function startColdCall(difficulty="Средний"){
   if(typeof window.launchColdCall==='function') return window.launchColdCall();
   toast("Голосовой модуль не загружен");
 }
-function S(){return window.state?.editingScenario||window.state?.currentScenario||window.state?.scenarioDraft||window.state?.selectedScenario||null}function C(s){let m=String(s?.system_prompt||'').match(/AI_CLIENT_SETTINGS_V3_JSON:([A-Za-z0-9+/=]+)$/);if(m)try{return JSON.parse(decodeURIComponent(escape(atob(m[1]))))}catch{}return{random:false,randomCount:0,objections:Array.isArray(s?.objections)?s.objections:[],product:'',productCustom:'',productKnowledge:''}}function B(x){return btoa(unescape(encodeURIComponent(JSON.stringify(x))))}function draw(){
-  if(!document.body.innerText.includes('Сохранить сценарий')||document.getElementById('ai-client-settings-v3'))return;
-  let s=S();if(!s?.id||!window.sb)return;
-  let c=C(s),p=document.getElementById('page');if(!p)return;
-  let d=document.createElement('div');d.id='ai-client-settings-v3';d.className='card';d.style.marginTop='16px';
-  let products=Object.keys(P).map(x=>'<option value="'+E(x)+'">'+E(x)+'</option>').join('');
-  d.innerHTML='<h3 style="margin:0 0 6px">Настройки AI-клиента</h3><div class="muted">Клиент учитывает выбранные возражения и знает выбранный товар/тему.</div><div class="field"><label>Товар / продукт</label><select id="aip"><option value="">Не выбран</option>'+products+'</select><input id="aipc" placeholder="Или свой товар / тема" style="margin-top:8px"></div><div class="field"><label>Знания AI-клиента о товаре</label><textarea id="aik" rows="4"></textarea></div><div class="field"><label><input id="air" type="checkbox" style="width:auto"> 🎲 Случайные возражения</label><input id="ain" type="number" min="0" max="10" value="0" placeholder="Количество" style="margin-top:8px"></div><div class="field"><label>Возражения клиента</label><div id="aio"></div><button id="aiall" class="secondary" type="button">Все возражения</button></div><button id="aisave" class="primary" type="button">Сохранить настройки AI-клиента</button>';
-  p.appendChild(d);
-  let sel=d.querySelector('#aip'),custom=d.querySelector('#aipc'),know=d.querySelector('#aik'),rnd=d.querySelector('#air'),num=d.querySelector('#ain'),list=d.querySelector('#aio');
-  sel.value=c.product||'';custom.value=c.productCustom||'';know.value=c.productKnowledge||P[c.product]||'';rnd.checked=!!c.random;num.value=c.randomCount||0;
-  function render(){
-    list.innerHTML=O.map(function(x,i){return '<label style="display:block;padding:9px 11px;border:1px solid var(--line);border-radius:10px;margin:5px 0"><input type="checkbox" data-i="'+i+'" '+(c.objections.includes(x)?'checked':'')+' style="width:auto"> '+(i+1)+'. '+E(x)+'</label>'}).join('');
-    list.querySelectorAll('input').forEach(function(z){z.onchange=function(){let x=O[+z.dataset.i];c.objections=c.objections||[];if(z.checked&&!c.objections.includes(x))c.objections.push(x);if(!z.checked)c.objections=c.objections.filter(function(v){return v!==x})}});
+function S(){return window.state?.editingScenario||window.state?.currentScenario||window.state?.scenarioDraft||window.state?.selectedScenario||null}function C(s){let m=String(s?.system_prompt||'').match(/AI_CLIENT_SETTINGS_V3_JSON:([A-Za-z0-9+/=]+)$/);if(m)try{return JSON.parse(decodeURIComponent(escape(atob(m[1]))))}catch{}return{random:false,randomCount:0,objections:Array.isArray(s?.objections)?s.objections:[],product:'',productCustom:'',productKnowledge:''}}function B(x){return btoa(unescape(encodeURIComponent(JSON.stringify(x))))}function draw(){if(!document.body.innerText.includes('Сохранить сценарий')||document.getElementById('ai-client-settings-v3'))return;let s=S();if(!s?.id||!window.sb)return;let c=C(s),p=document.getElementById('page');if(!p)return;let d=document.createElement('div');d.id='ai-client-settings-v3';d.className='card';d.style.marginTop='16px';d.innerHTML=`<h3 style="margin:0 0 6px">Настройки AI-клиента</h3><div class="muted">Клиент учитывает выбранные возражения и знает выбранный товар/тему.</div><div class="field"><label>Товар / продукт</label><select id="aip"><option value="">Не выбран</option>${Object.keys(P).map(x=>`<option>${E(x)}</option>`).join('')}</select><input id="aipc" placeholder="Или свой товар / тема" style="margin-top:8px"></div><div class="field"><label>Знания AI-клиента о товаре</label><textarea id="aik" rows="4"></textarea></div><div class="field"><label><input id="air" type="checkbox" style="width:auto"> 🎲 Случайные возражения</label><input id="ain" type="number" min="0" max="10" value="0" placeholder="Количество" style="margin-top:8px"></div><div class="field"><label>Возражения клиента</label><div id="aio"></div><button id="aiall" class="secondary" type="button">Все возражения</button></div><button id="aisave" class="primary" type="button">Сохранить настройки AI-клиента</button>`;p.appendChild(d);let sel=d.querySelector('#aip'),custom=d.querySelector('#aipc'),know=d.querySelector('#aik'),rnd=d.querySelector('#air'),num=d.querySelector('#ain'),list=d.querySelector('#aio');sel.value=c.product||'';custom.value=c.productCustom||'';know.value=c.productKnowledge||P[c.product]||'';rnd.checked=!!c.random;num.value=c.randomCount||0;function render(){list.innerHTML=O.map((x,i)=>`<label style="display:block;padding:9px 11px;border:1px solid var(--line);border-radius:10px;margin:5px 0"><input type="checkbox" data-i="${i}" ${c.objections.includes(x)?'checked':''} style="width:auto"> ${i+1}. ${E(x)}</label>`).join('');list.querySelectorAll('input').forEach(z=>z.onchange=()=>{let x=O[+z.dataset.i];c.objections=c.objections||[];if(z.checked&&!c.objections.includes(x))c.objections.push(x);if(!z.checked)c.objections=c.objections.filter(v=>v!==x)})}render();sel.onchange=()=>{c.product=sel.value;know.value=P[c.product]||''};custom.oninput=()=>c.productCustom=custom.value;know.oninput=()=>c.productKnowledge=know.value;rnd.onchange=()=>c.random=rnd.checked;num.oninput=()=>c.randomCount=+num.value||0;d.querySelector('#aiall').onclick=()=>{let m=document.createElement('div');m.style='position:fixed;inset:5%;z-index:9999;background:var(--dark);color:#fff;padding:20px;border-radius:18px;overflow:auto';m.innerHTML='<h2>Все возражения <button id="x" class="secondary">✕</button></h2>'+O.map((x,i)=>`<div style="padding:10px;border:1px solid #444;border-radius:10px;margin:5px 0">${i+1}. ${E(x)} <button data-i="${i}" class="primary">Добавить</button></div>`).join('');document.body.appendChild(m);m.querySelector('#x').onclick=()=>m.remove();m.querySelectorAll('[data-i]').forEach(z=>z.onclick=()=>{let x=O[+z.dataset.i];if(!c.objections.includes(x))c.objections.push(x);render();z.textContent='Выбрано'})};d.querySelector('#aisave').onclick=async()=>{let prompt=String(s.system_prompt||'').replace(/\n?AI_CLIENT_SETTINGS_V3_JSON:[A-Za-z0-9+/=]+$/,'')+'\nAI_CLIENT_SETTINGS_V3_JSON:'+B(c);let r=await sb.from('saletrening_scenarios').update({objections:c.objections,system_prompt:prompt}).eq('id',s.id);if(r.error)toast('Ошибка сохранения: '+r.error.message);else{state.clientSettings=c;state.clientObjections=c.objections;toast('Настройки AI-клиента сохранены')}};new MutationObserver(draw).observe(document.body,{childList:true,subtree:true});setTimeout(draw,500)}</script><script src="/canva-ui.js"></script>
+<script>
+(function(){
+  'use strict';
+  async function startApp(){
+    try{
+      if(typeof sb==='undefined'||!sb?.auth)throw new Error('Supabase client не загрузился');
+
+      const hash=new URLSearchParams((location.hash||'').replace(/^#/,''));
+      const params=new URLSearchParams(location.search);
+      const recoveryFromUrl=params.get('reset')==='1' || hash.get('type')==='recovery';
+
+      sb.auth.onAuthStateChange((event,session)=>{
+        if(event==='PASSWORD_RECOVERY'){
+          state.recoveryMode=true;
+          passwordRecoveryScreen();
+          return;
+        }
+        if(event==='SIGNED_OUT' && state.recoveryMode){
+          state.recoveryMode=false;
+        }
+      });
+
+      const r=await sb.auth.getSession();
+      const session=r?.data?.session;
+
+      if(recoveryFromUrl){
+        state.recoveryMode=true;
+        passwordRecoveryScreen();
+        return;
+      }
+
+      if(session?.user) await boot(session.user);
+      else authScreen();
+    }catch(e){
+      console.error('[SaleTrening] bootstrap failed',e);
+      if(typeof showFatal==='function')showFatal(e?.message||String(e));
+    }
   }
-  render();
-  sel.onchange=function(){c.product=sel.value;know.value=P[c.product]||''};
-  custom.oninput=function(){c.productCustom=custom.value};
-  know.oninput=function(){c.productKnowledge=know.value};
-  rnd.onchange=function(){c.random=rnd.checked};
-  num.oninput=function(){c.randomCount=+num.value||0};
-  d.querySelector('#aiall').onclick=function(){
-    let m=document.createElement('div');m.style='position:fixed;inset:5%;z-index:9999;background:var(--dark);color:#fff;padding:20px;border-radius:18px;overflow:auto';
-    m.innerHTML='<h2>Все возражения <button id="x" class="secondary">✕</button></h2>'+O.map(function(x,i){return '<div style="padding:10px;border:1px solid #444;border-radius:10px;margin:5px 0">'+(i+1)+'. '+E(x)+' <button data-i="'+i+'" class="primary">Добавить</button></div>'}).join('');
-    document.body.appendChild(m);m.querySelector('#x').onclick=function(){m.remove()};
-    m.querySelectorAll('[data-i]').forEach(function(z){z.onclick=function(){let x=O[+z.dataset.i];if(!c.objections.includes(x))c.objections.push(x);render();z.textContent='Выбрано'}});
-  };
-  d.querySelector('#aisave').onclick=async function(){
-    let prompt=String(s.system_prompt||'').replace(/\n?AI_CLIENT_SETTINGS_V3_JSON:[A-Za-z0-9+/=]+$/,'')+'\nAI_CLIENT_SETTINGS_V3_JSON:'+B(c);
-    let r=await sb.from('saletrening_scenarios').update({objections:c.objections,system_prompt:prompt}).eq('id',s.id);
-    if(r.error)toast('Ошибка сохранения: '+r.error.message);else{state.clientSettings=c;state.clientObjections=c.objections;toast('Настройки AI-клиента сохранены')}
-  };
-  new MutationObserver(draw).observe(document.body,{childList:true,subtree:true});
-  setTimeout(draw,500);
-}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startApp,{once:true});
+  else startApp();
+})();
+</script>
+<script src="/cold-call-voice-v5.js?v=20260906-page-4"></script>
+<script src="/training-runtime-fix.js?v=20260903-1"></script>
+</body></html>
