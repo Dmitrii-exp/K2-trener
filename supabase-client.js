@@ -32,6 +32,33 @@
   }
   function save(s){session=s||null;if(session)localStorage.setItem(STORAGE_KEY,JSON.stringify(session));else localStorage.removeItem(STORAGE_KEY)}
   function emit(event,s){listeners.slice().forEach(fn=>{try{fn(event,s)}catch(e){setTimeout(()=>{throw e})}})}
+  async function recoverSessionFromUrl(){
+    if(session)return session;
+    try{
+      const hash=new URLSearchParams((location.hash||'').replace(/^#/,''));
+      const accessToken=hash.get('access_token');
+      const refreshToken=hash.get('refresh_token');
+      const type=hash.get('type');
+      if(type!=='recovery'||!accessToken)return null;
+      const user=await request('/auth/v1/user',{method:'GET'},accessToken);
+      const expiresIn=Number(hash.get('expires_in')||3600);
+      const expiresAt=Number(hash.get('expires_at')||0)||Math.floor(Date.now()/1000)+expiresIn;
+      const recovered={
+        access_token:accessToken,
+        refresh_token:refreshToken||'',
+        expires_in:expiresIn,
+        expires_at:expiresAt,
+        token_type:hash.get('token_type')||'bearer',
+        user
+      };
+      save(recovered);
+      emit('PASSWORD_RECOVERY',recovered);
+      return recovered;
+    }catch(error){
+      console.error('[SaleTrening] recovery session error',error);
+      return null;
+    }
+  }
 
   async function refreshSession(){
     if(!session?.refresh_token)return {data:{session:null},error:null};
@@ -52,6 +79,7 @@
   function auth(){
     return {
       async getSession(){
+        if(!session)await recoverSessionFromUrl();
         if(session && needsRefresh(session)){
           const r=await refreshSession();
           if(r.data.session)return r;
