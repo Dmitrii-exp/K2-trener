@@ -153,7 +153,9 @@
     if(!r.ok)throw new Error((await r.text())||('HTTP '+r.status));
     if(!r.body){
       const j=await r.json().catch(()=>({}));
-      return String(j?.reply||'').trim();
+      const reply=String(j?.reply||'').trim();
+      if(reply)await speak(reply);
+      return reply;
     }
     const reader=r.body.getReader(),decoder=new TextDecoder();
     let buf='',full='',spoken=0,ttsQueue=Promise.resolve();
@@ -224,7 +226,7 @@
       await save();
 
       setStatus('AI-клиент формирует ответ…');
-      const reply=await aiClientReply(text,false);
+      const reply=await aiClientReplyStreamAndSpeak(text);
       if(!reply)throw new Error('AI не вернул реплику клиента');
 
       addMessage('client',reply);
