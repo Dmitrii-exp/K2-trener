@@ -46,16 +46,16 @@
     if($('st-cold-page-style'))return;
     const s=document.createElement('style');s.id='st-cold-page-style';
     s.textContent=`
-      .st-cold-page{max-width:1120px;margin:0 auto;padding-bottom:30px}
+      .st-cold-page{width:100%;max-width:1120px;min-width:0;box-sizing:border-box;margin:0 auto;padding:0 0 30px;overflow:hidden}
       .st-cold-head{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:18px}
       .st-cold-head h2{margin:0;font-size:30px;font-weight:850;letter-spacing:-.7px}
       .st-cold-sub{margin-top:5px;color:var(--muted)}
-      .st-cold-card{background:#15131f;color:#fff;border-radius:22px;overflow:hidden;box-shadow:0 16px 45px rgba(25,20,55,.12)}
+      .st-cold-card{width:100%;max-width:100%;min-width:0;box-sizing:border-box;background:#15131f;color:#fff;border-radius:22px;overflow:hidden;box-shadow:0 16px 45px rgba(25,20,55,.12)}
       .st-cold-top{padding:24px 26px;background:linear-gradient(180deg,#27213e,#171522);text-align:center}
       .st-cold-avatar{width:72px;height:72px;border-radius:50%;margin:2px auto 9px;display:grid;place-items:center;background:linear-gradient(135deg,#7357ff,#9b86ff);font-size:31px}
       .st-cold-name{font-size:21px;font-weight:850}.st-cold-meta{margin-top:5px;color:#aaa3bd;font-size:12px}.st-cold-time{margin-top:9px;color:#d8d2ff;font-variant-numeric:tabular-nums}
       .st-cold-live{margin:16px;background:#211d32;border:1px solid #39324f;border-radius:16px;padding:14px}.st-cold-live-label{font-size:10px;color:#aaa3bd;text-transform:uppercase;letter-spacing:.1em}.st-cold-live-text{margin-top:5px;font-size:16px;line-height:1.45}
-      .st-cold-main{padding:0 16px 16px}.st-cold-transcript{background:#0f0e17;border-radius:17px;padding:12px;min-height:260px;max-height:48vh;overflow:auto}.st-cold-msg{display:flex;margin:8px 2px}.st-cold-msg.manager{justify-content:flex-end}.st-cold-msg.client{justify-content:flex-start}.st-cold-bubble{max-width:82%;padding:10px 13px;border-radius:15px;line-height:1.45;font-size:14px}.st-cold-msg.client .st-cold-bubble{background:#27223b;border:1px solid #3a3352}.st-cold-msg.manager .st-cold-bubble{background:#7357ff;color:#fff}.st-cold-label{font-size:9px;opacity:.68;margin-bottom:3px;letter-spacing:.07em}
+      .st-cold-main{padding:0 16px 16px;box-sizing:border-box;min-width:0}.st-cold-transcript{background:#0f0e17;border-radius:17px;padding:12px;min-height:260px;max-height:48vh;overflow:auto}.st-cold-msg{display:flex;margin:8px 2px}.st-cold-msg.manager{justify-content:flex-end}.st-cold-msg.client{justify-content:flex-start}.st-cold-bubble{max-width:82%;padding:10px 13px;border-radius:15px;line-height:1.45;font-size:14px}.st-cold-msg.client .st-cold-bubble{background:#27223b;border:1px solid #3a3352}.st-cold-msg.manager .st-cold-bubble{background:#7357ff;color:#fff}.st-cold-label{font-size:9px;opacity:.68;margin-bottom:3px;letter-spacing:.07em}
       .st-cold-compose{display:flex;gap:9px;margin-top:12px}.st-cold-compose textarea{flex:1;min-width:0;resize:none;border:1px solid #3b3550;background:#211d32;color:#fff;border-radius:13px;padding:12px;outline:none}.st-cold-send{border:0;border-radius:13px;padding:0 18px;background:#7357ff;color:#fff;font-weight:800}.st-cold-controls{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:10px}.st-cold-mic,.st-cold-end{border:0;border-radius:13px;padding:12px 20px;color:#fff;font-weight:800}.st-cold-mic{background:#7357ff;min-width:190px}.st-cold-mic.recording{background:#d84d5b}.st-cold-end{background:#302b43}.st-cold-hint{text-align:center;color:#9d97b0;font-size:11px;margin-top:9px}.st-cold-back{border:1px solid var(--line);border-radius:12px;padding:10px 15px;background:#fff;color:var(--text);font-weight:650}
       @media(max-width:760px){.st-cold-head{align-items:flex-start;flex-direction:column}.st-cold-head h2{font-size:25px}.st-cold-compose{flex-wrap:wrap}.st-cold-send{height:45px;flex:1}.st-cold-transcript{max-height:none;min-height:280px}}
     `;document.head.appendChild(s);
@@ -174,7 +174,7 @@
         if(data==='[DONE]')continue;
         try{
           const j=JSON.parse(data);
-          const delta=j?.delta||j?.text||j?.output_text?.delta||'';
+          const delta=j?.choices?.[0]?.delta?.content||j?.choices?.[0]?.text||j?.delta||j?.text||j?.output_text?.delta||j?.output_text||'';
           if(delta){
             full+=String(delta);
             const tail=full.slice(spoken);
