@@ -41,7 +41,56 @@
   .grid,.scenario-grid,.quick-grid{grid-template-columns:minmax(0,1fr)}
 }
 </style>
-</head>
+<style>
+/* SALETrening UI/UX Pro Max — product-wide polish */
+:root{
+  --p:#7357ff;--p-hover:#6245e8;--p-soft:#eeeafe;
+  --bg:#f7f7fb;--card:#fff;--text:#171827;--muted:#73768a;--line:#e5e6ee;
+  --dark:#15131f;--dark2:#211d32;--good:#20b486;--danger:#d84d5b;
+  --shadow-sm:0 4px 18px rgba(25,20,55,.045);--shadow-md:0 12px 32px rgba(25,20,55,.065)
+}
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+body{font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.shell{min-width:0}
+.side{width:250px;box-sizing:border-box}
+.content{width:calc(100% - 250px);max-width:none;margin-left:250px;min-width:0;box-sizing:border-box;overflow-x:hidden;padding:30px 34px 48px}
+.content>*{min-width:0;max-width:100%}
+.top{min-width:0}
+.top h2{font-weight:800}
+.hero,.grid,.scenario-grid,.quick-grid{min-width:0}
+.hero>* ,.grid>* ,.scenario-grid>* ,.quick-grid>*{min-width:0}
+.hero-card,.card,.scenario,.quick,.chat{min-width:0}
+.card{box-shadow:var(--shadow-sm);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.card:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.primary,.secondary,.nav button,.quick,.call-btn{min-height:44px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{
+  outline:3px solid rgba(115,87,255,.28);outline-offset:2px
+}
+.nav button{display:flex;align-items:center;gap:8px}
+.nav-icon{flex:0 0 20px;text-align:center}
+.section{min-width:0}
+.metric{line-height:1.1}
+.hero h3,.scenario-title{line-height:1.2}
+.tag,.pill{white-space:normal;overflow-wrap:anywhere}
+.toast{max-width:min(420px,calc(100vw - 32px))}
+@media(max-width:1050px){
+  .side{width:230px}
+  .content{width:calc(100% - 230px);margin-left:230px;padding:26px}
+  .hero{grid-template-columns:minmax(0,1fr)}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .scenario-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .side{width:100%;position:relative;left:auto;top:auto;height:auto}
+  .content{width:100%;margin-left:0;padding:18px 14px 32px}
+  .grid,.scenario-grid,.quick-grid{grid-template-columns:minmax(0,1fr)}
+  .top{align-items:flex-start;flex-direction:column}
+  .top-actions{width:100%;flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style></head>
 <body><div id="root"></div><div id="toast" class="toast hidden"></div>
 <script src="/site-repair.js?v=20260903-2"></script>
 <script>
