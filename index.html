@@ -266,12 +266,11 @@ async function openHistorySession(id){
   const status=({completed:"Завершена",started:"Не завершена",in_progress:"В процессе",cancelled:"Отменена"}[x.status]||x.status||"—");
   const n=function(v){const z=Number(v);return Number.isFinite(z)?Math.max(0,Math.min(20,Math.round(z))):0};
   const criteria=[
-    ["Установление контакта",n(s.communication_score)],
     ["Выявление потребности",n(s.discovery_score)],
-    ["Презентация решения",n(s.value_score)],
+    ["Презентация продукта",n(s.value_score)],
     ["Работа с возражениями",n(s.objection_score)],
-    ["Аргументация ценности",n(s.value_score)],
-    ["Закрытие на следующий шаг",n(s.next_step_score)]
+    ["Дожим / закрытие сделки",n(s.closing_score)],
+    ["Коммуникация",n(s.communication_score)]
   ];
   const rawTotal=Number(s.overall_score);
   const total=Number.isFinite(rawTotal)&&rawTotal>0?Math.round(rawTotal):criteria.reduce(function(a,v){return a+v[1]},0);
@@ -291,7 +290,7 @@ async function openHistorySession(id){
       '<div class="report-info-card"><div class="report-card-label">Продолжительность</div><strong>'+duration+'</strong><div class="report-icon">◷</div></div>'+
       '<div class="report-info-card"><div class="report-card-label">Завершена</div><strong>'+date(x.completed_at)+'</strong><div class="report-icon">□</div></div>'+
     '</div>'+
-    '<section class="report-section"><div class="report-section-title"><h3>Критерии оценки</h3><span>Максимум 20 баллов за критерий</span></div><div class="criteria-grid">'+criterionHtml+'</div><div class="criteria-total"><span>Итог</span><b>'+total+' / 100</b></div></section>'+
+    '<section class="report-section"><div class="report-section-title"><h3>Критерии оценки</h3><span>5 критериев · максимум 20 баллов за каждый</span></div><div class="criteria-grid">'+criterionHtml+'</div><div class="criteria-total"><span>Итог</span><b>'+total+' / 100</b></div></section>'+
     '<section class="report-section"><h3>Анализ AI</h3><div class="analysis-grid">'+
       '<div class="analysis-card positive"><div class="analysis-heading"><span class="analysis-mark">✓</span><div><strong>Что получилось хорошо</strong><small>Что менеджер сделал правильно</small></div></div>'+list(strengths,"Положительных моментов пока не сохранено.","positive")+'</div>'+
       '<div class="analysis-card negative"><div class="analysis-heading"><span class="analysis-mark">×</span><div><strong>Что можно улучшить</strong><small>Ошибки и пропущенные возможности</small></div></div>'+list(weaknesses,"Ошибки и зоны роста пока не сохранены.","negative")+'</div>'+
