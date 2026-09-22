@@ -132,6 +132,58 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .side .logo-b{font-weight:900}
 @media(max-width:1050px){.dashboard-hero{grid-template-columns:1fr}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.focus-grid{grid-template-columns:1fr}}
 @media(max-width:760px){.dash-head{align-items:flex-start;flex-direction:column}.dash-head h1{font-size:27px}.dash-head-actions{width:100%}.dash-main-cta{width:100%}.dashboard-hero-copy{min-height:0;padding:22px}.dashboard-hero-copy h2{font-size:26px}.dashboard-hero-progress{padding:20px}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.stat-card{padding:14px}.stat-card strong{font-size:22px}.focus-grid{grid-template-columns:1fr}}
+</style><style id="report-v2">
+.report-page{max-width:1280px;margin:0 auto;padding-bottom:40px}
+.report-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.report-top-actions{display:flex;gap:10px;align-items:center}
+.report-title-row{margin-bottom:22px}
+.report-title-row h2{font-size:34px;line-height:1.1;letter-spacing:-1px;margin:0 0 8px;font-weight:850}
+.report-summary-grid{display:grid;grid-template-columns:1.35fr repeat(3,1fr);gap:14px;margin-bottom:18px}
+.report-score-card,.report-info-card,.report-section{background:#fff;border:1px solid #e4e5ed;box-shadow:0 5px 20px rgba(25,20,55,.035)}
+.report-score-card,.report-info-card{border-radius:18px;padding:22px;position:relative;min-height:132px}
+.report-card-label{font-size:12px;color:#73768a;margin-bottom:9px}
+.report-score{font-size:35px;font-weight:850;letter-spacing:-1px}
+.report-score span{font-size:17px;color:#73768a;font-weight:650}
+.report-score-bar{height:8px;background:#ececf2;border-radius:99px;overflow:hidden;margin-top:17px}
+.report-score-bar i{display:block;height:100%;background:linear-gradient(90deg,#7357ff,#9b86ff);border-radius:99px}
+.report-info-card strong{display:block;max-width:calc(100% - 42px);font-size:18px;line-height:1.3}
+.report-icon{position:absolute;right:18px;top:18px;width:38px;height:38px;border-radius:50%;background:#eeeaff;color:#7357ff;display:grid;place-items:center;font-size:18px;font-weight:800}
+.report-section{border-radius:18px;padding:24px;margin-top:16px}
+.report-section h3{margin:0;font-size:19px;letter-spacing:-.3px}
+.report-section-title{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}
+.report-section-title span{font-size:12px;color:#85889a}
+.criteria-grid{display:grid;grid-template-columns:1fr 1fr;column-gap:42px;row-gap:18px}
+.criterion-head{display:flex;justify-content:space-between;gap:14px;font-size:14px;color:#4f5265;margin-bottom:8px}
+.criterion-head b{color:#171827}
+.criterion-bar{height:8px;background:#e9eaf0;border-radius:99px;overflow:hidden}
+.criterion-bar i{display:block;height:100%;background:#7357ff;border-radius:99px}
+.criterion:nth-child(1) .criterion-bar i{background:#20b486}
+.criterion:nth-child(4) .criterion-bar i{background:#e05262}
+.criteria-total{display:flex;justify-content:space-between;margin-top:22px;padding-top:16px;border-top:1px solid #e7e7ef;font-size:15px}
+.criteria-total b{font-size:17px}
+.analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.analysis-card{border-radius:14px;padding:18px 19px}
+.analysis-card.positive{background:#f0fbf6;border:1px solid #ccefe0}
+.analysis-card.negative{background:#fff2f4;border:1px solid #f4d0d6}
+.analysis-heading{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.analysis-heading strong{display:block;font-size:16px}
+.analysis-heading small{display:block;color:#73768a;font-size:12px;margin-top:3px}
+.analysis-mark{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:900;font-size:18px;flex:0 0 30px}
+.positive .analysis-mark{background:#20b486}
+.negative .analysis-mark{background:#e05262}
+.report-list{list-style:none;margin:0;padding:0}
+.report-list li{display:flex;gap:9px;margin:9px 0;font-size:13px;line-height:1.45;color:#45485b}
+.report-bullet{font-weight:900;flex:0 0 17px}
+.positive .report-bullet{color:#14986e}
+.negative .report-bullet{color:#d83e50}
+.report-empty{font-size:13px;color:#85889a}
+.recommendation-card{margin-top:16px;padding:18px 20px;border-radius:14px;background:#f7f7ff;border:1px solid #e4e1ff}
+.recommendation-card .report-list{margin-top:8px}
+.ai-conclusion{margin-top:16px;padding:17px 19px;border-radius:14px;background:#f8f8fc;border:1px solid #e5e6ee}
+.ai-conclusion p{margin:7px 0 0;color:#64677a;line-height:1.55;font-size:13px}
+.report-dialog{margin-top:16px;max-height:none;background:#faf9ff;border-radius:14px;padding:18px}
+@media(max-width:1050px){.report-summary-grid{grid-template-columns:1fr 1fr}.criteria-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.report-page{padding:0 0 25px}.report-title-row h2{font-size:27px}.report-summary-grid,.analysis-grid{grid-template-columns:1fr}.report-section{padding:18px}.report-section-title{align-items:flex-start;flex-direction:column;gap:6px}}
 </style></head>
 <body><div id="root"></div><div id="toast" class="toast hidden"></div>
 <script src="/site-repair.js?v=20260903-2"></script>
@@ -203,14 +255,51 @@ function historyPage(){
 }
 async function openHistorySession(id){
   const p=$("page");if(!p)return;
-  p.innerHTML='<div class="empty">Загрузка тренировки…</div>';
-  const r=await sb.from("saletrening_sessions").select("*").eq("id",id).eq("employee_id",state.user.id).maybeSingle();
+  p.innerHTML='<div class="empty">Загрузка отчёта…</div>';
+  const r=await sb.from("saletrening_sessions").select("id,employee_id,scenario_id,status,total_score,ai_summary,transcript,created_at,completed_at,duration_seconds").eq("id",id).eq("employee_id",state.user.id).maybeSingle();
   if(r.error||!r.data){p.innerHTML='<div class="empty">Не удалось открыть тренировку.</div>';return}
-  const x=r.data,sc=state.scenarios.find(function(s){return String(s.id)===String(x.scenario_id)}),transcript=Array.isArray(x.transcript)?x.transcript:[];
+  const q=await sb.from("session_scores").select("overall_score,discovery_score,objection_score,value_score,closing_score,communication_score,next_step_score,strengths,weaknesses,recommendations").eq("session_id",id).maybeSingle();
+  if(q.error){console.error("session_scores:",q.error);p.innerHTML='<div class="empty">Не удалось загрузить оценку тренировки.</div>';return}
+  const x=r.data,s=q.data||{},sc=state.scenarios.find(function(v){return String(v.id)===String(x.scenario_id)}),transcript=Array.isArray(x.transcript)?x.transcript:[];
   const date=function(v){return v?new Date(v).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—"};
   const status=({completed:"Завершена",started:"Не завершена",in_progress:"В процессе",cancelled:"Отменена"}[x.status]||x.status||"—");
+  const n=function(v){const z=Number(v);return Number.isFinite(z)?Math.max(0,Math.min(20,Math.round(z))):0};
+  const criteria=[
+    ["Установление контакта",n(s.communication_score)],
+    ["Выявление потребности",n(s.discovery_score)],
+    ["Презентация решения",n(s.value_score)],
+    ["Работа с возражениями",n(s.objection_score)],
+    ["Аргументация ценности",n(s.value_score)],
+    ["Закрытие на следующий шаг",n(s.next_step_score)]
+  ];
+  const rawTotal=Number(s.overall_score);
+  const total=Number.isFinite(rawTotal)&&rawTotal>0?Math.round(rawTotal):criteria.reduce(function(a,v){return a+v[1]},0);
+  const items=function(v){if(Array.isArray(v))return v.filter(Boolean);if(typeof v==="string"&&v.trim())return v.split(/\n|•|;/).map(function(z){return z.trim().replace(/^[-–—]\s*/,"")}).filter(Boolean);return[]};
+  const strengths=items(s.strengths),weaknesses=items(s.weaknesses),recommendations=items(s.recommendations);
+  const list=function(arr,empty,kind){return arr.length?'<ul class="report-list '+kind+'">'+arr.map(function(v){return '<li><span class="report-bullet">'+(kind==="positive"?"✓":"×")+'</span><span>'+esc(v)+'</span></li>'}).join("")+'</ul>':'<div class="report-empty">'+empty+'</div>'};
   const dialog=transcript.length?transcript.map(function(m){const speaker=String(m?.speaker||m?.role||"").toLowerCase(),manager=["manager","user","employee"].includes(speaker),txt=m?.content??m?.text??m?.message??"";return '<div class="msg '+(manager?"manager":"client")+'"><b>'+(manager?"Менеджер":"Клиент")+':</b> '+esc(txt)+'</div>'}).join(""):'<div class="empty">Диалог не сохранён.</div>';
-  p.innerHTML='<div class="top"><div><button class="secondary" onclick="state.view=\'history\';page()">← К истории</button><h2 style="margin-top:16px">'+esc(sc?.title||"Тренировка")+'</h2><div class="muted">'+date(x.created_at)+' · '+status+'</div></div></div><div class="grid"><div class="card"><div class="metric-label">Итоговый балл</div><div class="metric">'+(x.total_score==null?'—':esc(x.total_score))+'</div></div><div class="card"><div class="metric-label">Завершена</div><div class="metric" style="font-size:20px">'+date(x.completed_at)+'</div></div></div>'+(x.ai_summary?'<div class="section card"><h3>Анализ AI</h3><p class="muted" style="line-height:1.6;white-space:pre-wrap">'+esc(x.ai_summary)+'</p></div>':'')+'<div class="section card"><h3>Полный диалог</h3><div class="messages" style="margin-top:14px;max-height:none">'+dialog+'</div></div>';
+  const scorePercent=Math.max(0,Math.min(100,total));
+  const criterionHtml=criteria.map(function(v){const pct=v[1]*5;return '<div class="criterion"><div class="criterion-head"><span>'+esc(v[0])+'</span><b>'+v[1]+' / 20</b></div><div class="criterion-bar"><i style="width:'+pct+'%"></i></div></div>'}).join("");
+  const duration=x.duration_seconds?Math.floor(Number(x.duration_seconds)/60)+':'+String(Math.floor(Number(x.duration_seconds)%60)).padStart(2,"0"):"—";
+  p.innerHTML='<div class="report-page">'+
+    '<div class="report-top"><button class="secondary" onclick="state.view=\'history\';page()">← К истории</button><div class="report-top-actions"><span class="pill">'+esc(status)+'</span></div></div>'+
+    '<div class="report-title-row"><div><h2>'+esc(sc?.title||"Тренировка")+'</h2><div class="muted">'+date(x.created_at)+'</div></div></div>'+
+    '<div class="report-summary-grid">'+
+      '<div class="report-score-card"><div class="report-card-label">Итоговый балл</div><div class="report-score">'+total+' <span>из 100</span></div><div class="report-score-bar"><i style="width:'+scorePercent+'%"></i></div></div>'+
+      '<div class="report-info-card"><div class="report-card-label">Сценарий</div><strong>'+esc(sc?.title||"Тренировка")+'</strong><div class="report-icon">▣</div></div>'+
+      '<div class="report-info-card"><div class="report-card-label">Продолжительность</div><strong>'+duration+'</strong><div class="report-icon">◷</div></div>'+
+      '<div class="report-info-card"><div class="report-card-label">Завершена</div><strong>'+date(x.completed_at)+'</strong><div class="report-icon">□</div></div>'+
+    '</div>'+
+    '<section class="report-section"><div class="report-section-title"><h3>Критерии оценки</h3><span>Максимум 20 баллов за критерий</span></div><div class="criteria-grid">'+criterionHtml+'</div><div class="criteria-total"><span>Итог</span><b>'+total+' / 100</b></div></section>'+
+    '<section class="report-section"><h3>Анализ AI</h3><div class="analysis-grid">'+
+      '<div class="analysis-card positive"><div class="analysis-heading"><span class="analysis-mark">✓</span><div><strong>Что получилось хорошо</strong><small>Что менеджер сделал правильно</small></div></div>'+list(strengths,"Положительных моментов пока не сохранено.","positive")+'</div>'+
+      '<div class="analysis-card negative"><div class="analysis-heading"><span class="analysis-mark">×</span><div><strong>Что можно улучшить</strong><small>Ошибки и пропущенные возможности</small></div></div>'+list(weaknesses,"Ошибки и зоны роста пока не сохранены.","negative")+'</div>'+
+    '</div>'+
+    (recommendations.length?'<div class="recommendation-card"><strong>Что делать дальше</strong>'+list(recommendations,"","recommendation")+'</div>':"")+
+    (x.ai_summary?'<div class="ai-conclusion"><strong>Общий вывод AI</strong><p>'+esc(x.ai_summary)+'</p></div>':"")+
+    '</section>'+
+    '<section class="report-section"><h3>Полный диалог</h3><div class="messages report-dialog">'+dialog+'</div></section>'+
+  '</div>';
 }
 function navIcon(name){const p={home:'<path d="M3 10.5 12 3l9 7.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/><path d="M9 20v-6h6v6"/>',training:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/>',coldcall:'<path d="M6.5 3.5 9 6l-2 2.5a14 14 0 0 0 6 6L15.5 12l2.5 2.5c.7.7.7 1.8 0 2.5l-1.2 1.2c-.6.6-1.5.8-2.3.5C8.5 16.8 5.2 13.5 3.3 7.5c-.3-.8-.1-1.7.5-2.3L5 4c.4-.4 1-.5 1.5-.5z"/>',scenarios:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 9 2 2 4-4M8 15h8"/>',progress:'<path d="M4 19V5M4 19h16"/><path d="m7 15 3-4 3 2 5-7"/>',history:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',ai:'<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4"/>',team:'<path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-3A4.5 4.5 0 0 0 4 18.5V20"/><circle cx="10" cy="8" r="3"/><path d="M16 11a3 3 0 1 0 0-6M16 14h1a4 4 0 0 1 4 4v2"/>',analytics:'<path d="M5 19V9M12 19V5M19 19v-7"/> <path d="M3 19h18"/>'};return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(p[name]||p.home)+'</svg>'}
 function nav(v,t,icon){return `<button class="${state.view===v?"active":""}" onclick="state.view='${v}';page()"><span class="nav-icon">${navIcon(icon)}</span><span>${t}</span></button>`}function render(){if(!state.user){authScreen();return}$("root").innerHTML=`<div class="shell"><aside class="side"><div class="logo"><div class="logo-b">S</div><span>SaleTrening</span></div><div class="nav">${nav("home","Главная","home")}${nav("training","Тренировки","training")}${nav("coldcall","Холодный звонок","coldcall")}${nav("scenarios","Сценарии","scenarios")}${nav("progress","Мой прогресс","progress")}${nav("history","История","history")}${nav("ai","AI-чат","ai")}${["director","admin"].includes(state.profile.role)?nav("team","Команда","team")+nav("analytics","Аналитика","analytics"):""}</div><div class="side-bottom"><div class="user-mini">${esc(state.profile.first_name||state.user.email)}<br>${roleName(state.profile.role)}${state.company?" · "+esc(state.company.name):""}</div><button class="secondary" style="width:100%" onclick="logout()">Выйти</button></div></aside><main class="content"><div id="page"></div></main></div>`;page()}
