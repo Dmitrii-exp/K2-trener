@@ -52,7 +52,7 @@
     const r=await rq.maybeSingle();if(r.error||!r.data){p.innerHTML='<div class="empty">Не удалось открыть тренировку.</div>';return}
     const q=await sb.from("session_scores").select("overall_score,discovery_score,objection_score,value_score,closing_score,communication_score,next_step_score,strengths,weaknesses,recommendations").eq("session_id",id).maybeSingle();
     if(q.error){p.innerHTML='<div class="empty">Не удалось загрузить оценку тренировки.</div>';return}
-    const x=r.data,s=q.data||{},sc=state.scenarios.find(v=>String(v.id)===String(x.scenario_id)),tr=Array.isArray(x.transcript)?x.transcript:[];
+    const x=r.data,ev=(x.ai_evaluation&&typeof x.ai_evaluation==="object")?x.ai_evaluation:{},s=q.data||{...ev},sc=state.scenarios.find(v=>String(v.id)===String(x.scenario_id)),tr=Array.isArray(x.transcript)?x.transcript:[];
     const total=Number.isFinite(Number(s.overall_score))&&Number(s.overall_score)>0?Math.round(Number(s.overall_score)):null;
     const n=v=>{const z=Number(v);return Number.isFinite(z)?Math.max(0,Math.min(20,Math.round(z))):0};
     const date=v=>v?new Date(v).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
