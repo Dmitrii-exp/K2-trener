@@ -6,6 +6,7 @@
   const PROJECT = 'https://svxykakyrloqzloerygb.supabase.co/functions/v1';
   let stream = null, recorder = null, chunks = [], analyser = null, analyserSource = null, vadTimer = null;
   let audio = null, audioCtx = null, recording = false, processing = false, callOpen = false, continuousMode = false;
+  const LIVE_VOICE = 'marin';
   let livePc = null, liveDc = null, liveAudio = null, liveSessionId = null;
   let liveInputBuffers = new Map(), liveOutputBuffers = new Map(), liveOutputTimers = new Map();
   let speechDetected = false, startedAt = 0, timer = null;
@@ -124,6 +125,8 @@
       if(!navigator.mediaDevices?.getUserMedia)throw new Error('Браузер не поддерживает микрофон');
       const pc=new RTCPeerConnection(); livePc=pc;
       const dc=pc.createDataChannel('oai-events'); liveDc=dc;
+      dc.onmessage=e=>handleLiveEvent(e.data);
+      dc.onerror=e=>console.error('[SaleTrening] GPT-Live data channel',e);
       liveAudio=new Audio(); liveAudio.autoplay=true; liveAudio.playsInline=true;
       pc.ontrack=e=>{const track=e.streams?.[0];if(track){liveAudio.srcObject=track;liveAudio.play().catch(()=>{})}};
       const mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
@@ -149,14 +152,15 @@
       ].filter(Boolean).join('\n');
       const history=(state.messages||[]).slice(-20).map(m=>({type:'message',role:m.speaker==='manager'?'user':'assistant',content:[{type:m.speaker==='manager'?'input_text':'output_text',text:String(m.content||'') }]})).filter(x=>x.content[0].text);
       const offer=await pc.createOffer(); await pc.setLocalDescription(offer);
-      const answerResp=await fetch(PROJECT+'/gpt-live-session',{method:'POST',headers:await authHeaders(true),body:JSON.stringify({sdp:offer.sdp,session:{voice:coldCall?.voice||'coral',instructions,input:history}}),cache:'no-store'});
+      const answerResp=await fetch(PROJECT+'/gpt-live-session',{method:'POST',headers:await authHeaders(true),body:JSON.stringify({sdp:offer.sdp,session:{voice:LIVE_VOICE,instructions,input:history}}),cache:'no-store'});
       const raw=await answerResp.text(); let j={}; try{j=raw?JSON.parse(raw):{}}catch{}
-      if(!answerResp.ok||!j.ok)throw new Error(j.error||j.detail?.error?.message||raw||('GPT-Live HTTP '+answerResp.status));
+      if(!answerResp.ok||!j.ok){
+        const detail=j.detail?.error?.message||j.detail?.message||j.detail?.error||'';
+        throw new Error(j.error+(detail?': '+detail:'')||raw||('GPT-Live HTTP '+answerResp.status));
+      }
       if(!j.transport?.sdp)throw new Error('GPT-Live не вернул SDP answer');
       liveSessionId=j.session?.id||null; await pc.setRemoteDescription({type:'answer',sdp:j.transport.sdp});
       dc.onopen=()=>{setStatus('Продвинутый звонок подключён. Вы говорите первым.');updateUI()};
-      dc.onmessage=e=>handleLiveEvent(e.data);
-      dc.onerror=e=>console.error('[SaleTrening] GPT-Live data channel',e);
       pc.onconnectionstatechange=()=>{const s=pc.connectionState;if(s==='failed'||s==='disconnected'){setStatus('Соединение продвинутого звонка прервано.');if(typeof toast==='function')toast('GPT-Live: соединение прервано')}};
       setStatus('Подключаю продвинутый звонок…'); updateUI();
     }catch(e){
