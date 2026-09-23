@@ -6,8 +6,10 @@
   const PROJECT = 'https://svxykakyrloqzloerygb.supabase.co/functions/v1';
   let stream = null, recorder = null, chunks = [], analyser = null, analyserSource = null, vadTimer = null;
   let audio = null, audioCtx = null, recording = false, processing = false, callOpen = false, continuousMode = false;
-  const LIVE_VOICES = ['ash','ballad','echo','verse','cedar','marin','alloy','coral','sage','shimmer'];
-  const LIVE_VOICE = 'ash';
+  // GPT-Live voices documented by OpenAI. Gender labels are explicit in the UI;
+  // keep the technical API names here so the selected voice is passed unchanged.
+  const LIVE_VOICES = ['meridian','stone','ripple','vesper','cinder','beacon','willow','quartz','gleam','delta'];
+  const LIVE_VOICE = 'meridian';
   let livePc = null, liveDc = null, liveAudio = null, liveSessionId = null;
   let liveInputBuffers = new Map(), liveOutputBuffers = new Map(), liveOutputTimers = new Map();
   let speechDetected = false, startedAt = 0, timer = null;
