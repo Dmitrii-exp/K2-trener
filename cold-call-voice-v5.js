@@ -6,6 +6,7 @@
   const PROJECT = 'https://svxykakyrloqzloerygb.supabase.co/functions/v1';
   let stream = null, recorder = null, chunks = [], analyser = null, analyserSource = null, vadTimer = null;
   let audio = null, audioCtx = null, recording = false, processing = false, callOpen = false, continuousMode = false;
+  const LIVE_VOICES = ['marin','cedar','quartz','ripple','vesper','willow','stone','gleam','meridian','bossa','tempo','beacon','delta','cinder'];
   const LIVE_VOICE = 'marin';
   let livePc = null, liveDc = null, liveAudio = null, liveSessionId = null;
   let liveInputBuffers = new Map(), liveOutputBuffers = new Map(), liveOutputTimers = new Map();
@@ -152,7 +153,7 @@
       ].filter(Boolean).join('\n');
       const history=(state.messages||[]).slice(-20).map(m=>({type:'message',role:m.speaker==='manager'?'user':'assistant',content:[{type:m.speaker==='manager'?'input_text':'output_text',text:String(m.content||'') }]})).filter(x=>x.content[0].text);
       const offer=await pc.createOffer(); await pc.setLocalDescription(offer);
-      const answerResp=await fetch(PROJECT+'/gpt-live-session',{method:'POST',headers:await authHeaders(true),body:JSON.stringify({sdp:offer.sdp,session:{voice:LIVE_VOICE,instructions,input:history}}),cache:'no-store'});
+      const answerResp=await fetch(PROJECT+'/gpt-live-session',{method:'POST',headers:await authHeaders(true),body:JSON.stringify({sdp:offer.sdp,session:{voice:(LIVE_VOICES.includes(coldCall?.liveVoice)?coldCall.liveVoice:LIVE_VOICE),instructions,input:history}}),cache:'no-store'});
       const raw=await answerResp.text(); let j={}; try{j=raw?JSON.parse(raw):{}}catch{}
       if(!answerResp.ok||!j.ok){
         const detail=j.detail?.error?.message||j.detail?.message||j.detail?.error||'';
