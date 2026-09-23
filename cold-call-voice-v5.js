@@ -260,18 +260,21 @@
   }
 
   function addLiveOutput(itemId,text){
-    const clean=String(text||'').trim(); if(!clean)return;
+    // Do not trim individual GPT-Live deltas: leading/trailing spaces are
+    // meaningful because a delta can begin/end in the middle of a sentence.
+    // Trimming every delta was causing words to be glued together in the UI.
+    const part=String(text??''); if(!part)return;
     const key=itemId||'output-'+Date.now();
-    liveOutputBuffers.set(key,(liveOutputBuffers.get(key)||'')+clean);
+    liveOutputBuffers.set(key,(liveOutputBuffers.get(key)||'')+part);
     const old=liveOutputTimers.get(key); if(old)clearTimeout(old);
     liveOutputTimers.set(key,setTimeout(async()=>{
-      const final=String(liveOutputBuffers.get(key)||'').trim();
+      const final=String(liveOutputBuffers.get(key)||'').replace(/\\s+/g,' ').trim();
       if(final){
         addMessage('client',final);
         try{await save()}catch(e){console.warn('[SaleTrening] GPT-Live save client',e)}
       }
       liveOutputBuffers.delete(key);liveOutputTimers.delete(key);
-    },700));
+    },900));
   }
 
   function handleLiveEvent(raw){
@@ -334,7 +337,20 @@
     }
   }
 
-  function addMessage(speaker,text){state.messages=Array.isArray(state.messages)?state.messages:[];state.messages.push({speaker,content:text});}
+  function addMessage(speaker,text){
+    state.messages=Array.isArray(state.messages)?state.messages:[];
+    const value=String(text??'').replace(/\\s+/g,' ').trim();
+    if(!value)return;
+    const last=state.messages[state.messages.length-1];
+    // GPT-Live may emit several transcript chunks for one speaker. Merge
+    // consecutive chunks into one bubble so the dialogue stays readable.
+    if(last?.speaker===speaker){
+      const separator=/[\\s([«„—-]$/.test(String(last.content||''))||/^[,.;:!?…»”'")\\]]/.test(value)?'':' ';
+      last.content=String(last.content||'').trimEnd()+separator+value;
+      return;
+    }
+    state.messages.push({speaker,content:value});
+  }
   async function save(){if(typeof saveSession==='function')await saveSession();}
   function pickMime(){for(const m of ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus']){try{if(MediaRecorder.isTypeSupported?.(m))return m}catch{}}return '';}
   async function ensureStream(){if(stream?.active)return;if(!navigator.mediaDevices?.getUserMedia)throw new Error('Браузер не поддерживает микрофон');stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});if(window.AudioContext||window.webkitAudioContext){audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();await audioCtx.resume().catch(()=>{})}}
