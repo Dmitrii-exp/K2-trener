@@ -87,7 +87,7 @@
   function render(){
     const p=$('page');if(!p||!state.session)return;css();
     const scenario=state.session.scenario||{};const difficulty=coldCall?.difficulty||scenario.difficulty||'Средний';
-    p.innerHTML=`<div class="st-cold-page"><div class="st-cold-head"><div><h2>Холодный звонок</h2><div class="st-cold-sub">Живой диалог с AI-клиентом · ${esc(difficulty)}</div></div><button id="st-cold-back" class="st-cold-back">← Назад</button></div><div class="st-cold-card"><div class="st-cold-top"><div class="st-cold-avatar">👤</div><div class="st-cold-name">Потенциальный клиент</div><div class="st-cold-meta">Холодный звонок · ${esc(difficulty)}</div><div class="st-cold-time" id="st-cold-time">00:00</div></div><div class="st-cold-live"><div class="st-cold-live-label">Статус</div><div id="st-cold-live" class="st-cold-live-text">Вы говорите первым. Начинайте разговор.</div></div><div class="st-cold-main"><div class="st-cold-controls"><button id="st-cold-mic" class="st-cold-mic">🎙 Начать говорить</button><button id="st-cold-end" class="st-cold-end">Завершить разговор</button></div><div class="st-cold-hint">${coldCall?.advanced?"Продвинутый звонок: GPT-Live слушает и отвечает напрямую, с естественными перебиваниями и без отдельного STT/TTS.":"Говорите естественно. После паузы клиент отвечает автоматически. Диалог сохраняется в истории тренировки."}</div></div></div></div>`;
+    p.innerHTML=`<div class="st-cold-page"><div class="st-cold-head"><div><h2>Холодный звонок</h2><div class="st-cold-sub">Живой диалог с AI-клиентом · ${esc(difficulty)}</div></div><button id="st-cold-back" class="st-cold-back">← Назад</button></div><div class="st-cold-card"><div class="st-cold-top"><div class="st-cold-avatar">👤</div><div class="st-cold-name">Потенциальный клиент</div><div class="st-cold-meta">Холодный звонок · ${esc(difficulty)}</div><div class="st-cold-time" id="st-cold-time">00:00</div></div><div class="st-cold-live"><div class="st-cold-live-label">Статус</div><div id="st-cold-live" class="st-cold-live-text">Вы говорите первым. Начинайте разговор.</div></div><div class="st-cold-main"><div class="st-cold-controls"><button id="st-cold-mic" class="st-cold-mic">🎙 Начать говорить</button><button id="st-cold-end" class="st-cold-end">Завершить разговор</button></div><div class="st-cold-hint">${coldCall?.advanced?"Продвинутый звонок: распознавание речи → GPT-клиент → мужской голос Onyx. Режим оптимизирован под естественный русский диалог.":"Говорите естественно. После паузы клиент отвечает автоматически. Диалог сохраняется в истории тренировки."}</div></div></div></div>`;
     $('st-cold-back').onclick=()=>{if(!processing){cleanup();state.session=null;state.messages=[];state.view='coldcall';render()}};
     $('st-cold-end').onclick=finish;$('st-cold-mic').onclick=()=>{if(coldCall?.advanced){if(!livePc)startAdvancedLiveConversation()}else if(!continuousMode)startContinuousConversation()};updateUI();scrollTranscript();
   }
@@ -121,54 +121,26 @@
   }
 
   async function startAdvancedLiveConversation(){
-    if(!callOpen||processing||livePc)return;
+    if(!callOpen||processing||continuousMode)return;
+    continuousMode=true;
     try{
       if(!navigator.mediaDevices?.getUserMedia)throw new Error('Браузер не поддерживает микрофон');
-      const pc=new RTCPeerConnection(); livePc=pc;
-      const dc=pc.createDataChannel('oai-events'); liveDc=dc;
-      dc.onmessage=e=>handleLiveEvent(e.data);
-      dc.onerror=e=>console.error('[SaleTrening] GPT-Live data channel',e);
-      liveAudio=new Audio(); liveAudio.autoplay=true; liveAudio.playsInline=true;
-      pc.ontrack=e=>{const track=e.streams?.[0];if(track){liveAudio.srcObject=track;liveAudio.play().catch(()=>{})}};
-      const mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
-      mic.getTracks().forEach(t=>pc.addTrack(t,mic)); stream=mic;
-      const character=coldCall?.character||'Лояльный';
-      const facts=coldCall?.facts||'';
-      const difficulty=coldCall?.difficulty||'Средний';
-      const objections=(state.clientObjections||state.client_settings?.objections||state.session?.objections||[]).slice(0,12);
-      const scenario=state.session?.scenario||{};
-      const instructions=[
-        'Ты потенциальный клиент в тренировочном холодном B2B-звонке.',
-        'Говори только на естественном русском языке, как живой человек по телефону: разговорно, без дикторской подачи, без длинных монологов.',
-        'Не помогай менеджеру продавать и не объясняй ему правильную технику продаж.',
-        'Не говори, что ты ИИ, модель, голосовой ассистент или что это тренировка.',
-        'Твоя роль: '+character+'. Уровень сложности: '+difficulty+'.',
-        'Сценарий: '+(scenario.title||'Холодный звонок')+'. Цель менеджера: '+(scenario.objective||'заинтересовать и договориться о следующем шаге')+'.',
-        facts?'Факты о клиенте: '+facts+'.':'',
-        objections.length?'Возможные возражения клиента: '+objections.join('; ')+'.':'',
-        'Ты отвечаешь на последнюю реплику менеджера и сохраняешь контекст. Не используй все возражения сразу.',
-        'Менеджер говорит первым. После его первой реплики ответь как клиент.',
-        'Если менеджер перебивает или меняет тему, реагируй естественно. Если задаёт конкретный вопрос — отвечай как клиент, но не раскрывай сразу всю информацию.',
-        'Отвечай обычно 1–3 короткими фразами. Иногда задавай встречный вопрос или выражай сомнение.'
-      ].filter(Boolean).join('\n');
-      const history=(state.messages||[]).slice(-20).map(m=>({type:'message',role:m.speaker==='manager'?'user':'assistant',content:[{type:m.speaker==='manager'?'input_text':'output_text',text:String(m.content||'') }]})).filter(x=>x.content[0].text);
-      const offer=await pc.createOffer(); await pc.setLocalDescription(offer);
-      const answerResp=await fetch(PROJECT+'/gpt-live-session',{method:'POST',headers:await authHeaders(true),body:JSON.stringify({sdp:offer.sdp,session:{voice:(LIVE_VOICES.includes(coldCall?.liveVoice)?coldCall.liveVoice:LIVE_VOICE),instructions,input:history}}),cache:'no-store'});
-      const raw=await answerResp.text(); let j={}; try{j=raw?JSON.parse(raw):{}}catch{}
-      if(!answerResp.ok||!j.ok){
-        const detail=j.detail?.error?.message||j.detail?.message||j.detail?.error||'';
-        throw new Error(j.error+(detail?': '+detail:'')||raw||('GPT-Live HTTP '+answerResp.status));
+      const Ctx=window.AudioContext||window.webkitAudioContext;
+      if(Ctx){
+        audioCtx=audioCtx||new Ctx();
+        await audioCtx.resume().catch(()=>{});
       }
-      if(!j.transport?.sdp)throw new Error('GPT-Live не вернул SDP answer');
-      liveSessionId=j.session?.id||null; await pc.setRemoteDescription({type:'answer',sdp:j.transport.sdp});
-      dc.onopen=()=>{setStatus('Продвинутый звонок подключён. Вы говорите первым.');updateUI()};
-      pc.onconnectionstatechange=()=>{const s=pc.connectionState;if(s==='failed'||s==='disconnected'){setStatus('Соединение продвинутого звонка прервано.');if(typeof toast==='function')toast('GPT-Live: соединение прервано')}};
-      setStatus('Подключаю продвинутый звонок…'); updateUI();
+      setStatus('Продвинутый звонок: подключаю живой мужской голос…');
+      updateUI();
+      await startRecording();
     }catch(e){
-      console.error('[SaleTrening] GPT-Live start',e);
-      try{stream?.getTracks().forEach(t=>t.stop())}catch{} stream=null;
-      try{liveDc?.close()}catch{} try{livePc?.close()}catch{} liveDc=null;livePc=null;liveAudio=null;
-      setStatus('Ошибка продвинутого звонка: '+e.message); if(typeof toast==='function')toast('GPT-Live: '+e.message);
+      console.error('[SaleTrening] advanced voice start',e);
+      continuousMode=false;
+      try{stream?.getTracks().forEach(t=>t.stop())}catch{}
+      stream=null;
+      setStatus('Ошибка продвинутого звонка: '+e.message);
+      updateUI();
+      if(typeof toast==='function')toast('Продвинутый звонок: '+e.message);
     }
   }
 
@@ -221,7 +193,7 @@
     if(!stream||!audioCtx)return;try{analyser=audioCtx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.2;analyserSource=audioCtx.createMediaStreamSource(stream);analyserSource.connect(analyser);const data=new Uint8Array(analyser.fftSize),begin=Date.now();let lastSpeech=0,above=0;const tick=()=>{if(!recording||!recorder||recorder.state==='inactive'){try{analyserSource?.disconnect()}catch{}return}analyser.getByteTimeDomainData(data);let sum=0;for(let i=0;i<data.length;i++){const v=(data[i]-128)/128;sum+=v*v}const rms=Math.sqrt(sum/data.length),now=Date.now();if(rms>.018){above++;if(above>=2){speechDetected=true;lastSpeech=now}}else above=0;if(speechDetected&&now-lastSpeech>350){stopRecording();return}if(!speechDetected&&now-begin>30000){stopRecording();return}if(speechDetected&&now-begin>45000){stopRecording();return}vadTimer=setTimeout(tick,100)};tick()}catch(e){console.warn('[SaleTrening] VAD unavailable',e)}}
   function stopRecording(){if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch(e){console.warn(e)}}else recording=false;}
   async function recognize(blob,mime){const fd=new FormData(),typ=String(mime||blob.type),ext=typ.includes('mp4')?'m4a':typ.includes('ogg')?'ogg':'webm';fd.append('file',blob,`manager.${ext}`);fd.append('prompt','Разговор менеджера по продажам с потенциальным клиентом. Русская речь, цены, бренды, модели, размеры шин и профессиональные термины.');const r=await fetch(`${PROJECT}/proxy-stt`,{method:'POST',headers:await authHeaders(),body:fd});const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error(j.error||`STT HTTP ${r.status}`);return String(j.text||'').trim()}
-  async function speak(text){const r=await fetch(`${PROJECT}/proxy-tts`,{method:'POST',headers:await authHeaders(true),body:JSON.stringify({input:String(text),voice:document.getElementById('coldVoice')?.value||coldCall?.voice||'coral',instructions:'Говори естественно по-русски как живой потенциальный клиент в телефонном разговоре. Разговорная интонация, естественные паузы и эмоции. Не читай как диктор.'})});if(!r.ok)throw new Error(`TTS HTTP ${r.status}`);const blob=await r.blob();if(!blob.size)throw new Error('TTS вернул пустой аудиофайл');const url=URL.createObjectURL(blob);try{audio=new Audio(url);audio.preload='auto';await audio.play();await new Promise(resolve=>{audio.onended=resolve})}finally{URL.revokeObjectURL(url);audio=null}}
+  async function speak(text){const r=await fetch(`${PROJECT}/proxy-tts`,{method:'POST',headers:await authHeaders(true),body:JSON.stringify({input:String(text),voice:coldCall?.advanced?'onyx':(document.getElementById('coldVoice')?.value||coldCall?.voice||'coral'),instructions:'Говори естественно по-русски как живой потенциальный клиент в телефонном разговоре. Разговорная интонация, естественные паузы и эмоции. Не читай как диктор.'})});if(!r.ok)throw new Error(`TTS HTTP ${r.status}`);const blob=await r.blob();if(!blob.size)throw new Error('TTS вернул пустой аудиофайл');const url=URL.createObjectURL(blob);try{audio=new Audio(url);audio.preload='auto';await audio.play();await new Promise(resolve=>{audio.onended=resolve})}finally{URL.revokeObjectURL(url);audio=null}}
   async function aiClientReplyStreamAndSpeak(userMessage){
     if(!state.session?.scenario)throw new Error('Нет активной тренировки');
     const s=await sb.auth.getSession();
