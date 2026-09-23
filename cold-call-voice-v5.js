@@ -6,7 +6,7 @@
   const PROJECT = 'https://svxykakyrloqzloerygb.supabase.co/functions/v1';
   let stream = null, recorder = null, chunks = [], analyser = null, analyserSource = null, vadTimer = null;
   let audio = null, audioCtx = null, recording = false, processing = false, callOpen = false, continuousMode = false;
-  const LIVE_VOICES = ['marin','cedar','quartz','ripple','vesper','willow','stone','gleam','meridian','bossa','tempo','beacon','delta','cinder'];
+  const LIVE_VOICES = ['marin','quartz','ripple','vesper','willow','stone','gleam','meridian','bossa','tempo','beacon','delta','cinder'];
   const LIVE_VOICE = 'marin';
   let livePc = null, liveDc = null, liveAudio = null, liveSessionId = null;
   let liveInputBuffers = new Map(), liveOutputBuffers = new Map(), liveOutputTimers = new Map();
