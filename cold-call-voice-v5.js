@@ -35,6 +35,58 @@
 
   function closeAudio(){try{audio?.pause()}catch{}audio=null;try{audioCtx?.close()}catch{}audioCtx=null;}
 
+  function startLiveRecorder(which, mediaStream){
+    if(!mediaStream?.getTracks?.().length)return;
+    try{
+      const mime=pickMime();
+      const rec=mime?new MediaRecorder(mediaStream,{mimeType:mime}):new MediaRecorder(mediaStream);
+      const actual=rec.mimeType||mime||'audio/webm';
+      const chunks=[];
+      const promise=new Promise(resolve=>{
+        rec.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};
+        rec.onstop=()=>resolve({blob:new Blob(chunks,{type:actual}),mime:actual});
+        rec.onerror=e=>{console.warn('[SaleTrening] GPT-Live recorder',which,e);resolve({blob:null,mime:actual})};
+      });
+      rec.start(500);
+      if(which==='manager'){liveManagerRecorder=rec;liveManagerChunks=chunks;liveManagerMime=actual;liveManagerStopPromise=promise}
+      else {liveClientRecorder=rec;liveClientChunks=chunks;liveClientMime=actual;liveClientStopPromise=promise}
+    }catch(e){console.warn('[SaleTrening] GPT-Live recorder start',which,e)}
+  }
+
+  async function stopLiveRecorders(){
+    const stop=(rec,promise)=>{try{if(rec&&rec.state!=='inactive')rec.stop()}catch{}return promise||Promise.resolve({blob:null,mime:''})};
+    const [manager,client]=await Promise.all([
+      stop(liveManagerRecorder,liveManagerStopPromise),
+      stop(liveClientRecorder,liveClientStopPromise)
+    ]);
+    liveManagerRecorder=null;liveClientRecorder=null;
+    liveManagerChunks=[];liveClientChunks=[];
+    liveManagerStopPromise=null;liveClientStopPromise=null;
+    return {manager,client};
+  }
+
+  async function recoverLiveTranscriptFromAudio(){
+    const missingManager=!state.messages?.some(m=>m.speaker==='manager'&&String(m.content||'').trim());
+    const missingClient=!state.messages?.some(m=>m.speaker==='client'&&String(m.content||'').trim());
+    if(!missingManager&&!missingClient)return;
+    const recordings=await stopLiveRecorders();
+    setStatus('Восстанавливаю расшифровку разговора…');
+    const jobs=[];
+    if(missingManager&&recordings.manager?.blob?.size){
+      jobs.push(recognize(recordings.manager.blob,recordings.manager.mime||liveManagerMime)
+        .then(text=>({speaker:'manager',text})).catch(e=>({speaker:'manager',error:e})));
+    }
+    if(missingClient&&recordings.client?.blob?.size){
+      jobs.push(recognize(recordings.client.blob,recordings.client.mime||liveClientMime)
+        .then(text=>({speaker:'client',text})).catch(e=>({speaker:'client',error:e})));
+    }
+    const results=await Promise.all(jobs);
+    for(const r of results){
+      if(r?.text) addMessage(r.speaker,r.text);
+      else if(r?.error) console.warn('[SaleTrening] GPT-Live fallback STT',r.speaker,r.error);
+    }
+  }
+
   async function closeLive(){
     try{
       if(liveDc?.readyState==='open'){
@@ -129,9 +181,17 @@
       dc.onmessage=e=>handleLiveEvent(e.data);
       dc.onerror=e=>console.error('[SaleTrening] GPT-Live data channel',e);
       liveAudio=new Audio(); liveAudio.autoplay=true; liveAudio.playsInline=true;
-      pc.ontrack=e=>{const track=e.streams?.[0];if(track){liveAudio.srcObject=track;liveAudio.play().catch(()=>{})}};
+      pc.ontrack=e=>{
+        const track=e.streams?.[0];
+        if(track){
+          liveAudio.srcObject=track;
+          liveAudio.play().catch(()=>{});
+          if(!liveClientRecorder)startLiveRecorder('client',e.streams[0]);
+        }
+      };
       const mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
       mic.getTracks().forEach(t=>pc.addTrack(t,mic)); stream=mic;
+      startLiveRecorder('manager',mic);
       const character=coldCall?.character||'Лояльный';
       const facts=coldCall?.facts||'';
       const difficulty=coldCall?.difficulty||'Средний';
@@ -454,8 +514,11 @@
     updateUI();
     try{
       if(livePc||liveDc){
-        await new Promise(resolve=>setTimeout(resolve,120));
+        await new Promise(resolve=>setTimeout(resolve,350));
+        // Give GPT-Live transcript deltas a short window, then use the recorded
+        // WebRTC directions as a reliable fallback if one/both speaker captions are missing.
         flushLiveTranscriptBuffers();
+        await recoverLiveTranscriptFromAudio();
         await save();
         await closeLive();
       }
