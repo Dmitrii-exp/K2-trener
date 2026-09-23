@@ -207,10 +207,38 @@
     let e;try{e=typeof raw==='string'?JSON.parse(raw):raw}catch{return}
     const type=String(e?.type||'');
     if(type==='session.started'||type==='session.updated'){setStatus('Продвинутый звонок активен. Говорите.');return}
-    if(type==='conversation.item.input_audio_transcription.delta'||type==='input_transcript.delta'){const id=e.item_id||'input';liveInputBuffers.set(id,(liveInputBuffers.get(id)||'')+String(e.delta||''));return}
-    if(type==='conversation.item.input_audio_transcription.completed'||type==='input_transcript.completed'||type==='input_transcript.done'){const id=e.item_id||'input';const text=String(e.transcript||liveInputBuffers.get(id)||'').trim();liveInputBuffers.delete(id);if(text){addMessage('manager',text);save().catch(err=>console.warn('[SaleTrening] GPT-Live save manager',err));setStatus('Клиент отвечает…')}return}
-    if(type==='response.output_audio_transcript.delta'||type==='output_transcript.delta'||type==='response.output_text.delta'){addLiveOutput(e.item_id||e.response_id||'output',String(e.delta||''));return}
-    if(type==='response.output_audio_transcript.done'||type==='output_transcript.done'){const id=e.item_id||e.response_id||'output';const text=String(e.transcript||e.text||'').trim();if(text)addLiveOutput(id,text);return}
+    if(type==='session.input_transcript.delta'||type==='conversation.item.input_audio_transcription.delta'||type==='input_transcript.delta'){
+      const id=e.item_id||e.segment_id||'input';
+      liveInputBuffers.set(id,(liveInputBuffers.get(id)||'')+String(e.delta||e.text||''));
+      clearTimeout(liveOutputTimers.get('in:'+id));
+      liveOutputTimers.set('in:'+id,setTimeout(async()=>{
+        const text=String(liveInputBuffers.get(id)||'').trim();
+        if(text){addMessage('manager',text);liveInputBuffers.delete(id);try{await save()}catch(err){console.warn('[SaleTrening] GPT-Live save manager',err)}setStatus('Клиент отвечает…')}
+        liveOutputTimers.delete('in:'+id);
+      },500));
+      return;
+    }
+    if(type==='session.input_transcript.completed'||type==='conversation.item.input_audio_transcription.completed'||type==='input_transcript.completed'||type==='input_transcript.done'){
+      const id=e.item_id||e.segment_id||'input';
+      const text=String(e.transcript||e.text||liveInputBuffers.get(id)||'').trim();
+      if(text){
+        liveInputBuffers.delete(id);
+        addMessage('manager',text);
+        save().catch(err=>console.warn('[SaleTrening] GPT-Live save manager',err));
+        setStatus('Клиент отвечает…');
+      }
+      return;
+    }
+    if(type==='session.output_transcript.delta'||type==='response.output_audio_transcript.delta'||type==='output_transcript.delta'||type==='response.output_text.delta'){
+      addLiveOutput(e.item_id||e.response_id||e.segment_id||'output',String(e.delta||e.text||''));
+      return;
+    }
+    if(type==='session.output_transcript.completed'||type==='response.output_audio_transcript.done'||type==='output_transcript.done'){
+      const id=e.item_id||e.response_id||e.segment_id||'output';
+      const text=String(e.transcript||e.text||'').trim();
+      if(text)addLiveOutput(id,text);
+      return;
+    }
     if(type==='error'){console.error('[SaleTrening] GPT-Live event error',e);const msg=e.error?.message||e.message||'Ошибка GPT-Live';setStatus('Ошибка GPT-Live: '+msg);if(typeof toast==='function')toast('GPT-Live: '+msg)}
   }
   async function startContinuousConversation(){
