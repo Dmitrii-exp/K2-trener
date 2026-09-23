@@ -172,12 +172,35 @@
     }
   }
 
+  function flushLiveTranscriptBuffers(){
+    for(const t of liveInputBuffers.values()){
+      const final=String(t||'').trim();
+      if(final)addMessage('manager',final);
+    }
+    liveInputBuffers.clear();
+    for(const [key,t] of liveOutputBuffers.entries()){
+      const final=String(t||'').trim();
+      if(final)addMessage('client',final);
+      const timerId=liveOutputTimers.get(key);
+      if(timerId)clearTimeout(timerId);
+      liveOutputTimers.delete(key);
+    }
+    liveOutputBuffers.clear();
+  }
+
   function addLiveOutput(itemId,text){
     const clean=String(text||'').trim(); if(!clean)return;
     const key=itemId||'output-'+Date.now();
     liveOutputBuffers.set(key,(liveOutputBuffers.get(key)||'')+clean);
     const old=liveOutputTimers.get(key); if(old)clearTimeout(old);
-    liveOutputTimers.set(key,setTimeout(()=>{const final=String(liveOutputBuffers.get(key)||'').trim();if(final){addMessage('client',final);save().catch(e=>console.warn('[SaleTrening] GPT-Live save client',e))}liveOutputBuffers.delete(key);liveOutputTimers.delete(key)},700));
+    liveOutputTimers.set(key,setTimeout(async()=>{
+      const final=String(liveOutputBuffers.get(key)||'').trim();
+      if(final){
+        addMessage('client',final);
+        try{await save()}catch(e){console.warn('[SaleTrening] GPT-Live save client',e)}
+      }
+      liveOutputBuffers.delete(key);liveOutputTimers.delete(key);
+    },700));
   }
 
   function handleLiveEvent(raw){
@@ -391,7 +414,29 @@
 
   async function typedTurn(){if(processing||!callOpen)return;const input=$('st-cold-input');const text=input?.value.trim();if(!text)return;input.value='';await turn(text)}
   async function turn(text){if(processing||!callOpen||!state.session)return;processing=true;updateUI();addMessage('manager',text);setStatus('AI-клиент формирует ответ…');await save();try{const reply=await aiClientReply(text,false);if(!reply)throw new Error('AI не вернул реплику клиента');addMessage('client',reply);await save();setStatus('AI-клиент отвечает голосом…');try{await speak(reply)}catch(e){console.error('[SaleTrening] TTS',e);if(typeof toast==='function')toast('Ошибка TTS: '+e.message)}setStatus('Ваш ход — говорите или ответьте текстом.')}catch(e){console.error('[SaleTrening] AI client',e);setStatus('Ошибка AI-клиента: '+e.message);if(typeof toast==='function')toast('Ошибка AI-клиента: '+e.message)}finally{processing=false;updateUI()}}
-  function finish(){if(processing){if(typeof toast==='function')toast('Дождитесь ответа AI-клиента');return}const f=window.finishTraining;cleanup();if(typeof f==='function')f();}
+  async function finish(){
+    if(processing){if(typeof toast==='function')toast('Дождитесь ответа AI-клиента');return}
+    if(!state.session)return;
+    processing=true;
+    updateUI();
+    try{
+      if(livePc||liveDc){
+        await new Promise(resolve=>setTimeout(resolve,120));
+        flushLiveTranscriptBuffers();
+        await save();
+      }
+      const f=window.finishTraining;
+      if(typeof f==='function')await f();
+    }catch(e){
+      console.error('[SaleTrening] finish cold call',e);
+      try{await save()}catch{}
+      if(typeof toast==='function')toast('Не удалось завершить тренировку: '+(e?.message||e));
+    }finally{
+      cleanup();
+      processing=false;
+      updateUI();
+    }
+  }
   async function launchColdCall(){
     const override=window.__stColdCallScenarioOverride;
     const difficulty=coldCall?.difficulty||override?.difficulty||'Средний';
