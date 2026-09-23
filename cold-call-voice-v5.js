@@ -424,6 +424,7 @@
         await new Promise(resolve=>setTimeout(resolve,120));
         flushLiveTranscriptBuffers();
         await save();
+        await closeLive();
       }
       const f=window.finishTraining;
       if(typeof f==='function')await f();
