@@ -107,6 +107,10 @@
       b.textContent='🔴 Разговор идёт автоматически';
       b.classList.add('recording');
       b.disabled=true;
+    }else if(coldCall?.advanced&&livePc){
+      b.textContent='🔴 Продвинутый звонок активен';
+      b.classList.add('recording');
+      b.disabled=true;
     }else{
       b.textContent='🎙 Начать говорить';
       b.classList.remove('recording');
