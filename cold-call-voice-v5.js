@@ -243,6 +243,12 @@
       if(final)addMessage('manager',final);
     }
     liveInputBuffers.clear();
+    for(const [key,timerId] of liveOutputTimers.entries()){
+      if(String(key).startsWith('in:')){
+        if(timerId)clearTimeout(timerId);
+        liveOutputTimers.delete(key);
+      }
+    }
     for(const [key,t] of liveOutputBuffers.entries()){
       const final=String(t||'').trim();
       if(final)addMessage('client',final);
