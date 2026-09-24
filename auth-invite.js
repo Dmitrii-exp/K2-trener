@@ -87,12 +87,20 @@
   async function init(){
     render(invitedEmail,true);
     try{
-      const {data,error}=await client.auth.getSession(); if(error) throw error;
-      let session=data?.session||null;
-      if(!session){await new Promise(r=>setTimeout(r,1000));session=(await client.auth.getSession()).data?.session||null;}
-      if(!session?.user){render(invitedEmail);message('Не удалось подтвердить ссылку приглашения. Откройте ссылку из письма ещё раз.');return;}
+      const resolveSession=async()=>{const {data,error}=await client.auth.getSession();if(error)throw error;return data?.session||null};
+      let session=await resolveSession();
+      if(!session){
+        session=await new Promise(resolve=>{
+          let done=false;
+          const finish=(s)=>{if(done)return;done=true;try{subscription?.unsubscribe?.()}catch(_){};resolve(s||null)};
+          const {data}=client.auth.onAuthStateChange((event,s)=>{if(s?.user)finish(s)});
+          const subscription=data?.subscription;
+          setTimeout(async()=>finish(await resolveSession().catch(()=>null)),5000);
+        });
+      }
+      if(!session?.user){render(invitedEmail);message('Не удалось подтвердить приглашение. Откройте ссылку из письма ещё раз.');return;}
       const actual=String(session.user.email||'').toLowerCase();
-      if(invitedEmail&&actual!==invitedEmail){await client.auth.signOut();render(invitedEmail);message('Email не совпадает с приглашением. Используйте адрес, на который пришло письмо.');return;}
+      if(invitedEmail&&actual!==invitedEmail){await client.auth.signOut();render(invitedEmail);message('Email не совпадает с приглашением. Используйте адрес, на который пришло приглашение.');return;}
       render(actual||invitedEmail);
     }catch(e){console.error('[invite] init:',e);render(invitedEmail);message(e?.message||'Не удалось открыть приглашение.');}
   }
