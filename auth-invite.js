@@ -9,6 +9,7 @@
   const qs = new URLSearchParams(window.location.search);
   const token = qs.get('invite');
   const invitedEmail = (qs.get('email') || '').trim().toLowerCase();
+  const invitedCompany = (qs.get('company') || '').trim();
   const isInvite = qs.get('type') === 'invite' && !!token;
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 
@@ -69,7 +70,7 @@
   const style = document.createElement('style'); style.id='saletrening-invite-isolated'; style.textContent=css; document.head.appendChild(style);
 
   function render(email, loading=false){
-    root.innerHTML=`<main class="invite-page"><section class="invite-card"><div class="invite-logo"><span class="invite-logo-b">S</span><span>SaleTrening</span></div><span class="invite-badge">ПРИГЛАШЕНИЕ В КОМАНДУ</span><h1>Завершите регистрацию</h1><div class="invite-sub">Вас пригласили присоединиться к команде. Email из приглашения закреплён и не может быть изменён.</div><div class="invite-field"><label>Имя</label><input id="inviteFirst" autocomplete="given-name" placeholder="Ваше имя"></div><div class="invite-field"><label>Email</label><input id="inviteEmail" value="${esc(email)}" readonly></div><div class="invite-field"><label>Пароль</label><input id="invitePassword" type="password" autocomplete="new-password" placeholder="Минимум 6 символов"></div><div class="invite-actions"><button id="inviteComplete" class="invite-btn" ${loading?'disabled':''}>${loading?'Проверяем приглашение…':'Завершить регистрацию'}</button></div><div id="inviteError" class="invite-error"></div><div id="inviteSuccess" class="invite-success"></div></section></main>`;
+    root.innerHTML=`<main class="invite-page"><section class="invite-card"><div class="invite-logo"><span class="invite-logo-b">S</span><span>SaleTrening</span></div><span class="invite-badge">ПРИГЛАШЕНИЕ В КОМАНДУ</span><h1>Завершите регистрацию</h1><div class="invite-sub">Вас приглашает компания «${esc(invitedCompany || 'ваша компания')}». Чтобы присоединиться к команде, укажите имя и создайте пароль. Email из приглашения закреплён и не может быть изменён.</div><div class="invite-field"><label>Имя</label><input id="inviteFirst" autocomplete="given-name" placeholder="Ваше имя"></div><div class="invite-field"><label>Email</label><input id="inviteEmail" value="${esc(email)}" readonly></div><div class="invite-field"><label>Пароль</label><input id="invitePassword" type="password" autocomplete="new-password" placeholder="Минимум 6 символов"></div><div class="invite-actions"><button id="inviteComplete" class="invite-btn" ${loading?'disabled':''}>${loading?'Проверяем приглашение…':'Зарегистрироваться и присоединиться'}</button></div><div id="inviteError" class="invite-error"></div><div id="inviteSuccess" class="invite-success"></div></section></main>`;
     document.getElementById('inviteComplete')?.addEventListener('click',complete);
   }
   const errorBox=()=>document.getElementById('inviteError');
@@ -97,8 +98,8 @@
       const {data}=await client.auth.getSession(); const user=data?.session?.user; if(!user)throw new Error('Сессия приглашения не найдена.');
       const {error:updateError}=await client.auth.updateUser({password,data:{first_name:first}});if(updateError)throw updateError;
       const {data:accepted,error:rpcError}=await client.rpc('accept_company_invitation',{p_token:token});if(rpcError)throw rpcError;if(!accepted?.ok)throw new Error('Приглашение не было принято.');
-      success('Регистрация завершена. Перенаправляем в ваш кабинет…');window.history.replaceState({},document.title,window.location.pathname);setTimeout(()=>window.location.reload(),700);
-    }catch(e){console.error('[invite] complete:',e);message(e?.message||'Не удалось завершить регистрацию.');button.disabled=false;button.textContent='Завершить регистрацию';}
+      success('Регистрация завершена. Вы присоединены к команде. Перенаправляем в ваш кабинет…');window.history.replaceState({},document.title,window.location.pathname);setTimeout(()=>window.location.reload(),700);
+    }catch(e){console.error('[invite] complete:',e);message(e?.message||'Не удалось завершить регистрацию.');button.disabled=false;button.textContent='Зарегистрироваться и присоединиться';}
   }
 
   window.__SALE_TRAINING_INVITE_FLOW__=true;
