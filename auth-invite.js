@@ -24,7 +24,14 @@
     const button = document.querySelector('#inviteBox button.primary');
     if (button) { button.disabled = true; button.textContent = 'Создаём ссылку…'; }
     try {
-      const { data, error } = await client.functions.invoke('send-company-invitation', { body: { mode:'create', email, role } });
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      const session = sessionData?.session;
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) throw new Error('Сессия руководителя не найдена. Обновите страницу и войдите снова.');
+      const { data, error } = await client.functions.invoke('send-company-invitation', {
+        body: { mode:'create', email, role },
+        headers: { Authorization: 'Bearer ' + session.access_token }
+      });
       if (error) throw error;
       if (!data?.ok || !data?.invite_url) throw new Error(data?.message || data?.error || 'Не удалось создать ссылку');
       window.__pendingCompanyInvite = { email, role, token:data.token, invite_url:data.invite_url };
@@ -46,7 +53,14 @@
     const out = document.getElementById('inviteResult');
     if (button) { button.disabled = true; button.textContent = 'Отправляем письмо…'; }
     try {
-      const { data, error } = await client.functions.invoke('send-company-invitation', { body: { mode:'send', email:p.email, role:p.role, token:p.token, invite_url:p.invite_url } });
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      const session = sessionData?.session;
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) throw new Error('Сессия руководителя не найдена. Обновите страницу и войдите снова.');
+      const { data, error } = await client.functions.invoke('send-company-invitation', {
+        body: { mode:'send', email:p.email, role:p.role, token:p.token, invite_url:p.invite_url },
+        headers: { Authorization: 'Bearer ' + session.access_token }
+      });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.message || data?.error || 'Письмо не отправлено');
       if (out) out.innerHTML = `<div class="card" style="margin-top:14px;background:#f1fbf7;border-color:#c9eddf"><b>✓ Приглашение отправлено</b><div class="muted" style="margin:6px 0">Письмо со ссылкой на регистрацию отправлено на <strong>${esc(p.email)}</strong>.</div></div>`;
