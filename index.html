@@ -265,7 +265,7 @@ function authScreen(mode="login"){
   <h1>${hasInvite?"Присоединиться к команде.":(register?"Создайте аккаунт.":"С возвращением.")}<br>${hasInvite?"Регистрация сотрудника.":(register?"Начните тренировки.":"Продолжайте тренировки.")}</h1>
   <div class="sub">${hasInvite?"Вас пригласили в команду SaleTrening. Зарегистрируйтесь с тем же email, на который отправлено приглашение.":(register?"Создайте аккаунт для доступа к тренировкам и истории.":"Войдите в свой аккаунт SaleTrening.")}</div>
   ${hasInvite?'<div class="card" style="margin:16px 0;padding:13px;background:#faf9ff"><b>Приглашение найдено</b><div class="muted" style="margin-top:4px">После регистрации аккаунт автоматически подключится к компании руководителя.</div></div>':""}
-  ${register?'<div class="field"><label>Имя</label><input id="first" placeholder="Дмитрий"></div><div class="field" '+(hasInvite?'style="display:none"':'')+'><label>Компания <span class="muted">(для новой организации)</span></label><input id="company" placeholder="Моя компания"></div>':""}
+  ${register?'<div class="field"><label>Имя</label><input id="first" placeholder="Дмитрий" autocomplete="given-name"></div><div class="field" '+(hasInvite?'style="display:none"':'')+'><label>Компания <span class="muted">(для новой организации)</span></label><input id="company" placeholder="Моя компания"></div>':""}
   <div class="field"><label>Email</label><input id="email" type="email" placeholder="you@company.ru" value="${esc(inviteEmail)}" ${hasInvite&&inviteEmail?"readonly":""} autocomplete="email"></div>
   <div class="field"><label>Пароль</label><input id="pass" type="password" placeholder="Минимум 6 символов" autocomplete="new-password"></div>
   <div class="auth-actions">${register?'<button class="primary" onclick="signUp()">'+(hasInvite?"Зарегистрироваться в команде":"Создать аккаунт")+'</button><button class="secondary" onclick="authScreen()">Уже есть аккаунт — Войти</button>':'<button class="primary" onclick="signIn()">Войти</button><button class="secondary" onclick="authScreen(\'register\')">Создать аккаунт</button>'}</div>
@@ -290,6 +290,8 @@ function authScreen(mode="login"){
   const {data:accepted,error:acceptError}=await sb.rpc("accept_company_invitation",{p_token:invite});
   if(acceptError)throw acceptError;
   if(!accepted?.ok)throw new Error("Не удалось принять приглашение.");
+  const {error:profileError}=await sb.from("profiles").update({first_name:first}).eq("id",session.user.id);
+  if(profileError)throw profileError;
   localStorage.removeItem("saletrening_invite_token");
   const u=new URL(location.href);u.searchParams.delete("invite");u.searchParams.delete("email");u.searchParams.delete("type");history.replaceState({},"",u.pathname+(u.search?u.search:""));
   await boot(session.user);
@@ -482,6 +484,13 @@ function S(){return window.state?.editingScenario||window.state?.currentScenario
         return;
       }
 
+      const inviteToken = params.get("invite") || localStorage.getItem("saletrening_invite_token") || "";
+      const inviteRedirect = hash.get("type") === "invite";
+      if(inviteToken && (session?.user || inviteRedirect)){
+        if(inviteToken)localStorage.setItem("saletrening_invite_token",inviteToken);
+        authScreen("register");
+        return;
+      }
       if(session?.user) await boot(session.user);
       else authScreen();
     }catch(e){
