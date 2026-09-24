@@ -191,6 +191,27 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .report-dialog{margin-top:16px;max-height:none;background:#faf9ff;border-radius:14px;padding:18px}
 @media(max-width:1050px){.report-summary-grid{grid-template-columns:1fr 1fr}.criteria-grid{grid-template-columns:1fr}}
 @media(max-width:760px){.report-page{padding:0 0 25px}.report-title-row h2{font-size:27px}.report-summary-grid,.analysis-grid{grid-template-columns:1fr}.report-section{padding:18px}.report-section-title{align-items:flex-start;flex-direction:column;gap:6px}}
+</style>
+<style>
+/* MOBILE_LAYOUT_FIX_2026-09-24 */
+@media (max-width:760px){
+  html{font-size:16px!important;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  body{min-width:0!important;overflow-x:hidden!important}
+  .auth{padding:16px!important;min-height:100svh!important}
+  .auth-card{width:100%!important;max-width:470px!important;padding:22px!important;border-radius:22px!important}
+  .auth-brand{gap:10px}
+  .auth-brand .logo{font-size:20px!important;white-space:nowrap}
+  .auth-brand .logo-b{width:42px!important;height:42px!important;flex:0 0 42px!important}
+  .side{width:100%!important;padding:10px 12px!important}
+  .side .logo{font-size:19px!important;padding:4px 6px 12px!important}
+  .side .logo-b{width:40px!important;height:40px!important;flex:0 0 40px!important}
+  .nav{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important}
+  .nav button{font-size:14px!important;padding:10px 9px!important;min-height:42px!important}
+  .content{width:100%!important;margin:0!important;padding:16px 12px 28px!important}
+  .top h2{font-size:24px!important}
+  .hero h3{font-size:22px!important}
+  .scenario-title{font-size:16px!important}
+}
 </style></head>
 <body><div id="root"></div><div id="toast" class="toast hidden"></div>
 <script src="/training-runtime-fix.js?v=20260903-6"></script>
@@ -240,7 +261,7 @@ function authScreen(mode="login"){
   const hasInvite=!!invite;
   if(invite)localStorage.setItem("saletrening_invite_token",invite);
   const register=hasInvite||mode==="register";
-  $("root").innerHTML=`<div class="auth"><div class="auth-card"><div class="auth-brand"><div class="logo"><div class="logo-b">S</div>SaleTrening</div><span class="auth-badge">AI SALES COACH</span></div>
+  $("root").innerHTML=`<div class="auth"><div class="auth-card"><div class="auth-brand"><div class="logo"><div class="logo-b"><img src="/assets/saletrening-icon.svg" alt="SaleTrening"></div>SaleTrening</div><span class="auth-badge">AI SALES COACH</span></div>
   <h1>${hasInvite?"Присоединиться к команде.":(register?"Создайте аккаунт.":"С возвращением.")}<br>${hasInvite?"Регистрация сотрудника.":(register?"Начните тренировки.":"Продолжайте тренировки.")}</h1>
   <div class="sub">${hasInvite?"Вас пригласили в команду SaleTrening. Зарегистрируйтесь с тем же email, на который отправлено приглашение.":(register?"Создайте аккаунт для доступа к тренировкам и истории.":"Войдите в свой аккаунт SaleTrening.")}</div>
   ${hasInvite?'<div class="card" style="margin:16px 0;padding:13px;background:#faf9ff"><b>Приглашение найдено</b><div class="muted" style="margin-top:4px">После регистрации аккаунт автоматически подключится к компании руководителя.</div></div>':""}
