@@ -98,6 +98,13 @@
   function auth(){
     return {
       async getSession(){
+        // A magic-link/invite redirect must take precedence over any stale or
+        // unrelated session already stored in this browser.
+        const hash=new URLSearchParams((location.hash||'').replace(/^#/,''));
+        const urlAuthType=hash.get('type');
+        const hasRedirectSession=!!hash.get('access_token') &&
+          (urlAuthType==='invite'||urlAuthType==='magiclink'||urlAuthType==='recovery');
+        if(hasRedirectSession)await recoverSessionFromUrl();
         if(!session)await recoverSessionFromUrl();
         if(session && needsRefresh(session)){
           const r=await refreshSession();
