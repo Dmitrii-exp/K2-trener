@@ -42,8 +42,7 @@
       if (error) throw new Error(error.message || 'Ошибка вызова Edge Function');
       if (!data?.ok) throw new Error(data?.message || data?.error || 'Письмо не отправлено');
 
-      const link = data.invite_url || '';
-      if (result) result.innerHTML = `<div class="card" style="margin-top:14px;background:#f1fbf7;border-color:#c9eddf"><b>✓ Приглашение отправлено</b><div class="muted" style="margin:6px 0">Письмо отправлено на <strong>${esc(email)}</strong>.</div>${link ? `<div class="muted" style="margin-top:8px">Резервная ссылка:</div><input id="inviteLink" value="${esc(link)}" readonly style="width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff"><div style="margin-top:8px"><button type="button" class="secondary" onclick="navigator.clipboard.writeText(document.getElementById('inviteLink').value);toast('Ссылка скопирована')">Скопировать ссылку</button></div>` : ''}</div>`;
+      if (result) result.innerHTML = `<div class="card" style="margin-top:14px;background:#f1fbf7;border-color:#c9eddf"><b>✓ Приглашение отправлено</b><div class="muted" style="margin:6px 0">Письмо со ссылкой на регистрацию отправлено на <strong>${esc(email)}</strong>.</div></div>`;
       window.toast?.('Письмо с приглашением отправлено');
     } catch (e) {
       console.error('[invite] send-company-invitation:', e);
