@@ -50,7 +50,7 @@
       if (result) result.innerHTML = `<div class="card" style="margin-top:14px;background:#fff5f5;border-color:#f0ced3"><b>Не удалось отправить письмо</b><div class="muted" style="margin-top:6px">${esc(e?.message || 'Неизвестная ошибка')}</div></div>`;
       window.toast?.('Не удалось отправить приглашение: ' + (e?.message || 'ошибка'));
     } finally {
-      if (button) { button.disabled = false; button.textContent = 'Создать приглашение'; }
+      if (button) { button.disabled = false; button.textContent = 'Отправить приглашение'; }
     }
   };
 
