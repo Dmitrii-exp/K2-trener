@@ -33,13 +33,13 @@
   function save(s){session=s||null;if(session)localStorage.setItem(STORAGE_KEY,JSON.stringify(session));else localStorage.removeItem(STORAGE_KEY)}
   function emit(event,s){listeners.slice().forEach(fn=>{try{fn(event,s)}catch(e){setTimeout(()=>{throw e})}})}
   async function recoverSessionFromUrl(){
-    if(session)return session;
     try{
       const hash=new URLSearchParams((location.hash||'').replace(/^#/,''));
       const accessToken=hash.get('access_token');
       const refreshToken=hash.get('refresh_token');
       const type=hash.get('type');
-      if(!accessToken)return null;
+      if(!accessToken)return session;
+      if(type!=='invite'&&type!=='magiclink'&&type!=='recovery')return session;
       if(type==='recovery'){
         const user=await request('/auth/v1/user',{method:'GET'},accessToken);
         const expiresIn=Number(hash.get('expires_in')||3600);
