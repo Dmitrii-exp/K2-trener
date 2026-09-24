@@ -39,21 +39,40 @@
       const accessToken=hash.get('access_token');
       const refreshToken=hash.get('refresh_token');
       const type=hash.get('type');
-      if(type!=='recovery'||!accessToken)return null;
-      const user=await request('/auth/v1/user',{method:'GET'},accessToken);
-      const expiresIn=Number(hash.get('expires_in')||3600);
-      const expiresAt=Number(hash.get('expires_at')||0)||Math.floor(Date.now()/1000)+expiresIn;
-      const recovered={
-        access_token:accessToken,
-        refresh_token:refreshToken||'',
-        expires_in:expiresIn,
-        expires_at:expiresAt,
-        token_type:hash.get('token_type')||'bearer',
-        user
-      };
-      save(recovered);
-      emit('PASSWORD_RECOVERY',recovered);
-      return recovered;
+      if(!accessToken)return null;
+      if(type==='recovery'){
+        const user=await request('/auth/v1/user',{method:'GET'},accessToken);
+        const expiresIn=Number(hash.get('expires_in')||3600);
+        const expiresAt=Number(hash.get('expires_at')||0)||Math.floor(Date.now()/1000)+expiresIn;
+        const recovered={
+          access_token:accessToken,
+          refresh_token:refreshToken||'',
+          expires_in:expiresIn,
+          expires_at:expiresAt,
+          token_type:hash.get('token_type')||'bearer',
+          user
+        };
+        save(recovered);
+        emit('PASSWORD_RECOVERY',recovered);
+        return recovered;
+      }
+      if(type==='invite'||type==='magiclink'){
+        const user=await request('/auth/v1/user',{method:'GET'},accessToken);
+        const expiresIn=Number(hash.get('expires_in')||3600);
+        const expiresAt=Number(hash.get('expires_at')||0)||Math.floor(Date.now()/1000)+expiresIn;
+        const invited={
+          access_token:accessToken,
+          refresh_token:refreshToken||'',
+          expires_in:expiresIn,
+          expires_at:expiresAt,
+          token_type:hash.get('token_type')||'bearer',
+          user
+        };
+        save(invited);
+        emit('SIGNED_IN',invited);
+        return invited;
+      }
+      return null;
     }catch(error){
       console.error('[SaleTrening] recovery session error',error);
       return null;
