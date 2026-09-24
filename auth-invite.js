@@ -16,38 +16,46 @@
   /* ---------- Manager: send invitation by email ---------- */
   window.createCompanyInvitation = async function () {
     if (!client) return window.toast?.('Supabase ещё не загрузился. Обновите страницу.');
+    const email = document.getElementById('inviteEmail')?.value.trim().toLowerCase() || '';
+    const role = document.getElementById('inviteRole')?.value || 'employee';
+    const out = document.getElementById('inviteResult');
+    if (!email) return window.toast?.('Укажи email сотрудника');
+    if (!/^\S+@\S+\.\S+$/.test(email)) return window.toast?.('Проверь email сотрудника');
     const button = document.querySelector('#inviteBox button.primary');
-    const result = document.getElementById('inviteResult');
+    if (button) { button.disabled = true; button.textContent = 'Создаём ссылку…'; }
     try {
-      const { data: sessionData, error: sessionError } = await client.auth.getSession();
-      if (sessionError) throw sessionError;
-      const user = sessionData?.session?.user;
-      if (!user) throw new Error('Сессия руководителя не найдена. Войдите в аккаунт заново.');
-
-      const { data: profile, error: profileError } = await client.from('profiles').select('company_id,role').eq('id', user.id).single();
-      if (profileError) throw profileError;
-      if (!profile?.company_id || !['director','admin','manager'].includes(profile.role)) throw new Error('Нет прав для приглашения сотрудников');
-
-      const email = document.getElementById('inviteEmail')?.value.trim().toLowerCase() || '';
-      const role = document.getElementById('inviteRole')?.value || 'employee';
-      if (!email) throw new Error('Укажи email сотрудника');
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Проверь email сотрудника');
-
-      if (button) { button.disabled = true; button.textContent = 'Отправляем письмо…'; }
-      if (result) result.innerHTML = '<div class="muted" style="margin-top:10px">Отправляем приглашение на email…</div>';
-
-      const { data, error } = await client.functions.invoke('send-company-invitation', {
-        body: { email, role, origin: window.location.origin }
-      });
-      if (error) throw new Error(error.message || 'Ошибка вызова Edge Function');
-      if (!data?.ok) throw new Error(data?.message || data?.error || 'Письмо не отправлено');
-
-      if (result) result.innerHTML = `<div class="card" style="margin-top:14px;background:#f1fbf7;border-color:#c9eddf"><b>✓ Приглашение отправлено</b><div class="muted" style="margin:6px 0">Письмо со ссылкой на регистрацию отправлено на <strong>${esc(email)}</strong>.</div></div>`;
-      window.toast?.('Письмо с приглашением отправлено');
+      const { data, error } = await client.functions.invoke('send-company-invitation', { body: { mode:'create', email, role } });
+      if (error) throw error;
+      if (!data?.ok || !data?.invite_url) throw new Error(data?.message || data?.error || 'Не удалось создать ссылку');
+      window.__pendingCompanyInvite = { email, role, token:data.token, invite_url:data.invite_url };
+      if (out) out.innerHTML = `<div class="card" style="margin-top:14px;background:#faf9ff"><b>Ссылка на регистрацию создана</b><div class="muted" style="margin:6px 0">Email <strong>${esc(email)}</strong> привязан к этой ссылке и вашей компании. Ссылка действует 7 дней.</div><input id="inviteLink" value="${esc(data.invite_url)}" readonly style="width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff"><button type="button" id="sendInvitationButton" class="primary" style="margin-top:10px" onclick="sendCompanyInvitation()">Отправить приглашение</button></div>`;
+      window.toast?.('Ссылка на регистрацию создана');
     } catch (e) {
-      console.error('[invite] send-company-invitation:', e);
-      if (result) result.innerHTML = `<div class="card" style="margin-top:14px;background:#fff5f5;border-color:#f0ced3"><b>Не удалось отправить письмо</b><div class="muted" style="margin-top:6px">${esc(e?.message || 'Неизвестная ошибка')}</div></div>`;
-      window.toast?.('Не удалось отправить приглашение: ' + (e?.message || 'ошибка'));
+      console.error('[invite] create:', e);
+      if (out) out.innerHTML = `<div class="card" style="margin-top:14px;background:#fff5f5;border-color:#f0ced3"><b>Не удалось создать ссылку</b><div class="muted" style="margin-top:6px">${esc(e?.message || 'Ошибка')}</div></div>`;
+      window.toast?.('Не удалось создать ссылку: ' + (e?.message || 'ошибка'));
+    } finally {
+      if (button) { button.disabled = false; button.textContent = 'Создать ссылку на регистрацию'; }
+    }
+  };
+
+  window.sendCompanyInvitation = async function () {
+    const p = window.__pendingCompanyInvite;
+    if (!p) return window.toast?.('Сначала создайте ссылку на регистрацию');
+    const button = document.getElementById('sendInvitationButton');
+    const out = document.getElementById('inviteResult');
+    if (button) { button.disabled = true; button.textContent = 'Отправляем письмо…'; }
+    try {
+      const { data, error } = await client.functions.invoke('send-company-invitation', { body: { mode:'send', email:p.email, role:p.role, token:p.token, invite_url:p.invite_url } });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.message || data?.error || 'Письмо не отправлено');
+      if (out) out.innerHTML = `<div class="card" style="margin-top:14px;background:#f1fbf7;border-color:#c9eddf"><b>✓ Приглашение отправлено</b><div class="muted" style="margin:6px 0">Письмо со ссылкой на регистрацию отправлено на <strong>${esc(p.email)}</strong>.</div></div>`;
+      window.toast?.('Письмо с приглашением отправлено');
+      window.__pendingCompanyInvite = null;
+    } catch (e) {
+      console.error('[invite] send:', e);
+      if (out) out.innerHTML = `<div class="card" style="margin-top:14px;background:#fff5f5;border-color:#f0ced3"><b>Не удалось отправить письмо</b><div class="muted" style="margin-top:6px">${esc(e?.message || 'Ошибка')}</div><button type="button" class="primary" style="margin-top:10px" onclick="sendCompanyInvitation()">Повторить отправку</button></div>`;
+      window.toast?.('Не удалось отправить письмо: ' + (e?.message || 'ошибка'));
     } finally {
       if (button) { button.disabled = false; button.textContent = 'Отправить приглашение'; }
     }
