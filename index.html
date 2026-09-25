@@ -550,7 +550,7 @@ function renderTrainingCatalog(){
     <button class="secondary" onclick="state.view='coldcall';page()">Открыть холодный звонок →</button>
   </div>`;
 }
-function trainingList(){trainingFilters={query:"",difficulty:"all",mode:"all"};return `<div class="training-page">
+function trainingList(){trainingFilters={query:"",difficulty:"all",mode:"all"};setTimeout(renderTrainingCatalog,0);return `<div class="training-page">
   <div class="training-page-head"><div><div class="eyebrow">ПРАКТИКА ПРОДАЖ</div><h1>Тренировки</h1><p>Выбери ситуацию, настрой уровень сложности и начни живой диалог с AI-клиентом.</p></div><div class="training-head-badge"><span class="status-dot"></span> AI-клиент готов</div></div>
   <div id="trainingCatalog"></div>
 </div>`}function scenarios(){return `<div class="top"><div><h2>Сценарии</h2><div class="muted">Библиотека ситуаций для команды</div></div></div>${scenarioCards(state.scenarios)}`}function progress(){let s=state.stats||{};return `<div class="top"><div><h2>Мой прогресс</h2><div class="muted">Результаты тренировок из Supabase</div></div></div><div class="grid"><div class="card"><div class="metric-label">Средний балл</div><div class="metric">${s.avg_score||0}</div></div><div class="card"><div class="metric-label">Лучший</div><div class="metric">${s.best_score||0}</div></div><div class="card"><div class="metric-label">Завершено</div><div class="metric">${s.completed_sessions||0}</div></div><div class="card"><div class="metric-label">Активные</div><div class="metric">${s.active_sessions||0}</div></div></div><div class="section card"><h3>Следующий шаг</h3><p class="muted">Запусти тренировку, проведи диалог и получи AI-анализ.</p><button class="primary" onclick="state.view='training';page()">Начать тренировку</button></div>`}
