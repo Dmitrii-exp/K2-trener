@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" role="img" aria-labelledby="title desc">
+<title id="title">SaleTrening</title>
+<desc id="desc">SaleTrening logo with a person and upward purple arrow</desc>
+<defs>
+  <linearGradient id="dark" x1="170" y1="70" x2="360" y2="280" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#34384f"/><stop offset=".55" stop-color="#171a2b"/><stop offset="1" stop-color="#080a13"/>
+  </linearGradient>
+  <linearGradient id="purple" x1="190" y1="300" x2="570" y2="80" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#5b20ff"/><stop offset=".52" stop-color="#8b35ff"/><stop offset="1" stop-color="#c05cff"/>
+  </linearGradient>
+  <linearGradient id="light" x1="270" y1="120" x2="365" y2="250" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#ffffff"/><stop offset=".72" stop-color="#e6e8f3"/><stop offset="1" stop-color="#c9ccda"/>
+  </linearGradient>
+</defs>
+<circle cx="350" cy="58" r="46" fill="url(#dark)"/>
+<path d="M125 282c49-83 94-137 149-145 31-5 58 2 78 17-18 16-29 35-34 57-27-18-57-18-87-2-31 16-61 43-106 73z" fill="url(#dark)"/>
+<path d="M154 320c78-12 145-41 195-88 42-39 69-81 90-132l-30 15 63-78v96l-25-18c-27 69-61 118-109 155-52 40-116 61-184 50z" fill="url(#purple)"/>
+<path d="M199 297c43-13 81-31 111-56 28-23 49-51 66-87-13 33-32 62-58 87-32 30-71 48-119 56z" fill="#fff" opacity=".94"/>
+<text x="360" y="398" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="76" font-weight="800" letter-spacing="-4">
+<tspan fill="#171a2b">Sale</tspan><tspan fill="#8b35ff">Trening</tspan>
+</text>
+</svg>
