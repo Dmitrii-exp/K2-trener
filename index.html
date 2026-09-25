@@ -313,12 +313,100 @@ body{background:var(--ux-bg);color:var(--ux-text)}
   .training-voice-banner{align-items:flex-start;flex-direction:column}
   .training-voice-banner .secondary{width:100%}
 }
+</style><style id="training-phone-ui-v1">
+.training-workspace{min-height:calc(100vh - 28px);display:flex;flex-direction:column;align-items:center;padding:4px 0 28px}
+.training-session-head{width:min(100%,920px);display:flex;align-items:flex-start;gap:18px;margin-bottom:12px}
+.training-back{min-height:40px}
+.training-session-title{flex:1;text-align:center;padding-right:110px}
+.training-session-title .eyebrow{margin-bottom:3px}
+.training-session-title h1{margin:0;font-size:22px;line-height:1.2;font-weight:850;letter-spacing:-.4px}
+.training-session-title span{display:block;margin-top:4px;color:var(--muted);font-size:12px}
+.phone-training-shell{position:relative;width:430px;height:min(760px,calc(100vh - 128px));min-height:620px;padding:9px;border-radius:43px;background:#121018;box-shadow:0 24px 60px rgba(25,20,40,.2),0 0 0 1px rgba(255,255,255,.14);box-sizing:border-box}
+.phone-training-shell:before{content:"";position:absolute;inset:5px;border-radius:39px;border:1px solid rgba(255,255,255,.09);pointer-events:none}
+.phone-speaker{position:absolute;z-index:4;top:17px;left:50%;transform:translateX(-50%);width:88px;height:23px;border-radius:16px;background:#08070c;box-shadow:inset 0 1px 2px rgba(255,255,255,.06)}
+.phone-screen{height:100%;border-radius:35px;overflow:hidden;background:#f7f7fb;display:flex;flex-direction:column;position:relative}
+.phone-status{height:27px;padding:7px 18px 0;display:flex;justify-content:space-between;align-items:flex-start;font-size:9px;font-weight:800;color:#7c7f90;box-sizing:border-box}
+.phone-chat-head{display:flex;align-items:center;gap:10px;padding:8px 15px 12px;border-bottom:1px solid #e8e8ef;background:#fff}
+.phone-icon-btn{width:34px;height:34px;flex:0 0 34px;border:0;border-radius:11px;background:#f5f4f9;color:#454758;font-size:23px;line-height:1;display:grid;place-items:center;cursor:pointer}
+.phone-icon-btn:hover{background:#eeeafe;color:var(--p)}
+.phone-client-avatar{width:39px;height:39px;border-radius:50%;background:linear-gradient(135deg,#7357ff,#907cff);display:grid;place-items:center;color:#fff;font-size:11px;font-weight:850;box-shadow:0 5px 12px rgba(115,87,255,.2)}
+.phone-client-info{min-width:0;flex:1}
+.phone-client-info strong{display:block;font-size:13px;line-height:1.2}
+.phone-client-info small{display:flex;align-items:center;gap:5px;margin-top:3px;color:#858797;font-size:10px}
+.phone-client-info small i{width:6px;height:6px;border-radius:50%;background:#20b486;display:block}
+.phone-scenario-strip{display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:#fbfaff;border-bottom:1px solid #ececf2;color:#777a8b;font-size:9px;font-weight:700}
+.phone-scenario-strip span{padding:4px 7px;border-radius:999px;background:#eeeafe;color:#7357ff}
+.phone-messages{flex:1;min-height:0;overflow-y:auto;padding:16px 13px 12px;display:flex;flex-direction:column;gap:9px;background:#f7f7fb;scroll-behavior:smooth}
+.phone-messages::-webkit-scrollbar{width:4px}.phone-messages::-webkit-scrollbar-thumb{background:#d8d8e2;border-radius:10px}
+.phone-messages .msg{max-width:82%;display:flex;flex-direction:column;gap:3px;padding:9px 11px;border-radius:15px;font-size:12px;line-height:1.45;box-shadow:none}
+.phone-messages .msg.client{align-self:flex-start;background:#fff;border:1px solid #e5e5ed;border-bottom-left-radius:5px;color:#242535}
+.phone-messages .msg.manager{align-self:flex-end;background:#7357ff;color:#fff;border-bottom-right-radius:5px}
+.phone-messages .msg-name{font-size:9px;font-weight:800;opacity:.62}
+.phone-messages .msg-text{white-space:pre-wrap;overflow-wrap:anywhere}
+.phone-composer-wrap{padding:9px 11px 4px;background:#fff;border-top:1px solid #e6e6ed}
+.phone-composer{display:flex;align-items:flex-end;gap:7px;padding:5px;background:#f4f3f8;border:1px solid #e1e1e9;border-radius:16px}
+.phone-composer textarea{flex:1;min-width:0;min-height:34px;max-height:84px;padding:8px 4px;border:0;background:transparent;resize:none;outline:0;font:inherit;font-size:12px;color:var(--text);box-shadow:none}
+.phone-composer textarea:focus{box-shadow:none}
+.phone-voice,.phone-send{width:34px;height:34px;min-height:34px;flex:0 0 34px;padding:0;border-radius:11px;display:grid;place-items:center}
+.phone-voice{border:0;background:#eae8f0;color:#56596b;font-size:20px;cursor:pointer}
+.phone-voice:hover{background:#ddd8ef;color:#7357ff}
+.phone-send{font-size:18px;padding:0;box-shadow:none}
+.phone-finish{width:100%;border:0;background:transparent;color:#8a8b99;font-size:10px;font-weight:750;padding:7px 0 5px;cursor:pointer}
+.phone-finish:hover{color:#d84d5b}
+.phone-home-indicator{width:90px;height:4px;border-radius:5px;background:#22202a;margin:4px auto 5px;flex:0 0 auto}
+.training-session-note{margin-top:9px;color:#8a8b99;font-size:10px;text-align:center}
+@media(max-width:760px){
+  .training-workspace{min-height:calc(100vh - 20px);padding:0 0 12px}
+  .training-session-head{width:100%;margin-bottom:8px;align-items:center}
+  .training-session-title{padding-right:0;text-align:left}
+  .training-session-title h1{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .training-session-title .eyebrow,.training-session-title span{display:none}
+  .training-back{min-height:38px;padding:8px 10px}
+  .phone-training-shell{width:min(100%,430px);height:calc(100vh - 105px);min-height:560px;border-radius:31px;padding:6px;box-shadow:0 10px 28px rgba(25,20,40,.14)}
+  .phone-screen{border-radius:26px}
+  .phone-speaker{top:12px;width:76px;height:18px}
+  .phone-status{height:23px;padding-top:5px}
+  .phone-chat-head{padding-top:7px}
+  .training-session-note{display:none}
+}
 </style></head>
 <body><div id="root"></div><div id="toast" class="toast hidden"></div>
 <script src="/site-repair.js?v=20260903-2"></script>
 <script>
 async function startTraining(id){const s=state.scenarios.find(x=>x.id===id);if(!s)return;const {data,error}=await sb.from("saletrening_sessions").insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:id,status:"started",transcript:[],voice_mode:false}).select().single();if(error){toast(error.message);return}state.session={...data,scenario:s};state.messages=[];await saveSession();state.view="training";trainingChat();try{const opening=await aiClientReply("",true);state.messages.push({speaker:"client",content:opening});await saveSession();trainingChat()}catch(e){console.error("chat-client opening:",e);trainingChat();toast("Не удалось получить первую реплику AI-клиента: "+(e.message||"ошибка"))}}
-function trainingChat(){const p=$("page");if(!p)return;p.innerHTML=`<div class="top"><div><h2>${esc(state.session.scenario.title)}</h2><div class="muted">${esc(state.session.scenario.client_role||"Клиент")} · ${esc(state.session.scenario.difficulty||"Средняя")}</div></div></div><div class="chat"><div id="messages" class="messages">${state.messages.map(m=>`<div class="msg ${m.speaker}"><b>${m.speaker==="client"?"Клиент":"Вы"}:</b> ${esc(m.content)}</div>`).join("")}</div><div class="composer"><button class="voice" onclick="voiceInput()" title="Голосовой ввод">🎙️</button><textarea id="msg" rows="2" placeholder="Ответьте клиенту..."></textarea><button class="primary" onclick="sendMessage()">Отправить</button></div><button class="secondary" style="width:100%;margin-top:10px" onclick="finishTraining()">⚑ Завершить тренировку</button><div class="muted" style="text-align:center;margin-top:7px">Тренировка будет завершена и отправлена на анализ AI</div></div>`;const messages=$("messages");if(messages)messages.scrollTop=messages.scrollHeight}
+function trainingChat(){const p=$("page");if(!p)return;
+const scenario=state.session.scenario||{};
+p.innerHTML=`<div class="training-workspace">
+  <div class="training-session-head">
+    <div><button class="secondary training-back" onclick="if(confirm('Выйти из текущей тренировки? Прогресс уже сохранён.')){state.session=null;state.view='training';loadAll().then(()=>render())}">← Тренировки</button></div>
+    <div class="training-session-title"><div class="eyebrow">AI SALES TRAINING</div><h1>${esc(scenario.title||"Тренировка")}</h1><span>${esc(scenario.client_role||"Клиент")} · ${esc(scenario.difficulty||"Средняя")}</span></div>
+  </div>
+  <div class="phone-training-shell">
+    <div class="phone-speaker"></div>
+    <div class="phone-screen">
+      <div class="phone-status"><span>SaleTrening</span><span>AI</span></div>
+      <header class="phone-chat-head">
+        <button class="phone-icon-btn" onclick="if(confirm('Выйти из текущей тренировки? Прогресс уже сохранён.')){state.session=null;state.view='training';loadAll().then(()=>render())}" aria-label="Назад">‹</button>
+        <div class="phone-client-avatar"><span>AI</span></div>
+        <div class="phone-client-info"><strong>${esc(scenario.client_role||"Клиент")}</strong><small><i></i> В сети · AI-клиент</small></div>
+        <button class="phone-icon-btn" onclick="speakClient(state.messages.filter(x=>x.speaker==='client').slice(-1)[0]?.content||'')" aria-label="Озвучить последнее сообщение">◖</button>
+      </header>
+      <div class="phone-scenario-strip"><span>${esc(scenario.difficulty||"Средняя")}</span><b>${state.messages.length?state.messages.filter(x=>x.speaker==="manager").length:0} реплик</b></div>
+      <div id="messages" class="messages phone-messages">${state.messages.map(m=>`<div class="msg ${m.speaker}"><div class="msg-name">${m.speaker==="client"?"Клиент":"Вы"}</div><div class="msg-text">${esc(m.content)}</div></div>`).join("")}</div>
+      <div class="phone-composer-wrap">
+        <div class="composer phone-composer">
+          <button class="voice phone-voice" onclick="voiceInput()" title="Голосовой ввод" aria-label="Голосовой ввод">⌁</button>
+          <textarea id="msg" rows="1" placeholder="Напишите ответ клиенту..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+          <button class="primary phone-send" onclick="sendMessage()" aria-label="Отправить">↑</button>
+        </div>
+        <button class="phone-finish" onclick="finishTraining()">Завершить тренировку</button>
+      </div>
+      <div class="phone-home-indicator"></div>
+    </div>
+  </div>
+  <div class="training-session-note">Диалог сохраняется автоматически · после завершения AI подготовит разбор тренировки</div>
+</div>`;
+const messages=$("messages");if(messages)messages.scrollTop=messages.scrollHeight;const input=$("msg");if(input)setTimeout(()=>input.focus(),50)}
 async function saveSession(){if(!state.session)return;const {error}=await sb.from("saletrening_sessions").update({transcript:state.messages,updated_at:new Date().toISOString()}).eq("id",state.session.id).eq("employee_id",state.user.id);if(error)console.error("saveSession:",error)}
 async function aiClientReply(userMessage,opening=false){if(!state.session?.scenario)throw new Error("Нет активной тренировки");const {data,error}=await sb.auth.getSession();if(error||!data?.session?.access_token)throw new Error("Сессия авторизации истекла");const settings=state.clientSettings||state.client_settings||state.session.client_settings||state.session.scenario.client_settings||state.session.scenario.clientSettings||state.session.scenario.ai_settings||state.session.scenario.settings||{};const objections=state.clientObjections||state.client_objections||state.session.objections||state.session.client_objections||state.session.scenario.objections||state.session.scenario.client_objections||[];const r=await fetch(SUPABASE_URL+"/functions/v1/chat-client",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+data.session.access_token},body:JSON.stringify({session_id:state.session.id,scenario_id:state.session.scenario.id,message:opening?"":userMessage,opening,transcript:state.messages,scenario:state.session.scenario,client_settings:settings,objections,cold_call:state.view==="coldcall"?{character:coldCall.character||"Лояльный",facts:coldCall.facts||"",voice:coldCall.voice||"filipp",difficulty:coldCall.difficulty||"Средний"}:null})/* CLIENT_SETTINGS_RUNTIME_V2 */,cache:"no-store"});const raw=await r.text();let j=null;try{j=raw?JSON.parse(raw):null}catch(_){}if(!r.ok)throw new Error(j?.error||j?.message||raw||( "HTTP "+r.status));const reply=j?.reply||j?.message||j?.content||j?.text;if(!reply)throw new Error("AI не вернул реплику клиента");return reply}
 function speakClient(text){if(!( "speechSynthesis" in window)||!text)return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang="ru-RU";u.rate=.96;u.pitch=1;window.speechSynthesis.speak(u)}
