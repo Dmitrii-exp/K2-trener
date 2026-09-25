@@ -1,12 +1,12 @@
 name: One-time voice runtime repair
 on:
-  push:
-    paths:
-      - '.github/workflows/voice-fix.yml'
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
   repair:
+    # Archived one-time migration; superseded by versioned source files.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

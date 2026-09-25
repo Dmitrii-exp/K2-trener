@@ -1,0 +1,35 @@
+/* Authentication layout. Keep after shared styles. */
+
+@media (min-width:901px){
+body:has(.auth-desktop){background:#eef3ff}.auth-desktop-card .auth-brand-logo{display:block;width:min(300px,72%);height:auto;max-height:140px;object-fit:contain;object-position:left center}.auth-desktop-card .auth-brand{display:flex;align-items:center;justify-content:space-between;gap:18px}
+.auth.auth-desktop{min-height:100vh;display:grid;grid-template-columns:minmax(520px,48%) minmax(520px,52%);padding:0;background:radial-gradient(circle at 68% 18%,rgba(180,170,255,.48),transparent 30%),radial-gradient(circle at 90% 78%,rgba(150,180,255,.32),transparent 34%),linear-gradient(135deg,#f7fbff 0%,#eef3ff 48%,#e9e8ff 100%);overflow:hidden}
+.auth-desktop-left{display:flex;align-items:center;justify-content:center;padding:48px 56px;position:relative;z-index:2}.auth-desktop-card{width:min(520px,100%);padding:42px 46px 38px;background:rgba(255,255,255,.94);border:1px solid rgba(224,227,239,.95);border-radius:28px;box-shadow:0 24px 70px rgba(48,55,100,.13);backdrop-filter:blur(12px)}
+.auth-desktop-card .auth-brand{margin-bottom:34px}.auth-desktop-card .logo{font-size:28px;gap:14px;letter-spacing:-.7px}.auth-desktop-card .logo-b{width:58px;height:58px;border-radius:17px;flex-basis:58px}.auth-desktop-card .auth-brand .auth-badge{display:none}
+.auth-desktop-card h1{font-size:38px;line-height:1.08;letter-spacing:-1.2px;margin:0 0 12px;color:#111b32}.auth-desktop-card .sub{max-width:430px;font-size:17px;line-height:1.5;color:#7a8497;margin-bottom:28px}
+.auth-desktop-card .field{margin:0 0 18px}.auth-desktop-card .field label{display:none}.auth-desktop-card .field input{height:60px;border:1px solid #dce1eb;border-radius:14px;padding:0 18px;font-size:16px;background:#fff;color:#182039}.auth-desktop-card .field input::placeholder{color:#8791a4}.auth-desktop-card .field input:focus{border-color:#7357ff;box-shadow:0 0 0 4px rgba(115,87,255,.11)}
+.auth-desktop-card .auth-actions{margin-top:4px;display:block}.auth-desktop-card .auth-actions .primary{width:100%;height:60px;border-radius:14px;font-size:17px;font-weight:800;background:linear-gradient(135deg,#7357ff,#6245e8);box-shadow:0 12px 24px rgba(115,87,255,.23)}.auth-desktop-card .auth-actions .secondary{display:none}
+.auth-desktop-forgot{display:flex;justify-content:flex-end;margin:-4px 0 18px}.auth-desktop-forgot button{border:0;background:none;padding:0;color:#7357ff;font-weight:700;font-size:14px}.auth-desktop-card .auth-desktop-register{margin-top:24px;text-align:center;color:#7d8799;font-size:14px}.auth-desktop-card .auth-desktop-register button{border:0;background:none;padding:0 0 0 7px;color:#7357ff;font-weight:800}
+.auth-desktop-right{position:relative;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:58px 7vw 58px 34px;overflow:hidden}.auth-desktop-right:before{content:"";position:absolute;width:680px;height:680px;right:-170px;top:50%;transform:translateY(-50%);border-radius:50%;background:radial-gradient(circle at 45% 45%,rgba(123,93,255,.32),rgba(153,170,255,.16) 44%,transparent 68%)}.auth-desktop-right:after{content:"";position:absolute;width:440px;height:440px;right:80px;top:50%;transform:translateY(-50%);border:1px solid rgba(115,87,255,.13);border-radius:50%;box-shadow:0 0 0 50px rgba(115,87,255,.035),0 0 0 105px rgba(115,87,255,.025)}
+.auth-marketing{position:relative;z-index:2;max-width:680px}.auth-marketing-pill{display:inline-flex;align-items:center;padding:10px 18px;border-radius:999px;background:rgba(238,234,254,.88);color:#4e35bd;font-weight:750;font-size:14px;margin-bottom:25px}.auth-marketing h2{margin:0;max-width:650px;color:#101a31;font-size:54px;line-height:1.03;letter-spacing:-2.2px}.auth-marketing h2 span{color:#7357ff}
+.auth-features{display:grid;gap:18px;margin-top:38px;max-width:500px}.auth-feature{display:grid;grid-template-columns:50px 1fr;gap:15px;align-items:center;color:#31405e;font-size:17px;line-height:1.35}.auth-feature-icon{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;color:#7357ff;background:linear-gradient(135deg,#eeeafe,#e2dcff);font-size:22px;font-weight:900;box-shadow:0 8px 20px rgba(115,87,255,.08)}
+.auth-coach{position:absolute;z-index:3;right:7%;bottom:6%;width:330px;height:330px;border-radius:50%;display:grid;place-items:center}.auth-coach-core{width:230px;height:230px;border-radius:50%;background:linear-gradient(145deg,#25203b,#171527);border:9px solid rgba(255,255,255,.72);box-shadow:0 25px 55px rgba(49,38,95,.23);display:grid;place-items:center;position:relative}.auth-coach-core:before{content:"";position:absolute;width:120px;height:120px;border-radius:50%;background:linear-gradient(145deg,#b9aaff,#7357ff);top:27px}.auth-coach-core:after{content:"TS";position:absolute;color:#fff;font-size:46px;font-weight:900;letter-spacing:-3px;top:60px}.auth-coach-label{position:absolute;right:-35px;bottom:5px;width:250px;padding:17px 20px;border-radius:20px;background:rgba(255,255,255,.74);border:1px solid rgba(255,255,255,.9);box-shadow:0 18px 38px rgba(50,45,100,.13);backdrop-filter:blur(12px);color:#182039;font-size:16px;font-weight:800;line-height:1.35}.auth-coach-label span{color:#7357ff}
+}
+@media (min-width:901px) and (max-width:1200px){.auth.auth-desktop{grid-template-columns:52% 48%}.auth-desktop-left{padding:38px 36px}.auth-desktop-card{padding:36px 38px}.auth-marketing h2{font-size:45px}.auth-coach{right:-50px;bottom:5%;transform:scale(.82)}}
+@media (max-width:900px){.auth-desktop-right{display:none!important}.auth-desktop-left{width:100%}}
+
+@media (max-width:900px){
+  .auth.auth-desktop{min-height:100svh;padding:20px 16px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 20% 10%,#eee9ff,transparent 55%),#f7f7fb}
+  .auth-desktop-left{width:100%;max-width:470px;min-width:0}
+  .auth-desktop-card{width:100%;padding:26px 22px;background:#fff;border:1px solid #e2def0;border-radius:24px;box-shadow:0 18px 48px rgba(42,30,85,.09)}
+  .auth-desktop-card .auth-brand{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+  .auth-desktop-card .auth-brand-logo{display:block;width:min(220px,70%);height:auto;max-height:110px;object-fit:contain;object-position:left center}
+  .auth-desktop-card h1{font-size:28px;line-height:1.15;margin:24px 0 12px;overflow-wrap:anywhere}
+  .auth-desktop-card .sub{font-size:14px}
+  .auth-desktop-card .field input{min-height:48px;font-size:16px}
+  .auth-desktop-card .auth-actions{display:flex;flex-direction:column;gap:10px}
+  .auth-desktop-card .auth-actions button{width:100%;min-height:48px}
+  .auth-desktop-forgot{text-align:right;margin:12px 0}
+  .auth-desktop-forgot button,.auth-desktop-card .auth-desktop-register button{border:0;background:none;padding:6px;color:#7357ff;font-weight:700}
+  .auth-desktop-card .auth-desktop-register{margin-top:18px;text-align:center;font-size:13px}
+  .auth-desktop-card .auth-note{overflow-wrap:anywhere}
+}

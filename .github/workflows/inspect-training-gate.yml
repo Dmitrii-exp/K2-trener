@@ -1,12 +1,12 @@
 name: Inspect training gate
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
   inspect:
-    if: github.event.head_commit.message == 'debug: inspect training gate'
+    # Archived one-time migration; superseded by versioned source files.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

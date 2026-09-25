@@ -1,12 +1,12 @@
 name: Apply training UI fix
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
   patch:
-    if: github.actor != 'github-actions[bot]'
+    # Archived one-time migration; superseded by versioned source files.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

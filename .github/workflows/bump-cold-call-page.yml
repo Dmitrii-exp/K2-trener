@@ -1,15 +1,12 @@
 name: Bump cold call page asset
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'cold-call-voice-v5.js'
-      - 'site-repair.js'
-      - '.github/workflows/bump-cold-call-page.yml'
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
   bump:
+    # Archived one-time migration; superseded by versioned source files.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

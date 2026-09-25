@@ -89,36 +89,9 @@
     }catch(e){console.error('[SaleTrening] cold-call isolation failed',e)}
   }
 
-  function patchStandardTraining(){
-    try{
-      if(typeof state==='undefined'||!state||typeof window.startTraining!=='function')return;
-      var original=window.startTraining;
-      if(original.__saleTrainingWrapped)return;
-      var wrapped=async function(id){
-        try{
-          if(window.SALETRENING_TRAINING_SUBSCRIPTION_GATE)return await original(id);
-          if(!id)throw new Error('Не передан ID сценария');
-          var scenario=state.scenarios&&state.scenarios.find(function(x){return x.id===id});
-          if(!scenario)throw new Error('Сценарий не найден: '+id);
-          if(!state.user?.id)throw new Error('Пользователь не авторизован');
-          if(!state.profile?.company_id)throw new Error('Профиль компании не загружен');
-          var result=await sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:id,status:'started',transcript:[],voice_mode:false}).select().single();
-          if(result.error)throw new Error(result.error.message||'Не удалось создать тренировочную сессию');
-          state.session=Object.assign({},result.data,{scenario:scenario});state.messages=[];state.view='training';
-          if(typeof trainingChat==='function')trainingChat();
-          var opening=await aiClientReply('',true);state.messages.push({speaker:'client',content:opening});
-          if(typeof saveSession==='function')await saveSession();
-          if(typeof trainingChat==='function')trainingChat();
-        }catch(e){console.error('[SaleTrening] startTraining failed',e);if(typeof toast==='function')toast('Ошибка запуска тренировки: '+(e.message||e))}
-      };
-      wrapped.__saleTrainingWrapped=true;window.startTraining=wrapped;
-    }catch(e){console.error('[SaleTrening] standard training patch failed',e)}
-  }
-
   window.addEventListener('load',function(){
     setTimeout(function(){
       loadVoiceRuntime();
-      patchStandardTraining();
       patchColdCall();
       var tries=0;var timer=setInterval(function(){tries++;patchColdCall();installColdAiBridge();if(window.__stColdCallIsolated||tries>=40)clearInterval(timer)},250);
       try{

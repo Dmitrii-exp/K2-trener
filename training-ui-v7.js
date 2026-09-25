@@ -6,6 +6,7 @@
 
   var busy=false;
   var modal=null;
+  var launching=false;
 
   function esc(v){return String(v==null?'':v).replace(/[&<>\"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]})}
   function toast(msg){var el=document.getElementById('toast');if(el){el.textContent=String(msg);el.classList.remove('hidden');clearTimeout(window.__stTextToast);window.__stTextToast=setTimeout(function(){el.classList.add('hidden')},4500)}console.log('[SaleTrening]',msg)}
@@ -47,7 +48,7 @@
   }
 
   function open(){
-    styles();close();modal=document.createElement('div');modal.id='st-text-v7';document.body.appendChild(modal);render();
+    styles();if(modal)modal.remove();modal=document.createElement('div');modal.id='st-text-v7';document.body.appendChild(modal);render();
   }
 
   async function send(){
@@ -56,6 +57,7 @@
     if(!state.session){toast('Активная тренировка не найдена');return}
     busy=true;state.messages=Array.isArray(state.messages)?state.messages:[];state.messages.push({speaker:'manager',content:text});render();
     try{
+      if(typeof saveSession==='function')await wait(saveSession(),10000);
       if(typeof aiClientReply!=='function')throw new Error('Функция AI-клиента не найдена');
       var reply=await wait(aiClientReply(text,false),30000);
       if(!reply)throw new Error('AI не вернул реплику клиента');
@@ -68,6 +70,8 @@
   }
 
   async function launch(id){
+    if(launching||modal){toast("Тренировка уже открыта или загружается");return}
+    launching=true;
     try{
       if(typeof state==='undefined'||!state)throw new Error('Состояние приложения не загружено');
       if(typeof sb==='undefined'||!sb)throw new Error('Supabase не инициализирован');
@@ -85,7 +89,7 @@
         if(typeof saveSession==='function')await wait(saveSession(),10000);
       }catch(e){toast('Сессия открыта. Первую реплику AI получить не удалось: '+(e.message||e));}
       busy=false;render();
-    }catch(e){busy=false;console.error('[SaleTrening] launch',e);toast('Ошибка запуска тренировки: '+(e.message||e))}
+    }catch(e){busy=false;console.error('[SaleTrening] launch',e);toast('Ошибка запуска тренировки: '+(e.message||e))}finally{launching=false}
   }
 
   async function finish(){
@@ -96,23 +100,6 @@
     if(typeof fn==='function')await fn();
   }
 
-  function extractId(el){
-    var code=el.getAttribute('onclick')||'';var m=code.match(/startTraining\s*\(\s*([^\),]+)\s*\)/);if(m)return String(m[1]).trim().replace(/^['\"]|['\"]$/g,'');
-    var card=el.closest('.scenario');if(card){var b=card.querySelector('button[onclick*="startTraining"]');if(b&&b!==el){var c=b.getAttribute('onclick')||'';var n=c.match(/startTraining\s*\(\s*([^\),]+)\s*\)/);if(n)return String(n[1]).trim().replace(/^['\"]|['\"]$/g,'')}}
-    return null;
-  }
-
-  function intercept(){
-    document.addEventListener('click',function(e){
-      var el=e.target&&e.target.closest?e.target.closest('button,[role="button"],a'):null;if(!el)return;
-      var id=extractId(el);var label=(el.textContent||'').trim();
-      if(!id&&/Начать тренировку/.test(label))id=extractId(el.closest('.scenario')?.querySelector('button[onclick*="startTraining"]')||el);
-      if(!id)return;
-      e.preventDefault();e.stopImmediatePropagation();launch(id);
-    },true);
-    window.__launchTextTrainingV7=launch;
-  }
-
-  function boot(){styles();intercept();window.startTraining=function(id){return launch(id)};}
+  function boot(){styles();window.__launchTextTrainingV7=launch;}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
