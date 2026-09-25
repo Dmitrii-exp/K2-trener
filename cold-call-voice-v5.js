@@ -121,75 +121,59 @@
     if($('st-cold-page-style'))return;
     const s=document.createElement('style');s.id='st-cold-page-style';
     s.textContent=`
-      .st-cold-page{width:100%;min-width:0;box-sizing:border-box;margin:0 auto;padding:0 0 24px;display:flex;flex-direction:column;align-items:center}
-      .st-cold-head{width:min(100%,920px);display:flex;align-items:flex-start;gap:18px;margin-bottom:12px}
-      .st-cold-head h2{margin:0;font-size:22px;font-weight:850;letter-spacing:-.5px}
-      .st-cold-sub{margin-top:4px;color:var(--muted);font-size:12px}
-      .st-cold-card{position:relative;width:430px;max-width:100%;height:min(760px,calc(100vh - 128px));min-height:620px;padding:9px;box-sizing:border-box;background:#121018;color:#fff;border-radius:43px;overflow:hidden;box-shadow:0 24px 60px rgba(25,20,40,.2),0 0 0 1px rgba(255,255,255,.14)}
-      .st-cold-card:before{content:"";position:absolute;inset:5px;border-radius:39px;border:1px solid rgba(255,255,255,.09);pointer-events:none}
-      .st-cold-card:after{content:"";position:absolute;z-index:4;top:14px;left:50%;transform:translateX(-50%);width:88px;height:23px;border-radius:16px;background:#08070c;box-shadow:inset 0 1px 2px rgba(255,255,255,.06);pointer-events:none}
-      .st-cold-card>*{position:relative;z-index:1}
-      .st-cold-top{height:100%;padding:0;background:#f7f7fb;color:#171827;text-align:left;border-radius:35px;overflow:hidden;display:flex;flex-direction:column}
-      .st-cold-avatar{width:39px;height:39px;border-radius:50%;margin:0;display:grid;place-items:center;background:linear-gradient(135deg,#7357ff,#907cff);font-size:16px;color:#fff}
-      .st-cold-name{font-size:13px;font-weight:850;line-height:1.2}.st-cold-meta{margin-top:3px;color:#858797;font-size:10px}.st-cold-time{margin-left:auto;margin-top:0;color:#858797;font-size:10px;font-variant-numeric:tabular-nums}
-      .st-cold-top:before{content:"SaleTrening";display:block;height:27px;padding:7px 18px 0;box-sizing:border-box;color:#7c7f90;font-size:9px;font-weight:800}
-      .st-cold-live{order:2;margin:0;padding:8px 16px;background:#fbfaff;border:0;border-top:1px solid #ececf2;border-bottom:1px solid #ececf2;border-radius:0;display:flex;align-items:center;justify-content:space-between;gap:8px}
-      .st-cold-live-label{font-size:9px;color:#777a8b;text-transform:uppercase;letter-spacing:.1em}.st-cold-live-text{margin:0;font-size:10px;line-height:1.35;color:#777a8b;text-align:right;max-width:68%}
-      .st-cold-main{order:3;flex:1;min-height:0;padding:0;box-sizing:border-box;display:flex;flex-direction:column}
-      .st-cold-transcript{flex:1;background:#f7f7fb;border-radius:0;padding:16px 13px 12px;min-height:0;max-height:none;overflow:auto}
-      .st-cold-msg{display:flex;margin:8px 0}.st-cold-msg.manager{justify-content:flex-end}.st-cold-msg.client{justify-content:flex-start}
-      .st-cold-bubble{max-width:82%;padding:9px 11px;border-radius:15px;line-height:1.45;font-size:12px;box-shadow:none}
-      .st-cold-msg.client .st-cold-bubble{background:#fff;border:1px solid #e5e5ed;color:#242535;border-bottom-left-radius:5px}.st-cold-msg.manager .st-cold-bubble{background:#7357ff;color:#fff;border-bottom-right-radius:5px}.st-cold-label{font-size:9px;opacity:.62;margin-bottom:3px;letter-spacing:.04em}
-      .st-cold-compose{display:flex;gap:7px;margin:0;padding:9px 11px 4px;background:#fff;border-top:1px solid #e6e6ed}
-      .st-cold-compose textarea{flex:1;min-width:0;min-height:34px;max-height:84px;resize:none;border:0;background:transparent;color:#171827;border-radius:0;padding:8px 4px;outline:none;font-size:12px}
-      .st-cold-send{border:0;border-radius:11px;width:34px;height:34px;padding:0;background:#7357ff;color:#fff;font-weight:800}
-      .st-cold-controls{order:4;display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:0;padding:5px 11px 0;background:#fff}
-      .st-cold-mic,.st-cold-end{border:0;border-radius:11px;padding:8px 14px;min-height:34px;color:#fff;font-weight:800;font-size:10px}
-      .st-cold-mic{background:#7357ff;min-width:180px}.st-cold-mic.recording{background:#d84d5b}.st-cold-end{background:#302b43}
-      .st-cold-hint{order:5;text-align:center;color:#8a8b99;font-size:9px;line-height:1.35;margin:0;padding:6px 12px 4px;background:#fff}
-      .st-cold-back{border:1px solid var(--line);border-radius:12px;padding:10px 15px;background:#fff;color:var(--text);font-weight:650;min-height:40px}
-      @media(max-width:760px){.st-cold-page{padding-bottom:12px}.st-cold-head{width:100%;align-items:center;margin-bottom:8px}.st-cold-head h2{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.st-cold-sub{display:none}.st-cold-card{width:min(100%,430px);height:calc(100vh - 105px);min-height:560px;border-radius:31px;padding:6px}.st-cold-card:before{inset:4px;border-radius:27px}.st-cold-card:after{top:11px;width:76px;height:18px}.st-cold-top{border-radius:26px}.st-cold-top:before{height:23px;padding-top:5px}.st-cold-controls{padding-top:4px}.st-cold-hint{display:none}}
+      .st-cold-page{width:100%;min-width:0;margin:0 auto;padding:0 0 24px;display:flex;flex-direction:column;align-items:center}
+      .st-cold-head{width:min(100%,900px);display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 12px}
+      .st-cold-head h2{margin:0;font-size:21px;font-weight:850;letter-spacing:-.5px}.st-cold-sub{margin-top:3px;color:var(--muted);font-size:12px}
+      .st-cold-back{border:1px solid var(--line);border-radius:12px;padding:9px 14px;background:#fff;color:var(--text);font-weight:700;min-height:40px;cursor:pointer}
+      .st-cold-card{position:relative;width:390px;max-width:100%;height:min(760px,calc(100dvh - 125px));min-height:620px;padding:7px;box-sizing:border-box;background:#111018;border-radius:48px;overflow:hidden;box-shadow:0 28px 70px rgba(22,18,38,.28),0 0 0 1px rgba(20,18,29,.5)}
+      .st-cold-card:before{content:"";position:absolute;inset:3px;border-radius:45px;border:1px solid rgba(255,255,255,.16);pointer-events:none;z-index:5}
+      .st-cold-card:after{content:"";position:absolute;z-index:7;top:15px;left:50%;transform:translateX(-50%);width:104px;height:27px;border-radius:18px;background:#08070c;pointer-events:none}
+      .st-cold-top{height:100%;position:relative;border-radius:41px;overflow:hidden;display:flex;flex-direction:column;color:#fff;background:radial-gradient(circle at 50% 20%,rgba(132,105,255,.35),transparent 30%),linear-gradient(165deg,#29243c 0%,#171522 45%,#0f0e16 100%)}
+      .st-cold-top:before{content:"SaleTrening";height:48px;padding:18px 20px 0;box-sizing:border-box;color:rgba(255,255,255,.58);font-size:10px;font-weight:800;letter-spacing:.04em}
+      .st-cold-contact{display:flex;flex-direction:column;align-items:center;text-align:center;padding:38px 24px 10px}
+      .st-cold-avatar{width:94px;height:94px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#8f79ff,#6349e8);box-shadow:0 16px 38px rgba(111,85,232,.3);font-size:38px;color:#fff}
+      .st-cold-name{margin-top:18px;font-size:25px;font-weight:800;letter-spacing:-.5px}.st-cold-meta{margin-top:6px;color:rgba(255,255,255,.6);font-size:13px}
+      .st-cold-time{margin-top:8px;color:#fff;font-size:16px;font-weight:650;font-variant-numeric:tabular-nums}
+      .st-cold-live{margin:14px 20px 0;padding:12px 14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.055);border-radius:16px;text-align:center}
+      .st-cold-live-label{display:none}.st-cold-live-text{font-size:11px;line-height:1.4;color:rgba(255,255,255,.64)}
+      .st-cold-main{flex:1;min-height:0;display:flex;flex-direction:column}
+      .st-cold-transcript{flex:1;min-height:0;overflow:auto;padding:14px 18px 4px;scrollbar-width:thin;mask-image:linear-gradient(to bottom,transparent 0,#000 20px,#000 100%)}
+      .st-cold-msg{display:flex;margin:7px 0}.st-cold-msg.manager{justify-content:flex-end}.st-cold-msg.client{justify-content:flex-start}
+      .st-cold-bubble{max-width:82%;padding:9px 11px;border-radius:15px;line-height:1.4;font-size:11px}.st-cold-msg.client .st-cold-bubble{background:rgba(255,255,255,.09);color:#f6f4ff;border-bottom-left-radius:5px}.st-cold-msg.manager .st-cold-bubble{background:#7357ff;color:#fff;border-bottom-right-radius:5px}.st-cold-label{font-size:8px;opacity:.55;margin-bottom:3px;letter-spacing:.05em}
+      .st-cold-empty{text-align:center;color:rgba(255,255,255,.42);font-size:12px;line-height:1.5;padding:26px 18px}
+      .st-cold-compose{display:flex;gap:7px;margin:0 18px 8px;padding:5px 5px 5px 12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.07);border-radius:18px}
+      .st-cold-compose textarea{flex:1;min-width:0;min-height:34px;max-height:68px;resize:none;border:0;background:transparent;color:#fff;padding:8px 2px;outline:none;font-size:11px}.st-cold-compose textarea::placeholder{color:rgba(255,255,255,.38)}
+      .st-cold-send{border:0;border-radius:13px;width:36px;height:36px;padding:0;background:#7357ff;color:#fff;font-weight:900;cursor:pointer}
+      .st-cold-controls{display:flex;align-items:flex-end;justify-content:center;gap:28px;padding:4px 20px 16px}
+      .st-cold-control-wrap{display:flex;flex-direction:column;align-items:center;gap:7px;color:rgba(255,255,255,.7);font-size:9px}
+      .st-cold-round{width:54px;height:54px;border:0;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.12);cursor:pointer}
+      .st-cold-round svg{width:23px;height:23px}.st-cold-end{width:62px;height:62px;border:0;border-radius:50%;display:grid;place-items:center;background:#e4515d;color:#fff;cursor:pointer;box-shadow:0 10px 24px rgba(228,81,93,.24)}.st-cold-end svg{width:27px;height:27px;transform:rotate(135deg)}
+      .st-cold-mic{width:54px;height:54px;border:0;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.12);color:#fff;cursor:pointer}.st-cold-mic svg{width:23px;height:23px}.st-cold-mic.recording{background:#7357ff}.st-cold-mic:disabled{opacity:1;cursor:default}
+      .st-cold-hint{display:none}.st-cold-home{width:108px;height:4px;border-radius:5px;background:rgba(255,255,255,.72);margin:0 auto 7px}
+      @media(max-width:760px){.st-cold-page{padding:0}.st-cold-head{display:none}.st-cold-card{width:min(100%,410px);height:calc(100dvh - 20px);min-height:590px;border-radius:42px}.st-cold-top{border-radius:36px}.st-cold-card:before{border-radius:39px}.st-cold-contact{padding-top:42px}.st-cold-avatar{width:88px;height:88px}.st-cold-name{font-size:23px}.st-cold-controls{padding-bottom:12px}}
+      @media(max-height:700px){.st-cold-contact{padding-top:24px}.st-cold-avatar{width:72px;height:72px;font-size:30px}.st-cold-name{margin-top:12px;font-size:21px}.st-cold-live{margin-top:8px}.st-cold-controls{padding-bottom:9px}}
     `;document.head.appendChild(s);
   }
-
   function bubble(speaker,text){return `<div class="st-cold-msg ${speaker}"><div class="st-cold-bubble"><div class="st-cold-label">${speaker==='manager'?'МЕНЕДЖЕР':'AI-КЛИЕНТ'}</div>${esc(text)}</div></div>`;}
 
   function render(){
     const p=$('page');if(!p||!state.session)return;css();
     const scenario=state.session.scenario||{};const difficulty=coldCall?.difficulty||scenario.difficulty||'Средний';
-    p.innerHTML=`<div class="st-cold-page"><div class="st-cold-head"><div><h2>Холодный звонок</h2><div class="st-cold-sub">Живой диалог с AI-клиентом · ${esc(difficulty)}</div></div><button id="st-cold-back" class="st-cold-back">← Назад</button></div><div class="st-cold-card"><div class="st-cold-top"><div style="height:44px;flex:0 0 44px"></div><div style="display:flex;align-items:center;gap:10px;padding:8px 15px 12px;border-bottom:1px solid #e8e8ef;background:#fff"><div class="st-cold-avatar">👤</div><div style="min-width:0;flex:1"><div class="st-cold-name">Потенциальный клиент</div><div class="st-cold-meta"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#20b486;margin-right:4px"></span>онлайн · ${esc(difficulty)}</div></div><div class="st-cold-time" id="st-cold-time">00:00</div></div><div class="st-cold-live"><div class="st-cold-live-label">Статус</div><div id="st-cold-live" class="st-cold-live-text">Нажмите «Начать говорить» один раз. После этого разговор пойдёт автоматически.</div></div><div class="st-cold-main"><div id="st-cold-transcript" class="st-cold-transcript">${(state.messages||[]).map(m=>bubble(m.speaker,m.content)).join("")||'<div style="text-align:center;color:#9a9baa;font-size:11px;padding:35px 18px">Вы говорите первым.<br>Начните разговор с клиентом.</div>'}</div><div class="st-cold-compose"><textarea id="st-cold-input" rows="1" placeholder="Или ответьте текстом…"></textarea><button id="st-cold-send" class="st-cold-send" title="Отправить">↑</button></div></div><div class="st-cold-controls"><button id="st-cold-mic" class="st-cold-mic">🎙 Начать говорить</button><button id="st-cold-end" class="st-cold-end">Завершить разговор</button></div><div class="st-cold-hint">${coldCall?.advanced?"Продвинутый звонок: GPT-Live слушает и отвечает напрямую.":"Говорите естественно. После паузы клиент отвечает автоматически. Диалог сохраняется в истории тренировки."}</div><div style="width:90px;height:4px;border-radius:5px;background:#22202a;margin:4px auto 5px;flex:0 0 auto"></div></div></div>`;
+    const micIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="12" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    const phoneIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4c1-1 2-1 3 0l2 3c.5 1 .3 2-.5 2.7l-1.4 1.1c1.1 2.2 2.9 4 5.1 5.1l1.1-1.4c.7-.8 1.7-1 2.7-.5l3 2c1 .7 1 2 .2 2.9l-1.4 1.4c-1.2 1.2-3 1.5-4.6.9C9.7 18.8 5.2 14.3 2.8 7.8 2.2 6.2 2.5 4.4 3.7 3.2z" fill="currentColor"/></svg>';
+    const speakerIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4z" fill="currentColor"/><path d="M16 9c1.5 1.5 1.5 4.5 0 6M18.5 6.5c3 3 3 8 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+    p.innerHTML=`<div class="st-cold-page"><div class="st-cold-head"><div><h2>Холодный звонок</h2><div class="st-cold-sub">Живой разговор с AI-клиентом · ${esc(difficulty)}</div></div><button id="st-cold-back" class="st-cold-back">← Назад</button></div><div class="st-cold-card"><div class="st-cold-top"><div class="st-cold-contact"><div class="st-cold-avatar">👤</div><div class="st-cold-name">Потенциальный клиент</div><div class="st-cold-meta">AI-клиент · ${esc(difficulty)}</div><div class="st-cold-time" id="st-cold-time">00:00</div></div><div class="st-cold-live"><div class="st-cold-live-label">Статус</div><div id="st-cold-live" class="st-cold-live-text">Соединение установлено. Вы говорите первым.</div></div><div class="st-cold-main"><div id="st-cold-transcript" class="st-cold-transcript">${(state.messages||[]).map(m=>bubble(m.speaker,m.content)).join("")||'<div class="st-cold-empty">Вы говорите первым.<br>Начните разговор с клиентом.</div>'}</div><div class="st-cold-compose"><textarea id="st-cold-input" rows="1" placeholder="Ответить текстом…"></textarea><button id="st-cold-send" class="st-cold-send" title="Отправить" aria-label="Отправить">↑</button></div></div><div class="st-cold-controls"><div class="st-cold-control-wrap"><button id="st-cold-mic" class="st-cold-mic" aria-label="Микрофон">${micIcon}</button><span>Микрофон</span></div><div class="st-cold-control-wrap"><button id="st-cold-end" class="st-cold-end" aria-label="Завершить звонок">${phoneIcon}</button><span>Завершить</span></div><div class="st-cold-control-wrap"><button type="button" class="st-cold-round" aria-label="Динамик">${speakerIcon}</button><span>Динамик</span></div></div><div class="st-cold-hint">${coldCall?.advanced?"Продвинутый звонок активен":"Разговор сохраняется автоматически"}</div><div class="st-cold-home"></div></div></div></div>`;
     $('st-cold-back').onclick=()=>{if(!processing){cleanup();state.session=null;state.messages=[];state.view='coldcall';render()}};
-    $('st-cold-end').onclick=finish;$('st-cold-mic').onclick=()=>{if(coldCall?.advanced){if(!livePc)startAdvancedLiveConversation()}else if(!continuousMode)startContinuousConversation()};updateUI();scrollTranscript();
+    $('st-cold-end').onclick=finish;$('st-cold-mic').onclick=()=>{if(coldCall?.advanced){if(!livePc)startAdvancedLiveConversation()}else if(!continuousMode)startContinuousConversation()};$('st-cold-send').onclick=typedTurn;$('st-cold-input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();typedTurn()}};updateUI();scrollTranscript();
   }
-
   function scrollTranscript(){const x=$('st-cold-transcript');if(x)x.scrollTop=x.scrollHeight;}
   function setStatus(text){const x=$('st-cold-live');if(x)x.textContent=text;}
   function updateUI(){
-    const b=$('st-cold-mic');
-    if(!b)return;
-    if(recording){
-      b.textContent='🔴 Говорите…';
-      b.classList.add('recording');
-      b.disabled=true;
-    }else if(processing){
-      b.textContent='⏳ ИИ отвечает…';
-      b.classList.remove('recording');
-      b.disabled=true;
-    }else if(continuousMode){
-      b.textContent='🔴 Разговор идёт автоматически';
-      b.classList.add('recording');
-      b.disabled=true;
-    }else if(coldCall?.advanced&&livePc){
-      b.textContent='🔴 Продвинутый звонок активен';
-      b.classList.add('recording');
-      b.disabled=true;
-    }else{
-      b.textContent='🎙 Начать говорить';
-      b.classList.remove('recording');
-      b.disabled=false;
-    }
+    const b=$('st-cold-mic');if(!b)return;
+    b.classList.toggle('recording',recording||continuousMode||(coldCall?.advanced&&!!livePc));
+    b.disabled=!!(recording||processing||continuousMode||(coldCall?.advanced&&livePc));
+    b.setAttribute('aria-label',processing?'ИИ отвечает':(recording||continuousMode||livePc?'Разговор активен':'Начать говорить'));
   }
-
   async function startAdvancedLiveConversation(){
     if(!callOpen||processing||livePc)return;
     try{
