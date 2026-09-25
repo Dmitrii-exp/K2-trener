@@ -1,0 +1,57 @@
+/* TrenerSale — Premium home layer
+   Scope: authenticated home/dashboard only. No behavior overrides. */
+.dashboard-shell{
+  --home-ink:#17181f;--home-muted:#70727f;--home-line:#e7e8ee;--home-surface:#fff;
+  --home-soft:#f4f2ff;--home-accent:#6f55e8;--home-accent-2:#8a74f3;
+  --home-dark:#181722;--home-success:#1eaa78;
+  max-width:1240px;margin:0 auto;padding:2px 0 44px;
+}
+.dashboard-shell .dash-head{align-items:center;margin:0 0 24px}
+.dashboard-shell .eyebrow{color:#7664cf;letter-spacing:.12em;font-size:11px}
+.dashboard-shell .dash-head h1{font-size:clamp(30px,3.2vw,44px);letter-spacing:-1.6px;font-weight:800;color:var(--home-ink)}
+.dashboard-shell .dash-head p{font-size:14px;color:var(--home-muted);max-width:620px}
+.dashboard-shell .dash-head-actions{gap:8px}
+.dashboard-shell .primary{background:var(--home-accent);box-shadow:none;border:1px solid var(--home-accent);transition:background .16s ease,transform .16s ease}
+.dashboard-shell .primary:hover{background:#6249d5;transform:translateY(-1px)}
+.dashboard-shell .secondary{border-color:var(--home-line);box-shadow:none}
+.dashboard-shell .dashboard-hero{grid-template-columns:minmax(0,1.55fr) minmax(310px,.75fr);gap:14px;margin-bottom:14px}
+.dashboard-shell .dashboard-hero-copy{min-height:276px;border-radius:28px;padding:34px;background:linear-gradient(135deg,#171620 0%,#211d31 62%,#2b2342 100%);box-shadow:none;border:1px solid #2d2939}
+.dashboard-shell .dashboard-hero-copy:after{width:330px;height:330px;right:-150px;top:-150px;background:radial-gradient(circle,rgba(133,108,244,.26),rgba(133,108,244,0) 68%);border:0}
+.dashboard-shell .hero-kicker{color:#c7c3d4}
+.dashboard-shell .status-dot{background:#4fd3a2;box-shadow:0 0 0 5px rgba(79,211,162,.1)}
+.dashboard-shell .dashboard-hero-copy h2{max-width:680px;margin:28px 0 12px;font-size:clamp(29px,3vw,40px);letter-spacing:-1.35px;font-weight:780}
+.dashboard-shell .dashboard-hero-copy h2 span{color:#b9aaff}
+.dashboard-shell .dashboard-hero-copy p{max-width:650px;color:#bbb7c7;font-size:14px}
+.dashboard-shell .hero-actions{margin-top:26px}
+.dashboard-shell .hero-actions .secondary{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.13);color:#fff}
+.dashboard-shell .dashboard-hero-progress{border:1px solid var(--home-line);border-radius:28px;padding:27px;background:var(--home-surface);box-shadow:none}
+.dashboard-shell .progress-ring-wrap{margin:26px auto}
+.dashboard-shell .ring{background:conic-gradient(var(--home-accent) var(--v),#eeedf3 0)}
+.dashboard-shell .dashboard-stats{gap:12px;margin-bottom:14px}
+.dashboard-shell .card{border:1px solid var(--home-line);border-radius:20px;box-shadow:none;background:var(--home-surface);transition:border-color .16s ease,transform .16s ease}
+.dashboard-shell .card:hover{border-color:#d7d2ee;transform:translateY(-1px);box-shadow:none}
+.dashboard-shell .metric{font-size:32px;font-weight:800;letter-spacing:-1.1px}
+.dashboard-shell .metric-label{color:var(--home-muted)}
+.dashboard-shell .dashboard-grid{gap:14px}
+.dashboard-shell .dashboard-panel{border:1px solid var(--home-line);border-radius:22px;background:#fff;box-shadow:none}
+.dashboard-shell .dashboard-panel h3{letter-spacing:-.3px}
+.dashboard-shell .quick{border:1px solid var(--home-line);border-radius:16px;background:#fff;box-shadow:none}
+.dashboard-shell .quick:hover{background:#faf9ff;border-color:#d8d1f6;transform:translateY(-1px);box-shadow:none}
+.dashboard-shell .tag,.dashboard-shell .pill{background:var(--home-soft);color:#5f49c8}
+.dashboard-shell .bar{background:#efeff3}
+.dashboard-shell .bar>i{background:linear-gradient(90deg,var(--home-accent),var(--home-accent-2))}
+@media(max-width:1050px){.dashboard-shell .dashboard-hero{grid-template-columns:1fr}.dashboard-shell{max-width:none}.dashboard-shell .dashboard-hero-copy{min-height:250px}}
+@media(max-width:760px){
+  .dashboard-shell{padding:0 0 26px}
+  .dashboard-shell .dash-head{align-items:flex-start;gap:14px;margin-bottom:18px}
+  .dashboard-shell .dash-head h1{font-size:31px;letter-spacing:-1px}
+  .dashboard-shell .dash-head-actions{width:100%}
+  .dashboard-shell .dash-head-actions .primary,.dashboard-shell .dash-head-actions .secondary{flex:1 1 auto}
+  .dashboard-shell .dashboard-hero{display:grid;gap:10px}
+  .dashboard-shell .dashboard-hero-copy,.dashboard-shell .dashboard-hero-progress{border-radius:20px;padding:21px}
+  .dashboard-shell .dashboard-hero-copy{min-height:0}
+  .dashboard-shell .dashboard-hero-copy h2{font-size:28px;margin-top:20px}
+  .dashboard-shell .hero-actions{margin-top:20px}
+  .dashboard-shell .dashboard-stats,.dashboard-shell .dashboard-grid{grid-template-columns:1fr;gap:9px}
+}
+@media(prefers-reduced-motion:reduce){.dashboard-shell *{transition:none!important}}
