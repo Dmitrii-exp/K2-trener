@@ -212,6 +212,48 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
   .hero h3{font-size:22px!important}
   .scenario-title{font-size:16px!important}
 }
+</style><style id="uiux-pro-max-v1">
+/* UI/UX Pro Max V1 — unified SaleTrener visual layer */
+:root{
+  --ux-bg:#f7f7fb;--ux-surface:#fff;--ux-surface-2:#fbfaff;
+  --ux-text:#171827;--ux-muted:#73768a;--ux-border:#e5e6ee;
+  --ux-purple:#7357ff;--ux-purple-hover:#6245e8;--ux-purple-soft:#eeeafe;
+  --ux-graphite:#15131f;--ux-graphite-2:#211d32;
+}
+html{background:var(--ux-bg)}
+body{background:var(--ux-bg);color:var(--ux-text)}
+.side{background:var(--ux-graphite);border-right:1px solid #2a2638;box-shadow:8px 0 28px rgba(20,17,30,.07)}
+.side .logo{padding-bottom:28px}
+.nav button{min-height:44px;border-radius:12px}
+.nav button.active{background:var(--ux-graphite-2);box-shadow:inset 3px 0 0 var(--ux-purple)}
+.nav button:hover{background:#27223a}
+.content{background:var(--ux-bg)}
+.top h2,.dash-head h1,.report-title-row h2{color:var(--ux-text)}
+.card,.quick,.focus-card,.dashboard-hero-progress,.report-score-card,.report-info-card,.report-section{
+  border-color:var(--ux-border);box-shadow:0 5px 20px rgba(25,20,55,.035)
+}
+.card:hover,.quick:hover,.focus-card:hover{border-color:#d8d0ff}
+.primary{background:var(--ux-purple);box-shadow:0 7px 18px rgba(115,87,255,.18)}
+.primary:hover{background:var(--ux-purple-hover)}
+.secondary{border-color:var(--ux-border)}
+.pill,.tag{background:var(--ux-purple-soft);color:var(--ux-purple)}
+.field input,.field textarea,.field select{min-height:44px;border-color:var(--ux-border)}
+.field input:focus,.field textarea:focus,.field select:focus{
+  border-color:var(--ux-purple);box-shadow:0 0 0 3px rgba(115,87,255,.12)
+}
+.empty{border-color:var(--ux-border);background:var(--ux-surface-2)}
+.table th{background:var(--ux-surface-2)}
+/* Reduce decorative noise while keeping the established product language. */
+.hero-card:after{opacity:.55}
+.card,.scenario,.quick,.focus-card{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+@media(max-width:760px){
+  .side{box-shadow:none;border-right:0;border-bottom:1px solid #2a2638}
+  .content{padding-left:14px;padding-right:14px}
+  .primary,.secondary{min-height:44px}
+}
+@media(prefers-reduced-motion:reduce){
+  .card,.scenario,.quick,.focus-card,.primary,.nav button{transition:none!important}
+}
 </style></head>
 <body><div id="root"></div><div id="toast" class="toast hidden"></div>
 <script src="/site-repair.js?v=20260903-2"></script>
