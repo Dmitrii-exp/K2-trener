@@ -495,7 +495,7 @@ function authScreen(mode="login"){
       <div class="field"><label>Пароль</label><input id="pass" type="password" placeholder="Пароль" autocomplete="new-password"></div>
       ${!register?'<div class="auth-desktop-forgot"><button type="button" onclick="requestPasswordReset()">Забыли пароль?</button></div>':""}
       <div class="auth-actions">${register?'<button class="primary" onclick="signUp()">'+(hasInvite?"Зарегистрироваться в команде":"Создать аккаунт")+'</button><button class="secondary" onclick="authScreen()">Уже есть аккаунт — Войти</button>':'<button class="primary" onclick="signIn()">Войти <span style="font-size:24px;vertical-align:-2px;margin-left:7px">→</span></button><button class="secondary" onclick="authScreen(\'register\')">Создать аккаунт</button>'}</div>
-      ${!register?'<div class="auth-desktop-register">Нет аккаунта?<button type="button" onclick="authScreen(\'register\')">Зарегистрироваться</button></div>':""}
+      <div class="auth-desktop-register">${register?'Уже есть аккаунт?<button type="button" onclick="authScreen()">Войти</button>':'Нет аккаунта?<button type="button" onclick="authScreen(\'register\')">Зарегистрироваться</button>'}</div>
       <div class="auth-note">${hasInvite?"Используйте email, указанный руководителем в приглашении.":(register?"При регистрации с названием компании создаётся новая организация, а первый пользователь становится руководителем.":"Введите email и пароль, указанные при регистрации.")}</div>
     </div></div>
     <div class="auth-desktop-right"><div class="auth-marketing">
