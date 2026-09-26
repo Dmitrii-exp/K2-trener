@@ -11,6 +11,11 @@
   const LIVE_VOICES = ['meridian','stone','ripple','vesper','cinder','beacon','willow','quartz','gleam','delta'];
   const LIVE_VOICE = 'meridian';
   let livePc = null, liveDc = null, liveAudio = null, liveSessionId = null;
+  let launching = false;
+  let liveManagerRecorder = null, liveClientRecorder = null;
+  let liveManagerChunks = [], liveClientChunks = [];
+  let liveManagerMime = "", liveClientMime = "";
+  let liveManagerStopPromise = null, liveClientStopPromise = null;
   let liveInputBuffers = new Map(), liveOutputBuffers = new Map(), liveOutputTimers = new Map();
   let speechDetected = false, startedAt = 0, timer = null;
 
@@ -109,6 +114,7 @@
     callOpen=false;
     continuousMode=false;
     if(timer){clearInterval(timer);timer=null;}
+    stopLiveRecorders().catch(e=>console.warn("[SaleTrening] recorder cleanup",e));
     stopMic();
     closeAudio();
     closeLive().catch(()=>{});
@@ -163,7 +169,7 @@
     const phoneIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4c1-1 2-1 3 0l2 3c.5 1 .3 2-.5 2.7l-1.4 1.1c1.1 2.2 2.9 4 5.1 5.1l1.1-1.4c.7-.8 1.7-1 2.7-.5l3 2c1 .7 1 2 .2 2.9l-1.4 1.4c-1.2 1.2-3 1.5-4.6.9C9.7 18.8 5.2 14.3 2.8 7.8 2.2 6.2 2.5 4.4 3.7 3.2z" fill="currentColor"/></svg>';
     const speakerIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4z" fill="currentColor"/><path d="M16 9c1.5 1.5 1.5 4.5 0 6M18.5 6.5c3 3 3 8 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
     p.innerHTML=`<div class="st-cold-page"><div class="st-cold-head"><div><h2>Холодный звонок</h2><div class="st-cold-sub">Живой разговор с AI-клиентом · ${esc(difficulty)}</div></div><button id="st-cold-back" class="st-cold-back">← Назад</button></div><div class="st-cold-card"><div class="st-cold-top"><div class="st-cold-contact"><div class="st-cold-avatar">👤</div><div class="st-cold-name">Потенциальный клиент</div><div class="st-cold-meta">AI-клиент · ${esc(difficulty)}</div><div class="st-cold-time" id="st-cold-time">00:00</div></div><div class="st-cold-live"><div class="st-cold-live-label">Статус</div><div id="st-cold-live" class="st-cold-live-text">Соединение установлено. Вы говорите первым.</div></div><div class="st-cold-main"><div id="st-cold-transcript" class="st-cold-transcript">${(state.messages||[]).map(m=>bubble(m.speaker,m.content)).join("")||'<div class="st-cold-empty">Вы говорите первым.<br>Начните разговор с клиентом.</div>'}</div><div class="st-cold-compose"><textarea id="st-cold-input" rows="1" placeholder="Ответить текстом…"></textarea><button id="st-cold-send" class="st-cold-send" title="Отправить" aria-label="Отправить">↑</button></div></div><div class="st-cold-controls"><div class="st-cold-control-wrap"><button id="st-cold-mic" class="st-cold-mic" aria-label="Микрофон">${micIcon}</button><span>Микрофон</span></div><div class="st-cold-control-wrap"><button id="st-cold-end" class="st-cold-end" aria-label="Завершить звонок">${phoneIcon}</button><span>Завершить</span></div><div class="st-cold-control-wrap"><button type="button" class="st-cold-round" aria-label="Динамик">${speakerIcon}</button><span>Динамик</span></div></div><div class="st-cold-hint">${coldCall?.advanced?"Продвинутый звонок активен":"Разговор сохраняется автоматически"}</div><div class="st-cold-home"></div></div></div></div>`;
-    $('st-cold-back').onclick=()=>{if(!processing){cleanup();state.session=null;state.messages=[];state.view='coldcall';render()}};
+    $('st-cold-back').onclick=()=>{if(!processing){cleanup();state.session=null;state.messages=[];state.view='coldcall';window.render()}};
     $('st-cold-end').onclick=finish;$('st-cold-mic').onclick=()=>{if(coldCall?.advanced){if(!livePc)startAdvancedLiveConversation()}else if(!continuousMode)startContinuousConversation()};$('st-cold-send').onclick=typedTurn;$('st-cold-input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();typedTurn()}};updateUI();scrollTranscript();
   }
   function scrollTranscript(){const x=$('st-cold-transcript');if(x)x.scrollTop=x.scrollHeight;}
@@ -535,7 +541,7 @@
   }
 
   async function typedTurn(){if(processing||!callOpen)return;const input=$('st-cold-input');const text=input?.value.trim();if(!text)return;input.value='';await turn(text)}
-  async function turn(text){if(processing||!callOpen||!state.session)return;processing=true;updateUI();addMessage('manager',text);setStatus('AI-клиент формирует ответ…');await save();try{const reply=await aiClientReply(text,false);if(!reply)throw new Error('AI не вернул реплику клиента');addMessage('client',reply);await save();setStatus('AI-клиент отвечает голосом…');try{await speak(reply)}catch(e){console.error('[SaleTrening] TTS',e);if(typeof toast==='function')toast('Ошибка TTS: '+e.message)}setStatus('Ваш ход — говорите или ответьте текстом.')}catch(e){console.error('[SaleTrening] AI client',e);setStatus('Ошибка AI-клиента: '+e.message);if(typeof toast==='function')toast('Ошибка AI-клиента: '+e.message)}finally{processing=false;updateUI()}}
+  async function turn(text){if(processing||!callOpen||!state.session)return;processing=true;updateUI();addMessage('manager',text);setStatus('AI-клиент формирует ответ…');try{await save();const reply=await aiClientReply(text,false);if(!reply)throw new Error('AI не вернул реплику клиента');addMessage('client',reply);await save();setStatus('AI-клиент отвечает голосом…');try{await speak(reply)}catch(e){console.error('[SaleTrening] TTS',e);if(typeof toast==='function')toast('Ошибка TTS: '+e.message)}setStatus('Ваш ход — говорите или ответьте текстом.')}catch(e){console.error('[SaleTrening] AI client',e);setStatus('Ошибка AI-клиента: '+e.message);if(typeof toast==='function')toast('Ошибка AI-клиента: '+e.message)}finally{processing=false;updateUI()}}
   async function finish(){
     if(processing){if(typeof toast==='function')toast('Дождитесь ответа AI-клиента');return}
     if(!state.session)return;
@@ -564,6 +570,8 @@
     }
   }
   async function launchColdCall(){
+    if(launching||callOpen)return;
+    launching=true;
     const override=window.__stColdCallScenarioOverride;
     const difficulty=coldCall?.difficulty||override?.difficulty||'Средний';
     cleanup();
@@ -597,7 +605,7 @@
       cleanup();
       console.error('[SaleTrening] launchColdCall',e);
       if(typeof toast==='function')toast('Ошибка запуска голосовой тренировки: '+e.message);
-    }
+    }finally{launching=false}
   }
   window.launchColdCall=launchColdCall;
 })();
