@@ -46,5 +46,11 @@ for script in Path('.').glob('*.js'):
     subprocess.run(['node', '--check', str(script)], check=True)
 for stylesheet in Path('assets').glob('*.css'):
     assert '<style' not in stylesheet.read_text(), stylesheet
-assert 'cold-call-voice.js?' not in Path('canva-ui.js').read_text()
+entry = Path('index.html').read_text()
+assert 'canva-ui.js' not in entry, 'Retired renderer must not override current screens'
+assert 'legacy-ui.css' not in entry, 'Retired style layer must not load'
+assert entry.count('/assets/app.css?') == 1
+assert entry.count('/assets/auth.css?') == 1
+assert entry.count('/assets/home-premium.css?') == 1
+assert 'window.trainingCallPage=render;' in Path('cold-call-voice-v5.js').read_text()
 print('PASS: inline scripts, root JS syntax, local assets, no nested style tags')

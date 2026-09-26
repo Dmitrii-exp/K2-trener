@@ -16,7 +16,9 @@ AI-тренажёр продаж для менеджеров и руководи
 Home-specific visual tokens live in `assets/home-premium.css` and are scoped to `.dashboard-shell`.
 Global application primitives remain in `assets/app.css`.
 Authentication remains in `assets/auth.css`.
-Legacy UI stylesheet is no longer loaded by `index.html` to prevent cascade collisions.
+Legacy UI stylesheet and Canva renderer overrides have been removed to prevent cascade collisions.
+Shared CSS keeps media-query order; redundant declarations are removed only within identical selector/condition pairs.
+Navigation icons use a single 24px container and 22px SVG rule without `!important`.
 
 ## Constraints
 Do not alter Supabase auth, invitation flow, training runtime, AI calls, session persistence or navigation behavior as part of visual work.
