@@ -30,6 +30,10 @@ vm.runInContext(source.replace('window.launchColdCall=launchColdCall;',
   await context.launchColdCall();
   assert.equal(inserts,1,'double launch must create one session');
   resolveInsert({data:{id:'session'}});await launch;
+  nodes.get('page').innerHTML='';
+  context.trainingCallPage();
+  assert.ok(nodes.get('page').innerHTML.includes('st-cold-card'), 'navigation must retain the V5 phone renderer');
+  assert.ok(!nodes.get('page').innerHTML.includes('cold-call-portrait'), 'retired renderer must not return');
   failSave=true;
   await nodes.get('st-cold-send').onclick();
   assert.equal(aiCalls,0,'failed persistence must not start AI request');

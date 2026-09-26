@@ -608,4 +608,6 @@
     }finally{launching=false}
   }
   window.launchColdCall=launchColdCall;
+  // Navigation must retain the current phone UI, never the retired Canva renderer.
+  window.trainingCallPage=render;
 })();
