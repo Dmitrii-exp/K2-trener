@@ -4,8 +4,10 @@ The production entry is the repository root `index.html` (static HTML/JS).
 
 CSS loads once, in this order:
 1. `assets/app.css`: existing base styles and page components.
-2. `assets/legacy-ui.css`: existing dashboard visual overrides.
-3. `assets/auth.css`: desktop and mobile login/registration layout.
+2. `assets/auth.css`: desktop and mobile login/registration layout.
+3. `assets/home-premium.css`: dashboard styles scoped to `.dashboard-shell`.
+
+`assets/legacy-ui.css` is archived and must not be reattached to the entry page.
 
 Keep legacy `.auth` overrides scoped away from `.auth-desktop`. New auth layout
 rules belong in `auth.css`. The unused scenario-editor fragment was removed:
@@ -24,8 +26,23 @@ Checks from repository root:
 
     python scripts/check_frontend.py
     node scripts/test-training-runtime.cjs
+    node scripts/test-voice-runtime.cjs
 
 The concurrency tests use mocks and never write to Supabase. Browser checks on
 2026-09-25 covered login at 320, 390, 768, 900, 1024 and 1440 pixels, registration
 navigation, empty-email reset validation and catalog handler parsing. Real login,
 email delivery, live AI replies and database policies were not exercised.
+
+## 2026-09-26 runtime follow-up
+
+Voice V5 owns cold-call launch, rendering and recorder state. Its Back action
+returns through the application `window.render`, not the voice-local renderer.
+A launch lock prevents concurrent session inserts. Typed-turn persistence stays
+inside try/finally so network rejection cannot leave the controls locked.
+Live recorder handles are declared locally and stopped during cleanup.
+
+Text V7 has five grid rows; the transcript uses `minmax(0, 1fr)` so long
+conversations scroll instead of pushing the composer and finish action out.
+
+Regression checks use mocked persistence, AI and audio. They do not establish
+that production authorization, microphone permissions, TTS or Supabase work.

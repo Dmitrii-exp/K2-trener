@@ -18,3 +18,4 @@ jobs:
           python-version: '3.x'
       - run: python scripts/check_frontend.py
       - run: node scripts/test-training-runtime.cjs
+      - run: node scripts/test-voice-runtime.cjs
