@@ -101,7 +101,8 @@
           coldVoice.value=coldVoice.value||'onyx';
         }
       }catch(e){console.error('[SaleTrening] cold voice names patch failed',e)}
-      var root=document.getElementById('root');if(root&&root.innerHTML.trim()==='')showFatal('Приложение не выполнило bootstrap. Проверьте загрузку Supabase и авторизацию.');
+      // Bootstrap may still be awaiting Supabase auth; do not show a false fatal screen.
+      // Actual bootstrap failures are reported by startApp() and error handlers.
     },1000);
   });
 })();
