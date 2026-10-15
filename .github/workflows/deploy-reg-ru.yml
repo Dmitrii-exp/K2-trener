@@ -1,0 +1,25 @@
+name: Deploy SaleTrening to REG.RU
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: saletrener-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy startup fix over FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.REG_FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          local-dir: ./deploy/
+          server-dir: /
+          dangerous-clean-slate: false
