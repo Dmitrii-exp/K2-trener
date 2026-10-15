@@ -1,0 +1,477 @@
+<!-- INVITE_AUTH_FIX_2026-09-24 -->
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="application-version" content="SaleTrening AI v1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SaleTrening — AI-тренер по продажам</title>
+<link rel="icon" type="image/svg+xml" href="/assets/saletrening-icon.svg">
+<link rel="apple-touch-icon" href="/assets/saletrening-icon.svg">
+<script src="/supabase-client.js?v=20260922-2">/* COMPANY_INVITE_AUTH_V2 */
+/* INVITE_BUTTON_FIX_V1 */
+</script>
+
+
+
+
+<link rel="stylesheet" href="/assets/app.css?v=20260926-2">
+<link rel="stylesheet" href="/assets/auth.css?v=20260925-1">
+<link rel="stylesheet" href="/assets/home-premium.css?v=20260925-1">
+</head>
+<body><div id="root"></div><div id="toast" class="toast hidden"></div>
+<script src="/site-repair.js?v=20261015-2"></script>
+<script>
+function startTraining(id){
+  if(typeof window.__launchTextTrainingV7==='function')return window.__launchTextTrainingV7(id);
+  toast('Модуль тренировки ещё загружается. Повторите через несколько секунд.');
+}
+
+function trainingChat(){const p=$("page");if(!p)return;
+const scenario=state.session.scenario||{};
+p.innerHTML=`<div class="training-workspace">
+  <div class="training-session-head">
+    <div><button class="secondary training-back" onclick="if(confirm('Выйти из текущей тренировки? Прогресс уже сохранён.')){state.session=null;state.view='training';loadAll().then(()=>render())}">← Тренировки</button></div>
+    <div class="training-session-title"><div class="eyebrow">AI SALES TRAINING</div><h1>${esc(scenario.title||"Тренировка")}</h1><span>${esc(scenario.client_role||"Клиент")} · ${esc(scenario.difficulty||"Средняя")}</span></div>
+  </div>
+  <div class="phone-training-shell">
+    <div class="phone-speaker"></div>
+    <div class="phone-screen">
+      <div class="phone-status"><span>SaleTrening</span><span>AI</span></div>
+      <header class="phone-chat-head">
+        <button class="phone-icon-btn" onclick="if(confirm('Выйти из текущей тренировки? Прогресс уже сохранён.')){state.session=null;state.view='training';loadAll().then(()=>render())}" aria-label="Назад">‹</button>
+        <div class="phone-client-avatar"><span>AI</span></div>
+        <div class="phone-client-info"><strong>${esc(scenario.client_role||"Клиент")}</strong><small><i></i> В сети · AI-клиент</small></div>
+        <button class="phone-icon-btn" onclick="speakClient(state.messages.filter(x=>x.speaker==='client').slice(-1)[0]?.content||'')" aria-label="Озвучить последнее сообщение">◖</button>
+      </header>
+      <div class="phone-scenario-strip"><span>${esc(scenario.difficulty||"Средняя")}</span><b>${state.messages.length?state.messages.filter(x=>x.speaker==="manager").length:0} реплик</b></div>
+      <div id="messages" class="messages phone-messages">${state.messages.map(m=>`<div class="msg ${m.speaker}"><div class="msg-name">${m.speaker==="client"?"Клиент":"Вы"}</div><div class="msg-text">${esc(m.content)}</div></div>`).join("")}</div>
+      <div class="phone-composer-wrap">
+        <div class="composer phone-composer">
+          <button class="voice phone-voice" onclick="voiceInput()" title="Голосовой ввод" aria-label="Голосовой ввод">⌁</button>
+          <textarea id="msg" rows="1" placeholder="Напишите ответ клиенту..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+          <button class="primary phone-send" onclick="sendMessage()" aria-label="Отправить">↑</button>
+        </div>
+        <button class="phone-finish" onclick="finishTraining()">Завершить тренировку</button>
+      </div>
+      <div class="phone-home-indicator"></div>
+    </div>
+  </div>
+  <div class="training-session-note">Диалог сохраняется автоматически · после завершения AI подготовит разбор тренировки</div>
+</div>`;
+const messages=$("messages");if(messages)messages.scrollTop=messages.scrollHeight;const input=$("msg");if(input)setTimeout(()=>input.focus(),50)}
+async function saveSession(){if(!state.session)return;const {error}=await sb.from("saletrening_sessions").update({transcript:state.messages,updated_at:new Date().toISOString()}).eq("id",state.session.id).eq("employee_id",state.user.id);if(error)console.error("saveSession:",error)}
+async function aiClientReply(userMessage,opening=false){if(!state.session?.scenario)throw new Error("Нет активной тренировки");const {data,error}=await sb.auth.getSession();if(error||!data?.session?.access_token)throw new Error("Сессия авторизации истекла");const settings=state.clientSettings||state.client_settings||state.session.client_settings||state.session.scenario.client_settings||state.session.scenario.clientSettings||state.session.scenario.ai_settings||state.session.scenario.settings||{};const objections=state.clientObjections||state.client_objections||state.session.objections||state.session.client_objections||state.session.scenario.objections||state.session.scenario.client_objections||[];const r=await fetch(SUPABASE_URL+"/functions/v1/chat-client",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+data.session.access_token},body:JSON.stringify({session_id:state.session.id,scenario_id:state.session.scenario.id,message:opening?"":userMessage,opening,transcript:state.messages,scenario:state.session.scenario,client_settings:settings,objections,cold_call:state.view==="coldcall"?{character:coldCall.character||"Лояльный",facts:coldCall.facts||"",voice:coldCall.voice||"filipp",difficulty:coldCall.difficulty||"Средний"}:null})/* CLIENT_SETTINGS_RUNTIME_V2 */,cache:"no-store"});const raw=await r.text();let j=null;try{j=raw?JSON.parse(raw):null}catch(_){}if(!r.ok)throw new Error(j?.error||j?.message||raw||( "HTTP "+r.status));const reply=j?.reply||j?.message||j?.content||j?.text;if(!reply)throw new Error("AI не вернул реплику клиента");return reply}
+function speakClient(text){if(!( "speechSynthesis" in window)||!text)return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang="ru-RU";u.rate=.96;u.pitch=1;window.speechSynthesis.speak(u)}
+async function sendMessage(){const input=$("msg"),t=input.value.trim();if(!t)return;state.messages.push({speaker:"manager",content:t});input.value="";await saveSession();trainingChat();try{const r=await aiClientReply(t);state.messages.push({speaker:"client",content:r});await saveSession();trainingChat()}catch(e){console.error("chat-client:",e);trainingChat();toast("AI-клиент временно недоступен: "+(e.message||"ошибка"))}}
+async function finishTraining(){if(!state.session)return;const sessionId=state.session.id;await saveSession();try{const {data,error}=await sb.auth.getSession();if(error||!data?.session?.access_token){toast("Сессия авторизации истекла. Войдите снова.");return}const r=await fetch(SUPABASE_URL+"/functions/v1/evaluate-session-v3",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+data.session.access_token},body:JSON.stringify({session_id:sessionId}),cache:"no-store"});const raw=await r.text();let j=null;try{j=raw?JSON.parse(raw):null}catch(_){}if(!r.ok)toast("Тренировка сохранена. AI: "+(j?.error||j?.message||raw||( "HTTP "+r.status)));else if(j?.configured===false)toast("Тренировка сохранена. AI-ключ не настроен.");else toast("AI-анализ завершён")}catch(e){console.error(e);toast("Тренировка сохранена. AI: "+(e.message||"ошибка"))}finally{state.session=null;await loadAll();state.view="progress";render()}}
+function voiceInput(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast("Голосовой ввод не поддерживается этим браузером");return}const r=new SR();r.lang="ru-RU";r.interimResults=false;r.onresult=e=>{const msg=$("msg");if(msg)msg.value=e.results[0][0].transcript};r.onerror=()=>{toast("Не удалось распознать речь")};r.start()}
+</script>
+<script>
+const SUPABASE_URL="https://svxykakyrloqzloerygb.supabase.co";const SUPABASE_KEY="sb_publishable_r7wu9xAgaiIZBTg4tBiJvQ_CVKHaUoi";const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let state={user:null,profile:null,company:null,view:"home",scenarios:[],session:null,messages:[],stats:null,team:[],history:[],recoveryMode:false};const $=id=>document.getElementById(id);function toast(t){$("toast").textContent=t;$("toast").classList.remove("hidden");setTimeout(()=>$("toast").classList.add("hidden"),2800)}function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}function roleName(r){return({employee:"Менеджер",manager:"Менеджер",director:"Руководитель",admin:"Администратор"})[r]||r}
+function passwordRecoveryScreen(){
+state.recoveryMode=true;
+$("root").innerHTML=`<div class="auth"><div class="auth-card"><div class="auth-brand"><div class="logo"><div class="logo-b"><img src="/assets/saletrening-icon.svg" alt="SaleTrening"></div>SaleTrening</div><span class="auth-badge">ВОССТАНОВЛЕНИЕ</span></div><h1>Новый пароль.</h1><div class="sub">Введите новый пароль для вашего аккаунта.</div><div class="field"><label>Новый пароль</label><input id="newPass" type="password" placeholder="Минимум 6 символов" autocomplete="new-password"></div><div class="field"><label>Повторите пароль</label><input id="newPass2" type="password" placeholder="Повторите пароль" autocomplete="new-password"></div><div class="auth-actions"><button class="primary" onclick="updatePassword()">Сохранить пароль</button><button class="secondary" onclick="authScreen()">Вернуться ко входу</button></div><div class="auth-note">После сохранения вы сможете войти с новым паролем.</div></div></div>`;
+}
+async function requestPasswordReset(){
+const email=$("email")?.value.trim().toLowerCase();
+if(!email){toast("Введите email для восстановления");$("email")?.focus();return}
+const redirectTo=location.origin+location.pathname+"?reset=1";
+const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});
+if(error){toast(error.message);return}
+toast("Письмо для восстановления отправлено");
+}
+async function updatePassword(){
+const password=$("newPass")?.value||"",password2=$("newPass2")?.value||"";
+if(password.length<6){toast("Пароль должен содержать минимум 6 символов");return}
+if(password!==password2){toast("Пароли не совпадают");return}
+const {error}=await sb.auth.updateUser({password});
+if(error){toast(error.message);return}
+toast("Пароль успешно изменён");
+await sb.auth.signOut();
+state.recoveryMode=false;
+history.replaceState({},"",location.pathname);
+authScreen();
+}
+async function logout(){try{const r=await sb.auth.signOut();if(r?.error)throw r.error;state.user=null;state.profile=null;state.company=null;state.session=null;state.recoveryMode=false;state.view="home";toast("Вы вышли из аккаунта");setTimeout(()=>authScreen(),150)}catch(e){console.error("[SaleTrening] logout:",e);toast("Не удалось выйти: "+(e?.message||String(e)))}}
+function authScreen(mode="login"){
+  const params=new URLSearchParams(location.search);
+  const invite=params.get("invite")||localStorage.getItem("saletrening_invite_token")||"";
+  const inviteEmail=(params.get("email")||"").trim().toLowerCase();
+  const hasInvite=!!invite;
+  if(invite)localStorage.setItem("saletrening_invite_token",invite);
+  const register=hasInvite||mode==="register";
+  const desktopClass=hasInvite?"auth-desktop-invite":(register?"auth-desktop-register":"");
+  $("root").innerHTML=`<div class="auth auth-desktop ${desktopClass}">
+    <div class="auth-desktop-left"><div class="auth-desktop-card">
+      <div class="auth-brand"><img class="auth-brand-logo" src="/assets/saletraining-logo.svg" alt="SaleTrening"><span class="auth-badge">AI SALES COACH</span></div>
+      <h1>${hasInvite?"Присоединиться к команде.":(register?"Создайте аккаунт.":"Добро пожаловать.")}<br>${hasInvite?"Регистрация сотрудника.":(register?"Начните тренировки.":"")}</h1>
+      <div class="sub">${hasInvite?"Вас пригласили в команду TrenerSale. Зарегистрируйтесь с тем же email, на который отправлено приглашение.":(register?"Создайте аккаунт для доступа к тренировкам и истории.":"Войдите в аккаунт, чтобы продолжить обучение и развивать навыки продаж с AI-тренером.")}</div>
+      ${hasInvite?'<div class="card" style="margin:0 0 18px;padding:13px;background:#faf9ff"><b>Приглашение найдено</b><div class="muted" style="margin-top:4px">После регистрации аккаунт автоматически подключится к компании руководителя.</div></div>':""}
+      ${register?'<div class="field"><label>Имя</label><input id="first" placeholder="Дмитрий" autocomplete="given-name"></div><div class="field" '+(hasInvite?'style="display:none"':'')+'><label>Компания <span class="muted">(для новой организации)</span></label><input id="company" placeholder="Моя компания"></div>':""}
+      <div class="field"><label>Email</label><input id="email" type="email" placeholder="Ваш email" value="${esc(inviteEmail)}" ${hasInvite&&inviteEmail?"readonly":""} autocomplete="email"></div>
+      <div class="field"><label>Пароль</label><input id="pass" type="password" placeholder="Пароль" autocomplete="new-password"></div>
+      ${!register?'<div class="auth-desktop-forgot"><button type="button" onclick="requestPasswordReset()">Забыли пароль?</button></div>':""}
+      <div class="auth-actions">${register?'<button class="primary" onclick="signUp()">'+(hasInvite?"Зарегистрироваться в команде":"Создать аккаунт")+'</button><button class="secondary" onclick="authScreen()">Уже есть аккаунт — Войти</button>':'<button class="primary" onclick="signIn()">Войти <span style="font-size:24px;vertical-align:-2px;margin-left:7px">→</span></button><button class="secondary" onclick="authScreen(\'register\')">Создать аккаунт</button>'}</div>
+      <div class="auth-desktop-register">${register?'Уже есть аккаунт?<button type="button" onclick="authScreen()">Войти</button>':'Нет аккаунта?<button type="button" onclick="authScreen(\'register\')">Зарегистрироваться</button>'}</div>
+      <div class="auth-note">${hasInvite?"Используйте email, указанный руководителем в приглашении.":(register?"При регистрации с названием компании создаётся новая организация, а первый пользователь становится руководителем.":"Введите email и пароль, указанные при регистрации.")}</div>
+    </div></div>
+    <div class="auth-desktop-right"><div class="auth-marketing">
+      <div class="auth-marketing-pill">Развивайте навыки, увеличивайте продажи</div>
+      <h2>Практика продаж<br><span>с реальными ситуациями</span></h2>
+      <div class="auth-features">
+        <div class="auth-feature"><div class="auth-feature-icon">◈</div><div>Ролевые тренировки<br>с ИИ-клиентами</div></div>
+        <div class="auth-feature"><div class="auth-feature-icon">↗</div><div>Анализ ответов<br>и рекомендации</div></div>
+        <div class="auth-feature"><div class="auth-feature-icon">◎</div><div>Работа с возражениями<br>и сложными ситуациями</div></div>
+        <div class="auth-feature"><div class="auth-feature-icon">⌁</div><div>Отслеживание прогресса<br>и рост эффективности</div></div>
+      </div>
+    </div><div class="auth-coach" aria-hidden="true"><div class="auth-coach-core"></div><div class="auth-coach-label">Больше<br><span>уверенных сделок</span><br>вместе с TrenerSale</div></div></div>
+  </div>`;
+}async function signUp(){const email=$("email").value.trim().toLowerCase(),password=$("pass").value,first=$("first")?.value.trim()||"",company=$("company")?.value.trim()||"";const invite=new URLSearchParams(location.search).get("invite")||localStorage.getItem("saletrening_invite_token")||"";if(!first){toast("Укажите имя");return}if(!email||!password){toast("Заполни email и пароль");return}if(password.length<6){toast("Пароль должен содержать минимум 6 символов");return}if(invite){localStorage.setItem("saletrening_invite_token",invite);try{
+  let session=(await sb.auth.getSession())?.data?.session||null;
+  if(!session){
+    session=await new Promise(resolve=>{
+      let done=false,sub=null;
+      const finish=s=>{if(done)return;done=true;try{sub?.unsubscribe?.()}catch{};resolve(s||null)};
+      try{const r=sb.auth.onAuthStateChange((event,s)=>{if(s?.user)finish(s)});sub=r?.data?.subscription||null}catch{}
+      setTimeout(async()=>finish((await sb.auth.getSession().catch(()=>({data:{session:null}})))?.data?.session||null),6000);
+    });
+  }
+  if(!session?.user)throw new Error("Сессия приглашения не найдена. Откройте последнюю ссылку из письма ещё раз.");
+  const sessionEmail=String(session.user.email||"").trim().toLowerCase();
+  if(!sessionEmail||sessionEmail!==email)throw new Error("Email не совпадает с адресом приглашения.");
+  const {error:updateError}=await sb.auth.updateUser({password,data:{first_name:first}});
+  if(updateError)throw updateError;
+  const {data:accepted,error:acceptError}=await sb.rpc("accept_company_invitation",{p_token:invite});
+  if(acceptError)throw acceptError;
+  if(!accepted?.ok)throw new Error("Не удалось принять приглашение.");
+  const {error:profileError}=await sb.from("profiles").update({first_name:first}).eq("id",session.user.id);
+  if(profileError)throw profileError;
+  localStorage.removeItem("saletrening_invite_token");
+  const u=new URL(location.href);u.searchParams.delete("invite");u.searchParams.delete("email");u.searchParams.delete("type");history.replaceState({},"",u.pathname+(u.search?u.search:""));
+  await boot(session.user);
+  return;
+}catch(e){console.error("[SaleTraining] invite signUp:",e);toast(e?.message||"Не удалось завершить регистрацию");return}}const {data,error}=await sb.auth.signUp({email,password,options:{data:{first_name:first,company_name:company}}});if(error){toast(error.message);return}if(data.session){await boot(data.session.user)}else{toast("Проверь почту для подтверждения аккаунта")}}
+async function signIn(){const {data,error}=await sb.auth.signInWithPassword({email:$("email").value.trim(),password:$("pass").value});if(error){toast(error.message);return}if(data?.session?.user)await boot(data.session.user)}
+function employeeSetupScreen(){
+  const email=String(state.user?.email||"");
+  $("root").innerHTML=`<div class="auth"><div class="auth-card"><div class="auth-brand"><div class="logo"><div class="logo-b"><img src="/assets/saletrening-icon.svg" alt="SaleTrening"></div>SaleTrening</div><span class="auth-badge">ЗАВЕРШЕНИЕ РЕГИСТРАЦИИ</span></div>
+  <h1>Завершите регистрацию.</h1>
+  <div class="sub">Ваш аккаунт уже подключён к команде. Осталось указать имя и задать пароль для входа.</div>
+  <div class="field"><label>Имя</label><input id="setupFirst" placeholder="Дмитрий" autocomplete="given-name"></div>
+  <div class="field"><label>Новый пароль</label><input id="setupPass" type="password" placeholder="Минимум 6 символов" autocomplete="new-password"></div>
+  <div class="field"><label>Повторите пароль</label><input id="setupPass2" type="password" placeholder="Повторите пароль" autocomplete="new-password"></div>
+  <div class="field"><label>Email</label><input value="${esc(email)}" readonly></div>
+  <div class="auth-actions"><button class="primary" onclick="finishEmployeeSetup()">Сохранить и войти</button><button class="secondary" onclick="logout()">Выйти</button></div>
+  </div></div>`;
+}
+async function finishEmployeeSetup(){
+  const first=$("setupFirst")?.value.trim()||"",password=$("setupPass")?.value||"",password2=$("setupPass2")?.value||"";
+  if(!first){toast("Укажите имя");return}
+  if(password.length<6){toast("Пароль должен содержать минимум 6 символов");return}
+  if(password!==password2){toast("Пароли не совпадают");return}
+  try{
+    const {error:updateError}=await sb.auth.updateUser({password,data:{first_name:first}});
+    if(updateError)throw updateError;
+    const {error:profileError}=await sb.from("profiles").update({first_name:first}).eq("id",state.user.id);
+    if(profileError)throw profileError;
+    const fresh=(await sb.auth.getSession())?.data?.session;
+    await boot(fresh?.user||state.user);
+  }catch(e){console.error("[SaleTraining] employee setup:",e);toast(e?.message||"Не удалось сохранить данные")}
+}
+async function acceptPendingInvitation(userId){const token=new URLSearchParams(location.search).get("invite")||localStorage.getItem("saletrening_invite_token")||"";if(token){const {data,error}=await sb.rpc("accept_company_invitation",{p_token:token});if(!error){localStorage.removeItem("saletrening_invite_token");const u=new URL(location.href);u.searchParams.delete("invite");history.replaceState({},"",u.pathname+(u.search?u.search:""));return data}console.error("accept_company_invitation:",error);const code=String(error.message||"");if(code.includes("email_mismatch")){toast("Приглашение предназначено для другого email");return null}if(code.includes("expired")){toast("Срок приглашения истёк");return null}if(code.includes("already_accepted")){localStorage.removeItem("saletrening_invite_token");const u=new URL(location.href);u.searchParams.delete("invite");history.replaceState({},"",u.pathname+(u.search?u.search:""));return {ok:true,alreadyAccepted:true}}if(!code.includes("invitation_not_found"))throw error;localStorage.removeItem("saletrening_invite_token")}const {data,error}=await sb.rpc("accept_company_invitation_for_current_user");if(error){const code=String(error.message||"");if(!code.includes("invitation_not_found"))console.error("accept_company_invitation_for_current_user:",error);return null}const u=new URL(location.href);u.searchParams.delete("invite");history.replaceState({},"",u.pathname+(u.search?u.search:""));return data}
+async function boot(user){state.user=user;await acceptPendingInvitation(user.id);let p=null,error=null;for(let attempt=0;attempt<6;attempt++){const q=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();p=q.data;error=q.error;if(p)break;await new Promise(r=>setTimeout(r,1000))}if(error||!p){toast("Профиль ещё не готов. Попробуйте обновить страницу через несколько секунд.");return}state.profile=p;
+if(p.role==="employee"&&!String(p.first_name||"").trim()){employeeSetupScreen();return}
+if(p.company_id){let c=await sb.from("companies").select("*").eq("id",p.company_id).single();state.company=c.data}await loadAll();render()}
+async function loadAll(){let q=await sb.from("saletrening_scenarios").select("*").eq("active",true).order("id");state.scenarios=q.data||[];let ss=await sb.from("my_training_stats").select("*").eq("employee_id",state.user.id).maybeSingle();state.stats=ss.data||{completed_sessions:0,avg_score:0,best_score:0,active_sessions:0};const h=await sb.from("saletrening_sessions").select("id,scenario_id,status,total_score,ai_summary,created_at,completed_at").eq("employee_id",state.user.id).order("created_at",{ascending:false}).limit(50);state.history=h.data||[];state.team=[];if(["director","admin","manager"].includes(state.profile.role)&&state.profile.company_id){const p=await sb.from("profiles").select("id,first_name,last_name,role,company_id").eq("company_id",state.profile.company_id);if(p.error){console.error("team profiles:",p.error)}else{const members=(p.data||[]).filter(x=>x.id!==state.user.id);const ids=members.map(x=>x.id);let sessions=[];if(ids.length){const tr=await sb.from("saletrening_sessions").select("id,employee_id,scenario_id,status,total_score,created_at,completed_at").eq("company_id",state.profile.company_id).order("created_at",{ascending:false});if(tr.error)console.error("team sessions:",tr.error);else sessions=(tr.data||[]).filter(x=>ids.includes(x.employee_id))}const completed=sessions.filter(x=>x.status==="completed"&&x.total_score!=null);const scoreIds=completed.map(x=>x.id);let scores=[];if(scoreIds.length){const sq=await sb.from("session_scores").select("session_id,discovery_score,objection_score,value_score,closing_score,communication_score").eq("company_id",state.profile.company_id);if(!sq.error)scores=(sq.data||[]).filter(x=>scoreIds.includes(x.session_id))}state.team=members.map(m=>{const ms=sessions.filter(x=>x.employee_id===m.id);const cs=ms.filter(x=>x.status==="completed"&&x.total_score!=null);const vals=cs.map(x=>Number(x.total_score)||0);const sc=scores.filter(x=>cs.some(y=>y.id===x.session_id));const avg=k=>{const a=sc.map(x=>Number(x[k])).filter(Number.isFinite);return a.length?Math.round(a.reduce((u,v)=>u+v,0)/a.length):0};const last=ms[0]||null;return {employee_id:m.id,employee_name:(String([m.first_name,m.last_name].filter(Boolean).join(" ")).trim()||"Сотрудник"),sessions_count:ms.length,completed_sessions:cs.length,avg_score:vals.length?Math.round(vals.reduce((u,v)=>u+v,0)/vals.length):0,discovery_score:avg("discovery_score"),objection_score:avg("objection_score"),value_score:avg("value_score"),closing_score:avg("closing_score"),last_training_at:last?.created_at||null,last_training_status:last?.status||null,last_training_id:last?.id||null}}).sort((a,b)=>(new Date(b.last_training_at||0))-(new Date(a.last_training_at||0)));}}}
+function historyPage(){
+  const items=Array.isArray(state.history)?state.history:[];
+  const statusLabel=function(s){return({completed:"Завершена",started:"Не завершена",in_progress:"В процессе",cancelled:"Отменена"}[s]||s||"—")};
+  const date=function(v){return v?new Date(v).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—"};
+  if(!items.length)return '<div class="top"><div><h2>История тренировок</h2><div class="muted">Здесь будут сохраняться все ваши тренировки</div></div></div><div class="empty">История пока пуста.</div>';
+  return '<div class="top"><div><h2>История тренировок</h2><div class="muted">Последние тренировки менеджера</div></div><span class="pill">'+items.length+' записей</span></div><div class="card" style="padding:0;overflow:hidden"><div style="display:grid;gap:0">'+items.map(function(x,i){const sc=state.scenarios.find(function(s){return String(s.id)===String(x.scenario_id)});return '<button type="button" class="history-row" data-id="'+esc(String(x.id))+'" onclick="openHistorySession(this.dataset.id)" style="border:0;border-bottom:'+(i===items.length-1?'0':'1px')+' solid var(--line);background:#fff;text-align:left;padding:18px 20px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;width:100%"><div><div style="font-weight:800;font-size:16px">'+esc(sc?.title||"Тренировка")+'</div><div class="muted" style="margin-top:5px">'+date(x.created_at)+' · '+statusLabel(x.status)+'</div></div><div style="text-align:right"><div style="font-size:22px;font-weight:850">'+(x.total_score==null?'—':esc(x.total_score))+'</div><div class="muted">балл</div></div></button>'}).join('')+'</div></div><style>.history-row:hover{background:#faf9ff!important}.history-row:last-child{border-bottom:0!important}</style>';
+}
+async function openHistorySession(id){
+  const p=$("page");if(!p)return;
+  p.innerHTML='<div class="empty">Загрузка отчёта…</div>';
+  const r=await sb.from("saletrening_sessions").select("id,employee_id,scenario_id,status,total_score,ai_summary,transcript,created_at,completed_at,duration_seconds").eq("id",id).eq("employee_id",state.user.id).maybeSingle();
+  if(r.error||!r.data){p.innerHTML='<div class="empty">Не удалось открыть тренировку.</div>';return}
+  const q=await sb.from("session_scores").select("overall_score,discovery_score,objection_score,value_score,closing_score,communication_score,next_step_score,strengths,weaknesses,recommendations").eq("session_id",id).maybeSingle();
+  if(q.error){console.error("session_scores:",q.error);p.innerHTML='<div class="empty">Не удалось загрузить оценку тренировки.</div>';return}
+  const x=r.data,s=q.data||{},sc=state.scenarios.find(function(v){return String(v.id)===String(x.scenario_id)}),transcript=Array.isArray(x.transcript)?x.transcript:[];
+  const date=function(v){return v?new Date(v).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—"};
+  const status=({completed:"Завершена",started:"Не завершена",in_progress:"В процессе",cancelled:"Отменена"}[x.status]||x.status||"—");
+  const n=function(v){const z=Number(v);return Number.isFinite(z)?Math.max(0,Math.min(20,Math.round(z))):0};
+  const criteria=[
+    ["Выявление потребности",n(s.discovery_score)],
+    ["Презентация продукта",n(s.value_score)],
+    ["Работа с возражениями",n(s.objection_score)],
+    ["Дожим / закрытие сделки",n(s.closing_score)],
+    ["Коммуникация",n(s.communication_score)]
+  ];
+  const rawTotal=Number(s.overall_score);
+  const total=Number.isFinite(rawTotal)&&rawTotal>0?Math.round(rawTotal):criteria.reduce(function(a,v){return a+v[1]},0);
+  const items=function(v){if(Array.isArray(v))return v.filter(Boolean);if(typeof v==="string"&&v.trim())return v.split(/\n|•|;/).map(function(z){return z.trim().replace(/^[-–—]\s*/,"")}).filter(Boolean);return[]};
+  const strengths=items(s.strengths),weaknesses=items(s.weaknesses),recommendations=items(s.recommendations);
+  const list=function(arr,empty,kind){return arr.length?'<ul class="report-list '+kind+'">'+arr.map(function(v){return '<li><span class="report-bullet">'+(kind==="positive"?"✓":"×")+'</span><span>'+esc(v)+'</span></li>'}).join("")+'</ul>':'<div class="report-empty">'+empty+'</div>'};
+  const dialog=transcript.length?transcript.map(function(m){const speaker=String(m?.speaker||m?.role||"").toLowerCase(),manager=["manager","user","employee"].includes(speaker),txt=m?.content??m?.text??m?.message??"";return '<div class="msg '+(manager?"manager":"client")+'"><b>'+(manager?"Менеджер":"Клиент")+':</b> '+esc(txt)+'</div>'}).join(""):'<div class="empty">Диалог не сохранён.</div>';
+  const scorePercent=Math.max(0,Math.min(100,total));
+  const criterionHtml=criteria.map(function(v){const pct=v[1]*5;return '<div class="criterion"><div class="criterion-head"><span>'+esc(v[0])+'</span><b>'+v[1]+' / 20</b></div><div class="criterion-bar"><i style="width:'+pct+'%"></i></div></div>'}).join("");
+  const duration=x.duration_seconds?Math.floor(Number(x.duration_seconds)/60)+':'+String(Math.floor(Number(x.duration_seconds)%60)).padStart(2,"0"):"—";
+  p.innerHTML='<div class="report-page">'+
+    '<div class="report-top"><button class="secondary" onclick="state.view=\'history\';page()">← К истории</button><div class="report-top-actions"><span class="pill">'+esc(status)+'</span></div></div>'+
+    '<div class="report-title-row"><div><h2>'+esc(sc?.title||"Тренировка")+'</h2><div class="muted">'+date(x.created_at)+'</div></div></div>'+
+    '<div class="report-summary-grid">'+
+      '<div class="report-score-card"><div class="report-card-label">Итоговый балл</div><div class="report-score">'+total+' <span>из 100</span></div><div class="report-score-bar"><i style="width:'+scorePercent+'%"></i></div></div>'+
+      '<div class="report-info-card"><div class="report-card-label">Сценарий</div><strong>'+esc(sc?.title||"Тренировка")+'</strong><div class="report-icon">▣</div></div>'+
+      '<div class="report-info-card"><div class="report-card-label">Продолжительность</div><strong>'+duration+'</strong><div class="report-icon">◷</div></div>'+
+      '<div class="report-info-card"><div class="report-card-label">Завершена</div><strong>'+date(x.completed_at)+'</strong><div class="report-icon">□</div></div>'+
+    '</div>'+
+    '<section class="report-section"><div class="report-section-title"><h3>Критерии оценки</h3><span>5 критериев · максимум 20 баллов за каждый</span></div><div class="criteria-grid">'+criterionHtml+'</div><div class="criteria-total"><span>Итог</span><b>'+total+' / 100</b></div></section>'+
+    '<section class="report-section"><h3>Анализ AI</h3><div class="analysis-grid">'+
+      '<div class="analysis-card positive"><div class="analysis-heading"><span class="analysis-mark">✓</span><div><strong>Что получилось хорошо</strong><small>Что менеджер сделал правильно</small></div></div>'+list(strengths,"Положительных моментов пока не сохранено.","positive")+'</div>'+
+      '<div class="analysis-card negative"><div class="analysis-heading"><span class="analysis-mark">×</span><div><strong>Что можно улучшить</strong><small>Ошибки и пропущенные возможности</small></div></div>'+list(weaknesses,"Ошибки и зоны роста пока не сохранены.","negative")+'</div>'+
+    '</div>'+
+    (recommendations.length?'<div class="recommendation-card"><strong>Что делать дальше</strong>'+list(recommendations,"","recommendation")+'</div>':"")+
+    (x.ai_summary?'<div class="ai-conclusion"><strong>Общий вывод AI</strong><p>'+esc(x.ai_summary)+'</p></div>':"")+
+    '</section>'+
+    '<section class="report-section"><h3>Полный диалог</h3><div class="messages report-dialog">'+dialog+'</div></section>'+
+  '</div>';
+}
+function navIcon(name){
+  const p={
+    home:'<path d="M4 11.2 12 4l8 7.2v8a1.8 1.8 0 0 1-1.8 1.8H15v-6H9v6H5.8A1.8 1.8 0 0 1 4 19.2z" fill="#ffca5c"/><path d="m3 11 9-8 9 8" fill="none" stroke="#8d72ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 21v-6h6v6" fill="#fff" opacity=".9"/>',
+    training:'<circle cx="12" cy="12" r="9" fill="#ece8ff"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#8d72ff" stroke-width="2"/><circle cx="12" cy="12" r="2.5" fill="#ffca5c"/><path d="m14 10 6-6" stroke="#7357ff" stroke-width="2.2" stroke-linecap="round"/><path d="m17 4 3 .1-.1 3" fill="none" stroke="#7357ff" stroke-width="2" stroke-linecap="round"/>',
+    coldcall:'<path d="M7 4.2 10 7l-2.1 2.4c1.2 2.5 3.2 4.5 5.7 5.7L16 13l2.8 3c.7.7.7 1.8 0 2.5l-1.4 1.4c-.7.7-1.7 1-2.7.6C8.8 18.2 5.8 15.2 3.5 9.3c-.4-1-.1-2 .6-2.7l1.4-1.4c.4-.4 1-.6 1.5-1z" fill="#e65a65"/><path d="M16.8 5.1c1.3.5 2.4 1.6 2.9 2.9M17.5 2.8c2.2.6 3.9 2.3 4.5 4.5" fill="none" stroke="#8d72ff" stroke-width="1.8" stroke-linecap="round"/>',
+    scenarios:'<rect x="5" y="3.5" width="14" height="17" rx="3" fill="#ece8ff" stroke="#8d72ff" stroke-width="1.7"/><path d="m8.3 9.2 1.7 1.7 3.5-3.5" fill="none" stroke="#35b985" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 14h7M8.5 17h5" fill="none" stroke="#7357ff" stroke-width="1.8" stroke-linecap="round"/>',
+    progress:'<rect x="4" y="13" width="3.5" height="7" rx="1.2" fill="#9b87ff"/><rect x="10.2" y="9" width="3.5" height="11" rx="1.2" fill="#ffca5c"/><rect x="16.5" y="5" width="3.5" height="15" rx="1.2" fill="#35b985"/><path d="m5 10 6-5 4 2 5-5" fill="none" stroke="#8d72ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    history:'<circle cx="12" cy="12" r="8.7" fill="#ece8ff" stroke="#8d72ff" stroke-width="1.8"/><path d="M12 7v5l3.5 2" fill="none" stroke="#7357ff" stroke-width="2" stroke-linecap="round"/><path d="M4 6.5V10h3.5" fill="none" stroke="#ffca5c" stroke-width="2" stroke-linecap="round"/>',
+    ai:'<path d="M7.5 5h9A3.5 3.5 0 0 1 20 8.5v5a3.5 3.5 0 0 1-3.5 3.5H12l-4 3v-3h-.5A3.5 3.5 0 0 1 4 13.5v-5A3.5 3.5 0 0 1 7.5 5z" fill="#ece8ff" stroke="#8d72ff" stroke-width="1.7"/><circle cx="9" cy="11" r="1.2" fill="#7357ff"/><circle cx="12" cy="11" r="1.2" fill="#ffca5c"/><circle cx="15" cy="11" r="1.2" fill="#35b985"/>',
+    team:'<circle cx="9" cy="8" r="3" fill="#ffca5c"/><circle cx="17" cy="9" r="2.5" fill="#9b87ff"/><path d="M3.5 19c.4-3.5 2.2-5.2 5.5-5.2s5.1 1.7 5.5 5.2" fill="#ece8ff" stroke="#7357ff" stroke-width="1.6"/><path d="M14.5 14c3.5.1 5.5 1.8 6 5" fill="none" stroke="#8d72ff" stroke-width="1.8" stroke-linecap="round"/>',
+    analytics:'<rect x="5" y="13" width="3.3" height="7" rx="1" fill="#9b87ff"/><rect x="10.4" y="9" width="3.3" height="11" rx="1" fill="#ffca5c"/><rect x="15.8" y="5" width="3.3" height="15" rx="1" fill="#35b985"/><path d="m5 10 5-4 4 1.5 5-5" fill="none" stroke="#8d72ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+  };
+  return '<svg class="nav-svg nav-svg-color" viewBox="0 0 24 24" aria-hidden="true">'+(p[name]||p.home)+'</svg>'
+}
+function nav(v,t,icon){return `<button class="${state.view===v?"active":""}" onclick="state.view='${v}';page()"><span class="nav-icon">${navIcon(icon)}</span><span>${t}</span></button>`}function render(){if(!state.user){authScreen();return}$("root").innerHTML=`<div class="shell"><aside class="side"><div class="logo"><div class="logo-b"><img src="/assets/saletrening-icon.svg" alt="SaleTrening"></div><span>SaleTrening</span></div><div class="nav">${nav("home","Главная","home")}${nav("training","Тренировки","training")}${nav("coldcall","Холодный звонок","coldcall")}${nav("scenarios","Сценарии","scenarios")}${nav("progress","Мой прогресс","progress")}${nav("history","История","history")}${nav("ai","AI-чат","ai")}${["director","admin"].includes(state.profile.role)?nav("team","Команда","team")+nav("analytics","Аналитика","analytics"):""}</div><div class="side-bottom"><div class="user-mini">${esc(state.profile.first_name||state.user.email)}<br>${roleName(state.profile.role)}${state.company?" · "+esc(state.company.name):""}</div><button class="secondary" style="width:100%" onclick="logout()">Выйти</button></div></aside><main class="content"><div id="page"></div></main></div>`;page()}
+function setPageHTML(el,value){try{if(value&&typeof value.then==='function'){value.then(html=>{el.innerHTML=html}).catch(err=>{console.error('Page render promise:',err);el.innerHTML='<div class="empty">Не удалось загрузить страницу. Откройте консоль для диагностики.</div>'})}else el.innerHTML=value}catch(err){console.error('Page render:',err);el.innerHTML='<div class="empty">Ошибка отображения страницы.</div>'}}
+function page(){let p=$("page");if(!p)return;if(state.session){if(state.view==="coldcall")trainingCallPage();else trainingChat();return}if(state.view==="home")setPageHTML(p,home());else if(state.view==="training")setPageHTML(p,trainingList());else if(state.view==="coldcall")setPageHTML(p,coldCallHome());else if(state.view==="scenarios")setPageHTML(p,scenarios());else if(state.view==="progress")setPageHTML(p,progress());else if(state.view==="history")setPageHTML(p,historyPage());else if(state.view==="team")setPageHTML(p,team());else if(state.view==="analytics")setPageHTML(p,analytics());else if(state.view==="ai")setPageHTML(p,aiChat());else setPageHTML(p,aiChat())}
+function home(){let s=state.stats||{},pct=Math.min(100,(Number(s.completed_sessions)||0)*10),done=Number(s.completed_sessions)||0,avg=Number(s.avg_score)||0,best=Number(s.best_score)||0,recent=(state.history||[]).slice(0,3);return `
+<div class="dash-head"><div><div class="eyebrow">SALE TRENЕRING · AI SALES COACH</div><h1>Добро пожаловать, ${esc(state.profile.first_name||"коллега")}</h1><p>Практика продаж в формате живого диалога: сценарий → разговор → AI-разбор → следующий шаг.</p></div><div class="dash-head-actions"><span class="pill">${roleName(state.profile.role)}</span><button class="primary dash-main-cta" onclick="state.view='training';page()">Начать тренировку <span aria-hidden="true">→</span></button></div></div>
+<div class="dashboard-hero"><div class="dashboard-hero-copy"><div class="hero-kicker"><span class="status-dot"></span> AI-тренер готов к работе</div><h2>Отработай следующий разговор<br><span>до реального клиента.</span></h2><p>Выбери ситуацию, поговори с AI-клиентом и получи разбор по ключевым навыкам: потребность, ценность, возражения и закрытие.</p><div class="hero-actions"><button class="primary" onclick="state.view='training';page()">Выбрать сценарий <span>→</span></button><button class="secondary" onclick="state.view='coldcall';page()">Голосовая тренировка</button></div></div><div class="dashboard-hero-progress"><div class="progress-top"><span>Прогресс тренировок</span><b>${done} / 10</b></div><div class="progress-ring-wrap"><div class="ring ring-large" style="--v:${pct}%"><b>${pct}%</b></div><div><strong>${done? "Продолжай в том же темпе":"Начни с первой тренировки"}</strong><p>${done?"Следующая сессия добавит новый материал для AI-разбора.":"Проведи первую сессию, чтобы получить персональную точку отсчёта."}</p></div></div><div class="progress-bar"><i style="width:${pct}%"></i></div></div></div>
+<div class="stat-grid"><div class="stat-card"><div class="stat-icon purple"><svg viewBox="0 0 24 24"><path d="M5 19h14M7 17V9h3v8M12 17V6h3v11M17 17v-5h3v5" fill="currentColor" opacity=".35"/><path d="m7 7 4-3 3 2 4-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div><span>Завершено тренировок</span><strong>${done}</strong></div></div><div class="stat-card"><div class="stat-icon blue"><svg viewBox="0 0 24 24"><path d="M7 15V9M11 15V6M15 15v-3M19 15V4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></div><div><span>Средний балл</span><strong>${avg}</strong></div></div><div class="stat-card"><div class="stat-icon green"><svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" fill="currentColor"/></svg></div><div><span>Лучший результат</span><strong>${best}</strong></div></div><div class="stat-card"><div class="stat-icon orange"><svg viewBox="0 0 24 24"><path d="M13 2 5 13h5l-1 9 8-12h-5z" fill="currentColor"/></svg></div><div><span>Активные сессии</span><strong>${s.active_sessions||0}</strong></div></div></div>
+<div class="section"><div class="section-head"><div><h3>Быстрый старт</h3><div class="muted">Три сценария для практики прямо сейчас</div></div><button class="secondary" onclick="state.view='training';page()">Все тренировки →</button></div>${scenarioCards(state.scenarios.slice(0,3))}</div>
+<div class="section"><div class="section-head"><div><h3>Фокус на сегодня</h3><div class="muted">Выбери навык, который хочешь отработать</div></div></div><div class="focus-grid"><button class="focus-card" onclick="state.view='training';page()"><span class="focus-icon"><svg viewBox="0 0 24 24"><path d="M9.5 9a2.5 2.5 0 1 1 4.3 1.8c-.9.8-1.8 1.1-1.8 2.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="15.8" r="1" fill="currentColor"/></svg></span><span><b>Выявление потребностей</b><small>Задавай сильные вопросы вместо длинной презентации</small></span><i>→</i></button><button class="focus-card" onclick="state.view='training';page()"><span class="focus-icon"><svg viewBox="0 0 24 24"><ellipse cx="8" cy="17" rx="4" ry="1.8" fill="#ffbf3f"/><ellipse cx="8" cy="14.8" rx="4" ry="1.8" fill="#ffd45f"/><path d="M4 9c5-4 10-5 16-3m-4-2 4 2-3 3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><b>Работа с возражениями</b><small>Находи реальную причину за словами клиента</small></span><i>→</i></button><button class="focus-card" onclick="state.view='ai';page()"><span class="focus-icon"><svg viewBox="0 0 24 24"><path d="M8 5h8a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3h-3l-4 3v-3H8a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z" fill="currentColor" opacity=".18"/><circle cx="9" cy="10.5" r="1.2" fill="currentColor"/><circle cx="12" cy="10.5" r="1.2" fill="currentColor"/><circle cx="15" cy="10.5" r="1.2" fill="currentColor"/></svg></span><span><b>AI-наставник</b><small>Разбери последний диалог и получи конкретную подсказку</small></span><i>→</i></button></div></div>
+<div class="section dashboard-recent"><div class="section-head"><div><h3>Последние тренировки</h3><div class="muted">Быстрый доступ к результатам</div></div><button class="secondary" onclick="state.view='history';page()">Вся история →</button></div>${recent.length?`<div class="recent-list">${recent.map(x=>{const sc=state.scenarios.find(v=>String(v.id)===String(x.scenario_id));const status=({completed:"Завершена",started:"Не завершена",in_progress:"В процессе",cancelled:"Отменена"}[x.status]||x.status||"—");const date=x.created_at?new Date(x.created_at).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"—";return `<button class="recent-row" type="button" onclick="openHistorySession('${esc(String(x.id))}')"><span class="recent-main"><b>${esc(sc?.title||"Тренировка")}</b><small>${date} · ${status}</small></span><span class="recent-score">${x.total_score==null?"—":esc(String(x.total_score))}<small>балл</small></span><span class="recent-arrow">→</span></button>`}).join("")}</div>`:`<div class="empty">После первой тренировки здесь появится история последних результатов.</div>`}</div>
+`}function scenarioIcon(s){
+  const t=String(s?.title||"").toLowerCase();
+  const svg=(body)=>'<svg viewBox="0 0 72 72" aria-hidden="true">'+body+'</svg>';
+  if(t.includes("холод")||t.includes("звон"))return svg('<defs><linearGradient id="ph" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff707b"/><stop offset="1" stop-color="#d94b59"/></linearGradient></defs><path d="M17 12 29 24l-8 9c5 10 11 16 21 21l9-8 12 12c2 2 2 5 0 7l-5 4c-3 2-6 2-9 1C27 63 9 45 3 23c-1-3 0-6 2-9l4-4c2-2 5-1 8 2z" fill="url(#ph)"/><path d="M47 13c6 2 10 6 12 12M50 5c9 3 15 9 18 18" fill="none" stroke="#7357ff" stroke-width="5" stroke-linecap="round"/>');
+  if(t.includes("дорого")||t.includes("цена")||t.includes("стоим"))return svg('<ellipse cx="23" cy="55" rx="15" ry="6" fill="#dca62c"/><ellipse cx="23" cy="49" rx="15" ry="6" fill="#ffc94f"/><ellipse cx="23" cy="43" rx="15" ry="6" fill="#ffe17c"/><ellipse cx="49" cy="43" rx="13" ry="5" fill="#e6ad31"/><ellipse cx="49" cy="37" rx="13" ry="5" fill="#ffd15a"/><ellipse cx="49" cy="31" rx="13" ry="5" fill="#ffe27e"/><path d="M9 29c13-14 29-16 48-11" fill="none" stroke="#7357ff" stroke-width="6" stroke-linecap="round"/><path d="m50 12 10 6-8 9" fill="none" stroke="#7357ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>');
+  if(t.includes("конкур"))return svg('<circle cx="23" cy="25" r="10" fill="#9b87ff"/><circle cx="51" cy="25" r="10" fill="#ffca5c"/><path d="M7 57c2-13 9-19 19-19 6 0 10 2 14 7 4-5 8-7 14-7 7 0 12 4 15 12" fill="none" stroke="#7357ff" stroke-width="6" stroke-linecap="round"/><path d="m26 47 9 8 13-12" fill="none" stroke="#35b985" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>');
+  if(t.includes("повтор")||t.includes("контакт")||t.includes("кп"))return svg('<rect x="10" y="18" width="45" height="34" rx="8" fill="#ece8ff" stroke="#7357ff" stroke-width="4"/><path d="m14 24 19 15 18-15" fill="none" stroke="#7357ff" stroke-width="4" stroke-linejoin="round"/><circle cx="54" cy="49" r="14" fill="#ffca5c"/><path d="M54 42v8l5 3" fill="none" stroke="#2f2a42" stroke-width="4" stroke-linecap="round"/>');
+  if(t.includes("дополн")||t.includes("допрод")||t.includes("услуг"))return svg('<rect x="10" y="23" width="43" height="35" rx="8" fill="#9b87ff"/><path d="M18 23c1-8 6-12 13-12s12 4 13 12" fill="none" stroke="#7357ff" stroke-width="5"/><circle cx="54" cy="48" r="15" fill="#35b985"/><path d="M54 40v16M46 48h16" stroke="#fff" stroke-width="5" stroke-linecap="round"/>');
+  if(t.includes("закры")||t.includes("сделк"))return svg('<path d="M10 43c8-7 15-7 22 0l5 5 7-6c6-5 12-4 18 2l-14 15c-5 5-12 5-17 0z" fill="#ffca5c"/><path d="M8 32c8-8 16-8 24 0l5 5 5-5c8-8 16-8 23 0" fill="none" stroke="#7357ff" stroke-width="6" stroke-linecap="round"/><circle cx="57" cy="17" r="12" fill="#35b985"/><path d="m51 17 4 4 8-9" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>');
+  if(t.includes("срок")||t.includes("постав"))return svg('<path d="M9 22h36l14 12v27H9z" fill="#f0a24b"/><path d="M9 22 23 9h22l14 13H9z" fill="#ffd07a"/><circle cx="38" cy="46" r="15" fill="#7357ff"/><path d="M38 37v10l6 4" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>');
+  if(t.includes("не нужно")||t.includes("отказ")||t.includes("работа"))return svg('<path d="m36 5 26 9v19c0 17-10 28-26 34C20 61 10 50 10 33V14z" fill="#7357ff"/><path d="m22 35 9 9 19-21" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>');
+  return svg('<circle cx="31" cy="31" r="19" fill="#ece8ff"/><circle cx="31" cy="31" r="14" fill="none" stroke="#7357ff" stroke-width="5"/><circle cx="31" cy="31" r="5" fill="#7357ff"/><path d="M45 45 61 61" fill="none" stroke="#7357ff" stroke-width="6" stroke-linecap="round"/><path d="m53 53 10 1-1 10" fill="none" stroke="#ffca5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>');
+}
+function scenarioCards(arr){if(!arr.length)return `<div class="empty">Сценариев пока нет.</div>`;return `<div class="scenario-grid">${arr.map(s=>`<div class="card scenario"><div><span class="tag">${esc(s.difficulty||"Средняя")}</span><span class="tag">${esc(s.client_mood||"Нейтральный")}</span></div><div class="grow"><div class="scenario-context-icon">${scenarioIcon(s)}</div><div class="scenario-title">${esc(s.title)}</div><div class="muted">${esc(s.description||s.objective||"Практика продаж")}</div></div><button class="primary" onclick="startTraining(${esc(JSON.stringify(s.id))})">Начать тренировку</button></div>`).join("")}</div>`}let trainingFilters={query:"",difficulty:"all",mode:"all"};
+function trainingModeOf(s){
+  const t=String(s?.title||"").toLowerCase();
+  const d=String(s?.description||"").toLowerCase();
+  const voice=t.includes("голос")||t.includes("звонок")||d.includes("голос");
+  return voice?"voice":"dialog";
+}
+function trainingModeLabel(mode){return mode==="voice"?"Голосовая":"Диалог"}
+function trainingFilteredScenarios(){
+  const q=String(trainingFilters.query||"").trim().toLowerCase();
+  return (state.scenarios||[]).filter(s=>{
+    const difficulty=String(s.difficulty||"").toLowerCase();
+    const mode=trainingModeOf(s);
+    const text=[s.title,s.description,s.objective,s.client_role,s.client_mood].filter(Boolean).join(" ").toLowerCase();
+    return (!q||text.includes(q)) &&
+      (trainingFilters.difficulty==="all"||difficulty===trainingFilters.difficulty.toLowerCase()) &&
+      (trainingFilters.mode==="all"||mode===trainingFilters.mode);
+  });
+}
+function setTrainingFilter(key,value){
+  trainingFilters[key]=value;
+  renderTrainingCatalog();
+}
+function renderTrainingCatalog(){
+  const root=$("trainingCatalog");
+  if(!root)return;
+  const all=state.scenarios||[], filtered=trainingFilteredScenarios();
+  const difficulties=[...new Set(all.map(s=>String(s.difficulty||"").trim()).filter(Boolean))];
+  root.innerHTML=`<div class="training-catalog-toolbar">
+    <div class="training-search-wrap"><span class="training-search-icon">⌕</span><input id="trainingSearch" value="${esc(trainingFilters.query)}" oninput="trainingFilters.query=this.value;renderTrainingCatalog()" placeholder="Поиск по сценариям..." aria-label="Поиск по сценариям"></div>
+    <div class="training-filters">
+      <button class="training-filter ${trainingFilters.mode==="all"?"active":""}" onclick="setTrainingFilter('mode','all')">Все</button>
+      <button class="training-filter ${trainingFilters.mode==="dialog"?"active":""}" onclick="setTrainingFilter('mode','dialog')">Диалог</button>
+      <button class="training-filter ${trainingFilters.mode==="voice"?"active":""}" onclick="setTrainingFilter('mode','voice')">Голосовые</button>
+      ${difficulties.map(d=>`<button class="training-filter ${trainingFilters.difficulty===d.toLowerCase()?"active":""}" onclick="setTrainingFilter('difficulty',${esc(JSON.stringify(d))})">${esc(d)}</button>`).join("")}
+    </div>
+  </div>
+  <div class="training-catalog-meta"><div><b>${filtered.length}</b> сценариев доступно</div><div class="training-catalog-hint">Выбери ситуацию и сразу начни практику</div></div>
+  ${filtered.length?`<div class="training-catalog-grid">${filtered.map(s=>{
+    const mode=trainingModeOf(s);
+    const objective=s.objective||s.description||"Практика продаж";
+    return `<article class="training-card ${mode==="voice"?"training-card-voice":""}">
+      <div class="training-card-top"><span class="tag">${esc(s.difficulty||"Средняя")}</span><span class="training-mode-badge ${mode}"><span class="training-mode-dot"></span>${trainingModeLabel(mode)}</span></div>
+      <div class="training-card-icon">${scenarioIcon(s)}</div>
+      <h3>${esc(s.title||"Тренировка")}</h3>
+      <p>${esc(objective)}</p>
+      <div class="training-card-meta"><span>${esc(s.client_role||"AI-клиент")}</span><span>•</span><span>${esc(s.client_mood||"Нейтральный")}</span></div>
+      <button class="primary training-card-action" onclick="startTraining(${esc(JSON.stringify(s.id))})">${mode==="voice"?"Начать голосовую":"Начать тренировку"} <span aria-hidden="true">→</span></button>
+    </article>`;
+  }).join("")}</div>`:`<div class="empty training-empty"><b>Ничего не найдено</b><div style="margin-top:6px">Измени запрос или сбрось фильтры.</div><button class="secondary" style="margin-top:14px" onclick="trainingFilters={query:"",difficulty:"all",mode:"all"};renderTrainingCatalog()">Сбросить фильтры</button></div>`}
+  <div class="training-voice-banner">
+    <div><span class="training-banner-kicker">VOICE TRAINING</span><h3>Отдельный режим для реального звонка</h3><p>Живой разговор с AI-клиентом: темп, паузы, возражения и следующий шаг.</p></div>
+    <button class="secondary" onclick="state.view='coldcall';page()">Открыть холодный звонок →</button>
+  </div>`;
+}
+function trainingList(){trainingFilters={query:"",difficulty:"all",mode:"all"};setTimeout(renderTrainingCatalog,0);return `<div class="training-page">
+  <div class="training-page-head"><div><div class="eyebrow">ПРАКТИКА ПРОДАЖ</div><h1>Тренировки</h1><p>Выбери ситуацию, настрой уровень сложности и начни живой диалог с AI-клиентом.</p></div><div class="training-head-badge"><span class="status-dot"></span> AI-клиент готов</div></div>
+  <div id="trainingCatalog"></div>
+</div>`}function scenarios(){return `<div class="top"><div><h2>Сценарии</h2><div class="muted">Библиотека ситуаций для команды</div></div></div>${scenarioCards(state.scenarios)}`}function progress(){let s=state.stats||{};return `<div class="top"><div><h2>Мой прогресс</h2><div class="muted">Результаты тренировок из Supabase</div></div></div><div class="grid"><div class="card"><div class="metric-label">Средний балл</div><div class="metric">${s.avg_score||0}</div></div><div class="card"><div class="metric-label">Лучший</div><div class="metric">${s.best_score||0}</div></div><div class="card"><div class="metric-label">Завершено</div><div class="metric">${s.completed_sessions||0}</div></div><div class="card"><div class="metric-label">Активные</div><div class="metric">${s.active_sessions||0}</div></div></div><div class="section card"><h3>Следующий шаг</h3><p class="muted">Запусти тренировку, проведи диалог и получи AI-анализ.</p><button class="primary" onclick="state.view='training';page()">Начать тренировку</button></div>`}
+async function showTrainingReport(id){try{const sessionQ=await sb.from("saletrening_sessions").select("id,employee_id,scenario_id,status,total_score,ai_summary,feedback,transcript,ai_evaluation,created_at,completed_at,duration_seconds").eq("id",id).single();if(sessionQ.error)throw sessionQ.error;const scoreQ=await sb.from("session_scores").select("overall_score,discovery_score,objection_score,value_score,closing_score,communication_score,next_step_score,strengths,weaknesses,recommendations").eq("session_id",id).maybeSingle();if(scoreQ.error)throw scoreQ.error;state.report={session:sessionQ.data,score:scoreQ.data||{}};state.view="history";page()}catch(e){console.error("Training report:",e);toast("Не удалось загрузить отчёт тренировки")}}
+function reportItems(v){if(Array.isArray(v))return v.filter(Boolean);if(typeof v==="string"&&v.trim())return[v.trim()];return[]}function reportPage(){const r=state.report||{},x=r.session||{},s=r.score||{};const score=n=>{const v=Number(n);return Number.isFinite(v)&&v>0?Math.max(1,Math.min(20,Math.round(v))):null};const skills=[["Работа с возражениями",score(s.objection_score)],["Презентация продукта",score(s.value_score)],["Дожим / закрытие сделки",score(s.closing_score)],["Вовлечённость клиента в разговор / коммуникация",score(s.communication_score)],["Выявление потребности",score(s.discovery_score)]].filter(v=>v[1]!==null);const calculated=skills.reduce((a,v)=>a+v[1],0);const stored=Number(s.overall_score);const sessionTotal=Number(x.total_score);const total=Number.isFinite(stored)&&stored>0?Math.round(stored):Number.isFinite(sessionTotal)&&sessionTotal>0?Math.round(sessionTotal):calculated;const strengths=reportItems(s.strengths),weaknesses=reportItems(s.weaknesses),recommendations=reportItems(s.recommendations),transcript=Array.isArray(x.transcript)?x.transcript:[],names={};state.scenarios.forEach(z=>names[z.id]=z.title);const list=(items,empty)=>items.length?`<ul style="margin:10px 0 0;padding-left:20px">${items.map(v=>`<li style="margin:7px 0">${esc(v)}</li>`).join("")}</ul>`:`<div class="muted" style="margin-top:10px">${empty}</div>`;return `<div class="top"><div><h2>Отчёт тренировки</h2><div class="muted">${esc(names[x.scenario_id]||"Тренировка")} · ${new Date(x.created_at).toLocaleString("ru-RU")}</div></div><button class="secondary" onclick="state.report=null;page()">← Назад к тренировкам</button></div><div class="card" style="text-align:center;padding:28px"><div class="muted">ОБЩИЙ БАЛЛ</div><div class="metric" style="font-size:54px">${total}<span style="font-size:18px;color:var(--muted)"> / 100</span></div><div class="muted" style="margin-top:8px">Итоговый балл тренировки</div></div><div class="section card"><h3>Оценка навыков</h3>${skills.map(v=>`<div style="margin:18px 0"><div style="display:flex;justify-content:space-between;gap:12px"><span>${v[0]}</span><b>${v[1]} / 20</b></div><div class="bar" style="margin-top:8px"><i style="width:${v[1]*5}%"></i></div></div>`).join("")}<div style="display:flex;justify-content:space-between;margin-top:22px;padding-top:14px;border-top:1px solid var(--line)"><b>Итоговый балл</b><b>${total} / 100</b></div></div><div class="section card"><h3>Анализ тренировки</h3><div style="margin-top:18px"><b>🟢 Сильные стороны</b>${list(strengths,"Сильные стороны не указаны.")}</div><div style="margin-top:22px"><b>🔴 Слабые стороны</b>${list(weaknesses,"Слабые стороны не указаны.")}</div><div style="margin-top:22px"><b>💡 Рекомендации</b>${list(recommendations,"Рекомендации не указаны.")}</div>${x.ai_summary?`<div style="margin-top:22px"><b>Краткий вывод ИИ</b><p class="muted" style="line-height:1.55">${esc(x.ai_summary)}</p></div>`:""}</div><div class="section card"><h3>Полный диалог</h3><div class="messages" style="margin-top:14px;max-height:none">${transcript.length?transcript.map(m=>{const speaker=String(m?.speaker||m?.role||"").toLowerCase(),manager=["manager","user","employee"].includes(speaker),text=m?.content??m?.text??m?.message??"";return `<div class="msg ${manager?"manager":"client"}"><b>${manager?"Менеджер":"Клиент"}:</b> ${esc(text)}</div>`}).join(""):`<div class="empty">Полный диалог не сохранён.</div>`}</div></div>`}
+function toggleInviteBox(){const box=$("inviteBox");if(!box){toast("Не найден блок приглашения");return}box.classList.toggle("hidden");if(!box.classList.contains("hidden"))setTimeout(()=>$("inviteEmail")?.focus(),50)}let pendingCompanyInvitation=null;
+async function createCompanyInvitation(){
+  if(!state.user||!state.profile){toast("Профиль ещё загружается. Обновите страницу через секунду.");return}
+  if(!state.profile.company_id||!["director","admin","manager"].includes(state.profile.role)){toast("Нет прав для приглашения сотрудников");return}
+  const email=$("inviteEmail")?.value.trim().toLowerCase(),role=$("inviteRole")?.value||"employee";
+  if(!email){toast("Укажи email сотрудника");return}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast("Проверь email сотрудника");return}
+  const button=document.querySelector("#inviteBox button.primary");
+  if(button){button.disabled=true;button.textContent="Создаём ссылку…"}
+  const out=$("inviteResult");if(out)out.innerHTML='<div class="muted" style="margin-top:10px">Создаём персональную ссылку на регистрацию…</div>';
+  try{
+    const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+    const session=sessionData?.session;
+    if(sessionError)throw sessionError;
+    if(!session?.access_token)throw new Error("Сессия руководителя не найдена. Обновите страницу и войдите снова.");
+    const {data,error}=await sb.functions.invoke("send-company-invitation",{body:{mode:"create",email,role},headers:{Authorization:"Bearer "+session.access_token}});
+    if(error)throw error;
+    if(!data?.ok||!data?.invite_url)throw new Error(data?.message||data?.error||"Не удалось создать ссылку");
+    pendingCompanyInvitation={email,role,token:data.token,invite_url:data.invite_url};
+    if(out)out.innerHTML=`<div class="card" style="margin-top:14px;background:#faf9ff"><b>Ссылка на регистрацию создана</b><div class="muted" style="margin:6px 0">Email <strong>${esc(email)}</strong> привязан к этой ссылке и вашей компании. Ссылка действует 7 дней.</div><input id="inviteLink" value="${esc(data.invite_url)}" readonly style="width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff"><button type="button" id="sendInvitationButton" class="primary" style="margin-top:10px" onclick="sendCompanyInvitation()">Отправить приглашение</button></div>`;
+    toast("Ссылка на регистрацию создана");
+  }catch(e){console.error("[invite] create:",e);if(out)out.innerHTML=`<div class="card" style="margin-top:14px;background:#fff5f5;border-color:#f0ced3"><b>Не удалось создать ссылку</b><div class="muted" style="margin-top:6px">${esc(e?.message||"Ошибка")}</div></div>`;toast("Не удалось создать ссылку: "+(e?.message||"ошибка"))}
+  finally{if(button){button.disabled=false;button.textContent="Создать ссылку на регистрацию"}}
+}
+async function sendCompanyInvitation(){
+  const p=pendingCompanyInvitation;
+  if(!p){toast("Сначала создайте ссылку на регистрацию");return}
+  const button=$("sendInvitationButton"),out=$("inviteResult");
+  if(button){button.disabled=true;button.textContent="Отправляем письмо…"}
+  try{
+    const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+    const session=sessionData?.session;
+    if(sessionError)throw sessionError;
+    if(!session?.access_token)throw new Error("Сессия руководителя не найдена. Обновите страницу и войдите снова.");
+    const {data,error}=await sb.functions.invoke("send-company-invitation",{body:{mode:"send",email:p.email,role:p.role,token:p.token,invite_url:p.invite_url},headers:{Authorization:"Bearer "+session.access_token}});
+    if(error)throw error;
+    if(!data?.ok)throw new Error(data?.message||data?.error||"Письмо не отправлено");
+    if(out)out.innerHTML=`<div class="card" style="margin-top:14px;background:#f1fbf7;border-color:#c9eddf"><b>✓ Приглашение отправлено</b><div class="muted" style="margin:6px 0">Письмо со ссылкой на регистрацию отправлено на <strong>${esc(p.email)}</strong>.</div></div>`;
+    toast("Письмо с приглашением отправлено");
+    pendingCompanyInvitation=null;
+  }catch(e){console.error("[invite] send:",e);if(out)out.innerHTML=`<div class="card" style="margin-top:14px;background:#fff5f5;border-color:#f0ced3"><b>Не удалось отправить письмо</b><div class="muted" style="margin-top:6px">${esc(e?.message||"Ошибка")}</div><button type="button" class="primary" style="margin-top:10px" onclick="sendCompanyInvitation()">Повторить отправку</button></div>`;toast("Не удалось отправить письмо: "+(e?.message||"ошибка"))}
+  finally{if(button){button.disabled=false;button.textContent="Отправить приглашение"}}
+}
+function team(){const initials=n=>String(n||"?").trim().split(/\s+/).slice(0,2).map(x=>x[0]||"").join("").toUpperCase();const status=s=>({completed:["Завершена","done"],started:["Не завершена",""],in_progress:["В процессе","progress"],limit_exceeded:["Лимит превышен","error"],cancelled:["Отменена","error"]}[s]||[s||"—",""]);const date=v=>v?new Date(v).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"Нет данных";const header=`<div class="team-page"><div class="team-head"><div><div class="eyebrow">КОМАНДА</div><h2>Команда</h2><div class="muted">Контроль тренировок и прогресса сотрудников</div><span class="team-count">${state.team.length} участников</span></div><button type="button" class="primary" onclick="toggleInviteBox()">Пригласить сотрудника <span>→</span></button></div><div id="inviteBox" class="team-invite-card hidden"><div class="team-invite-head"><div class="team-invite-title">Новый сотрудник</div><div class="team-invite-note">Персональная ссылка для регистрации в вашей команде.</div></div><div class="bot-fields"><div class="bot-field"><div class="field"><label>Email сотрудника</label><input id="inviteEmail" type="email" placeholder="employee@company.ru"></div></div><div class="bot-field"><div class="field"><label>Роль</label><select id="inviteRole"><option value="employee">Менеджер</option><option value="manager">Менеджер / старший</option></select></div></div></div><button type="button" class="primary" style="margin-top:14px" onclick="createCompanyInvitation()">Создать ссылку на регистрацию →</button><div id="inviteResult"></div></div></div>`;if(!state.team.length)return header+`<div class="team-empty card"><div class="team-empty-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.8 19c.3-3 2-4.7 5.2-4.7s4.9 1.7 5.2 4.7M15 8a3 3 0 1 1 0 6M15 14c3 .2 4.7 2 5 5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></div><b>Сотрудников пока нет</b><div class="muted" style="margin-top:6px">Пригласите первого сотрудника, чтобы начать отслеживать тренировочный прогресс.</div></div>`;return header+`<div class="team-members-grid">${state.team.map(x=>{const st=status(x.last_training_status);return `<article class="team-member-card"><div class="team-member-head"><div class="team-avatar">${esc(initials(x.employee_name))}</div><div><div class="team-member-name">${esc(x.employee_name||"Сотрудник")}</div><div class="team-member-role">Менеджер · SaleTrening</div></div><span class="team-status ${st[1]}">${esc(st[0])}</span></div><div class="team-member-metrics"><div class="team-metric"><span>Тренировки</span><b>${x.sessions_count||0}</b></div><div class="team-metric"><span>Завершено</span><b>${x.completed_sessions||0}</b></div><div class="team-metric"><span>Средний балл</span><b>${x.avg_score||"—"}</b></div></div><div class="team-member-foot"><span>Последняя тренировка</span><span class="team-member-score">${date(x.last_training_at)}</span></div></article>`}).join("")}</div></div>`}function scoredTeam(){return (state.team||[]).filter(x=>Number(x.avg_score)>0)}function avgSkill(k){const t=scoredTeam();if(!t.length)return 0;return Math.round(t.reduce((a,x)=>a+(Number(x[k])||0),0)/t.length)}function weakest(){const a=[["Выявление",avgSkill("discovery_score")],["Возражения",avgSkill("objection_score")],["Ценность",avgSkill("value_score")],["Закрытие",avgSkill("closing_score")]].filter(x=>x[1]>0);if(!a.length)return "Недостаточно данных";a.sort((x,y)=>x[1]-y[1]);return a[0][0]}function skillBar(t,n){n=Math.max(0,Math.min(100,Number(n)||0));return `<div style="margin:16px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${t}</span><b>${n}</b></div><div class="bar"><i style="width:${n}%"></i></div></div>`}function analytics(){const t=scoredTeam();if(!state.team.length)return `<div class="top"><div><h2>Аналитика</h2><div class="muted">Данные появятся после тренировок команды</div></div></div><div class="empty">Пока нет тренировок команды.</div>`;const avg=t.length?Math.round(t.reduce((a,x)=>a+(Number(x.avg_score)||0),0)/t.length):0;const best=t.length?[...t].sort((x,y)=>(y.avg_score||0)-(x.avg_score||0))[0].employee_name:"—";const scoredSessions=t.reduce((a,x)=>a+(x.completed_sessions||0),0);return `<div class="top"><div><h2>Аналитика руководителя</h2><div class="muted">Показатели считаются только по тренировкам с подтверждённой оценкой</div></div><span class="pill">Средний балл ${avg||"—"}</span></div><div class="grid"><div class="card"><div class="metric-label">Средний команды</div><div class="metric">${avg||"—"}</div></div><div class="card"><div class="metric-label">Менеджер с наибольшим средним</div><div class="metric" style="font-size:20px">${esc(best)}</div></div><div class="card"><div class="metric-label">Оценённых тренировок</div><div class="metric">${scoredSessions}</div></div><div class="card"><div class="metric-label">Слабое место</div><div class="metric" style="font-size:20px">${weakest()}</div></div></div><div class="section card"><h3>Навыки команды</h3>${skillBar("Выявление потребности",avgSkill("discovery_score"))}${skillBar("Работа с возражениями",avgSkill("objection_score"))}${skillBar("Ценность",avgSkill("value_score"))}${skillBar("Закрытие",avgSkill("closing_score"))}</div>`}
+let aiChatMessages=[];function aiChat(){return `<div class="top"><div><h2>AI-чат</h2><div class="muted">Задай вопрос AI-наставнику по продажам, возражениям или своим тренировкам</div></div><button class="secondary" onclick="aiChatMessages=[];page()">Очистить чат</button></div><div class="chat"><div id="aiMessages" class="messages">${aiChatMessages.length?aiChatMessages.map(m=>`<div class="msg ${m.role==="assistant"?"client":"manager"}"><b>${m.role==="assistant"?"AI":"Вы"}:</b> ${esc(m.content)}</div>`).join(""):`<div class="empty" style="background:transparent;border:0"><b>Чем могу помочь?</b><div style="margin-top:8px">Например: «Как отработать возражение дорого?» или «Разбери мой последний звонок».</div></div>`}</div><div class="composer"><textarea id="aiMsg" rows="2" placeholder="Напишите вопрос AI..."></textarea><button id="aiSend" class="primary" onclick="sendAiChat()">Отправить</button></div></div>`}async function sendAiChat(){const input=$("aiMsg"),text=input?.value.trim();if(!text)return;if(window.aiChatBusy)return;window.aiChatBusy=true;aiChatMessages.push({role:"user",content:text});input.value="";page();const box=$("aiMessages");if(box)box.scrollTop=box.scrollHeight;try{const {data,error}=await sb.auth.getSession();if(error||!data?.session?.access_token)throw new Error("Сессия авторизации истекла");const transcript=aiChatMessages.slice(-16).map(m=>({role:m.role,text:m.content}));const r=await fetch(SUPABASE_URL+"/functions/v1/manager-ai-chat",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+data.session.access_token},body:JSON.stringify({message:text,transcript,stats:state.stats||{},history:(state.history||[]).slice(0,20),profile:{first_name:state.profile?.first_name||"",role:state.profile?.role||"",company:state.company?.name||""}}),cache:"no-store"});const raw=await r.text();let j=null;try{j=raw?JSON.parse(raw):null}catch(_){}if(!r.ok)throw new Error(j?.error||j?.message||raw||("HTTP "+r.status));const reply=j?.reply||j?.message||j?.content;if(!reply)throw new Error("AI не вернул ответ");aiChatMessages.push({role:"assistant",content:reply})}catch(e){console.error("manager-ai-chat:",e);aiChatMessages.push({role:"assistant",content:"Не удалось получить ответ AI: "+(e.message||"ошибка")})}finally{window.aiChatBusy=false;page();const box=$("aiMessages");if(box)box.scrollTop=box.scrollHeight}}
+function coldCallScenario(difficulty="Средний"){const d=String(difficulty).toLowerCase().includes("слож")?"слож":"сред";return state.scenarios.find(x=>String(x.title).toLowerCase().includes("холодный звонок")&&String(x.difficulty||"").toLowerCase().includes(d))||state.scenarios.find(x=>String(x.title).toLowerCase().includes("холодный звонок"))||{id:0,title:"Холодный звонок",description:"Выход на ЛПР и начало холодного разговора",difficulty:difficulty,client_role:"Потенциальный клиент",client_mood:difficulty==="Сложный"?"Занят, скептически настроен":"Сдержанный",objective:"Заинтересовать клиента и договориться о следующем шаге"}}function coldCallHome(){return `<div class="bot-settings-page"><div class="bot-settings-head"><div><div class="eyebrow">VOICE TRAINING</div><h2>Холодный звонок</h2><div class="muted">Настрой AI-клиента перед голосовой тренировкой</div></div></div><div class="bot-settings-card"><div class="bot-mode-row"><div class="bot-mode-copy"><div class="bot-mode-icon"><svg viewBox="0 0 24 24"><path d="M7 4.2 10 7l-2.1 2.4c1.2 2.5 3.2 4.5 5.7 5.7L16 13l2.8 3c.7.7.7 1.8 0 2.5l-1.4 1.4c-.7.7-1.7 1-2.7.6C8.8 18.2 5.8 15.2 3.5 9.3c-.4-1-.1-2 .6-2.7l1.4-1.4c.4-.4 1-.6 1.5-1z" fill="currentColor"/></svg></div><div><div class="bot-mode-title">Продвинутый звонок</div><div class="bot-mode-note">Живой голосовой разговор с AI-клиентом</div></div></div><label class="call-switch" title="Продвинутый звонок"><input id="advancedCallToggle" type="checkbox" ${coldCall.advanced?'checked':''} onchange="coldCall.advanced=this.checked"><span class="call-switch-track"></span></label></div><div class="bot-section"><div class="bot-section-title"><div class="bot-section-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c.4-3.7 2.7-5.7 7-5.7s6.6 2 7 5.7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></div><div><h3>Клиент</h3><p>Настрой характер и голос собеседника</p></div></div><div class="bot-fields"><div class="bot-field"><div class="field"><label>Характер клиента</label><select id="coldCharacter"><option value="Лояльный">Лояльный</option><option value="Скептик">Скептик</option><option value="Грубит">Грубит</option><option value="Занятой">Занятой</option><option value="Аналитик">Аналитик</option></select></div></div><div class="bot-field"><div class="field"><label>Голос клиента</label><select id="coldVoice"><option value="coral">Coral — нейтральный</option><option value="alloy">Alloy — нейтральный</option><option value="ash">Ash — мужской</option><option value="ballad">Ballad — выразительный</option><option value="echo">Echo — мужской</option><option value="fable">Fable — выразительный</option><option value="nova">Nova — женский</option><option value="onyx">Onyx — мужской</option><option value="sage">Sage — спокойный</option><option value="shimmer">Shimmer — женский</option></select></div></div><div class="bot-field"><div class="field"><label>Пол голоса GPT-Live</label><select id="coldLiveGender" onchange="updateLiveVoiceOptions()"><option value="male" selected>Мужской</option><option value="female">Женский</option></select></div></div><div class="bot-field"><div class="field"><label>Голос GPT-Live</label><select id="coldLiveVoice"><option value="meridian">Meridian — мужской</option><option value="stone">Stone — мужской</option><option value="ripple">Ripple — мужской</option><option value="vesper">Vesper — мужской</option><option value="cinder">Cinder — мужской</option><option value="beacon">Beacon — мужской</option></select></div></div></div></div><div class="bot-section"><div class="bot-section-title"><div class="bot-section-icon"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5z" fill="currentColor" opacity=".15"/><path d="M8 9h8M8 12h5M8 15h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div><div><h3>Контекст разговора</h3><p>Добавь факты, которые AI должен учитывать</p></div></div><div class="bot-field"><div class="field"><label>Факты о клиенте <span class="muted">(необязательно)</span></label><textarea id="coldFacts" rows="4" placeholder="Например: сейчас покупает у конкурента, нужен объём 100 шин, важна гарантия..."></textarea></div></div></div><div class="bot-section"><div class="bot-section-title"><div class="bot-section-icon"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div><div><h3>Сложность тренировки</h3><p>Выберите уровень поведения клиента</p></div></div><div class="bot-levels"><div class="bot-level"><h4>Средний</h4><p>Клиент идёт на контакт, слушает и задаёт вопросы.</p><button class="primary" onclick="startColdCall('Средний')">Начать тренировку →</button></div><div class="bot-level"><h4>Сложный</h4><p>Клиент менее охотно идёт на контакт и требует сильной аргументации.</p><button class="primary" onclick="startColdCall('Сложный')">Начать тренировку →</button></div></div></div><div class="bot-footer-note">Вы говорите первым · лимит звонка — 10 минут</div></div></div>`}const GPT_LIVE_VOICES={
+  male:[
+    {value:"meridian",label:"Meridian — мужской"},
+    {value:"stone",label:"Stone — мужской"},
+    {value:"ripple",label:"Ripple — мужской"},
+    {value:"vesper",label:"Vesper — мужской"},
+    {value:"cinder",label:"Cinder — мужской"},
+    {value:"beacon",label:"Beacon — мужской"}
+  ],
+  female:[
+    {value:"willow",label:"Willow — женский"},
+    {value:"quartz",label:"Quartz — женский"},
+    {value:"gleam",label:"Gleam — женский"},
+    {value:"delta",label:"Delta — женский"}
+  ]
+};
+function updateLiveVoiceOptions(){
+  const gender=$("coldLiveGender")?.value||"male";
+  const select=$("coldLiveVoice"); if(!select)return;
+  const list=GPT_LIVE_VOICES[gender]||GPT_LIVE_VOICES.male;
+  const current=coldCall?.liveVoice;
+  select.innerHTML=list.map(v=>'<option value="'+v.value+'">'+v.label+'</option>').join("");
+  select.value=list.some(v=>v.value===current)?current:list[0].value;
+  if(coldCall)coldCall.liveVoice=select.value;
+}
+let coldCall={difficulty:"Средний",character:"Лояльный",facts:"",voice:"coral",liveVoice:"meridian",liveGender:"male",advanced:false};
+async function startColdCall(difficulty="Средний"){
+  coldCall.difficulty=difficulty;
+  coldCall.character=$("coldCharacter")?.value||"Лояльный";
+  coldCall.facts=$("coldFacts")?.value.trim()||"";
+  coldCall.voice=$("coldVoice")?.value||"coral";
+  coldCall.liveGender=$("coldLiveGender")?.value||"male";
+  coldCall.liveVoice=$("coldLiveVoice")?.value||"meridian";
+  updateLiveVoiceOptions();
+  coldCall.liveVoice=$("coldLiveVoice")?.value||coldCall.liveVoice||"meridian";
+    coldCall.advanced=$("advancedCallToggle")?.checked||false;
+  if(typeof window.launchColdCall==='function') return window.launchColdCall();
+  toast("Голосовой модуль не загружен");
+}
+</script><script defer src="/cold-call-filters.js?v=restore-20260831"></script>
+<script src="/manager-history.js?v=20260922-1"></script>
+<script>
+(function(){
+  'use strict';
+  async function startApp(){
+    try{
+      if(typeof sb==='undefined'||!sb?.auth)throw new Error('Supabase client не загрузился');
+
+      const hash=new URLSearchParams((location.hash||'').replace(/^#/,''));
+      const params=new URLSearchParams(location.search);
+      const recoveryFromUrl=params.get('reset')==='1' || hash.get('type')==='recovery';
+
+      sb.auth.onAuthStateChange((event,session)=>{
+        if(event==='PASSWORD_RECOVERY'){
+          state.recoveryMode=true;
+          passwordRecoveryScreen();
+          return;
+        }
+        if(event==='SIGNED_OUT' && state.recoveryMode){
+          state.recoveryMode=false;
+        }
+      });
+
+      const r=await sb.auth.getSession();
+      const session=r?.data?.session;
+
+      if(recoveryFromUrl){
+        state.recoveryMode=true;
+        passwordRecoveryScreen();
+        return;
+      }
+
+      const inviteToken = params.get("invite") || localStorage.getItem("saletrening_invite_token") || "";
+      const inviteRedirect = hash.get("type") === "invite";
+      if(inviteToken && (session?.user || inviteRedirect)){
+        if(inviteToken)localStorage.setItem("saletrening_invite_token",inviteToken);
+        authScreen("register");
+        return;
+      }
+      if(session?.user) await boot(session.user);
+      else authScreen();
+    }catch(e){
+      console.error('[SaleTrening] bootstrap failed',e);
+      if(typeof showFatal==='function')showFatal(e?.message||String(e));
+    }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startApp,{once:true});
+  else startApp();
+})();
+</script>
+<script src="/cold-call-voice-v5.js?v=20260926-2"></script>
+<script src="/training-runtime-fix.js?v=20260926-1"></script>
+</body></html>
