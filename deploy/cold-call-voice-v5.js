@@ -553,18 +553,22 @@
     // Capture final transcript before disconnecting; do not wait for STT or scoring.
     try{flushLiveTranscriptBuffers()}catch(e){console.warn('[SaleTrening] transcript flush',e)}
     const transcript=JSON.parse(JSON.stringify(state.messages||[]));
+    const hasManager=transcript.some(m=>m.speaker==='manager'&&String(m.content||'').trim());
+    const hasClient=transcript.some(m=>m.speaker==='client'&&String(m.content||'').trim());
+    const validConversation=hasManager&&hasClient;
     setStatus('Завершаем тренировку…');
     cleanup();
     state.session=null;
     state.messages=[];
     state.view='progress';
     window.render();
-    if(typeof toast==='function')toast('Тренировка завершена. Результат рассчитывается.');
+    if(typeof toast==='function')toast(validConversation?'Тренировка завершена. Результат рассчитывается.':'Разговор не состоялся. Тренировка не засчитана.');
     // Saving and scoring must not hold the call screen open.
     (async()=>{
       try{
         const {error}=await sb.from('saletrening_sessions').update({transcript,updated_at:new Date().toISOString()}).eq('id',sessionId).eq('employee_id',employeeId);
         if(error)throw error;
+        if(!validConversation)return; // Interrupted/failed call: never request evaluation or credit.
         const {data}=await sb.auth.getSession();
         const token=data?.session?.access_token;
         if(!token)throw new Error('Авторизация истекла');
