@@ -615,3 +615,7 @@ body { background:var(--ux-bg);color:var(--ux-text); }
 .bot-actions { padding-left:15px;padding-right:15px; }
 .bot-actions .primary { width:100%;min-width:0; }
 }
+
+/* History row states consolidated from legacy inline HTML styles. */
+.history-row:hover{background:#faf9ff!important}
+.history-row:last-child{border-bottom:0!important}
