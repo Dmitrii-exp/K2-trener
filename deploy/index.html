@@ -280,7 +280,7 @@ function page(){let p=$("page");if(!p)return;if(state.session){if(state.view==="
 
 const ACHIEVEMENT_LEVELS=[
 {name:"Хиляк",min:0,max:9,score:0,voice:0,text:0},{name:"Новичок",min:10,max:29,score:35,voice:3,text:6},{name:"Практик",min:30,max:59,score:50,voice:5,text:10},
-{name:"Эксперт",min:60,max:99,score:65,voice:8,text:16},{name:"Профи",min:100,max:199,score:75,voice:10,text:20},{name:"Мастер",min:200,max:499,score:83,voice:12,text:25},
+{name:"Эксперт",min:60,max:99,score:65,voice:10,text:20},{name:"Профи",min:100,max:199,score:75,voice:12,text:24},{name:"Мастер",min:200,max:499,score:83,voice:15,text:30},
 {name:"Легенда",min:500,max:Infinity,score:90,voice:15,text:30}];
 function achievementRobot(n){const names=['01_hilyak','02_novichok','03_praktik','04_ekspert','05_profi','06_master','07_legenda'];return '<img loading="lazy" alt="Робот '+ACHIEVEMENT_LEVELS[n].name+'" src="/assets/'+names[n]+'.png" style="width:100%;height:100%;object-fit:contain">'}
 function achievementMode(x){
