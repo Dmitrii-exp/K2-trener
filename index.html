@@ -431,11 +431,11 @@ async function previewSelectedLiveVoice(){
   dc.onopen=()=>{
    if(done)return;
    if(status)status.textContent='Воспроизводим пример…';
-   dc.send(JSON.stringify({type:'response.create',response:{instructions:'Это отдельная проверка звучания голоса, а не тренировочный звонок. Произнеси только одну фразу, не ожидая реплики менеджера: «Здравствуйте. Я вас слушаю. Что вы хотели предложить?» Говори по-русски естественно, с произношением носителя языка.'}}));
+   dc.send(JSON.stringify({type:'response.create'}));
   };
   dc.onmessage=e=>{try{const ev=JSON.parse(e.data);if(ev.type==='response.done')setTimeout(cleanup,3000);if(ev.type==='error'){if(status)status.textContent='Ошибка GPT Live: '+String(ev.error?.message||ev.message||'неизвестная ошибка');setTimeout(cleanup,6500)}}catch{}};
   const offer=await pc.createOffer();await pc.setLocalDescription(offer);
-  const res=await fetch('https://svxykakyrloqzloerygb.supabase.co/functions/v1/gpt-live-session',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({sdp:offer.sdp,session:{voice:selected,instructions:'Ты русскоязычный собеседник. Произношение носителя русского языка из России. Без иностранного акцента.'}}),cache:'no-store'});
+  const res=await fetch('https://svxykakyrloqzloerygb.supabase.co/functions/v1/gpt-live-session',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({sdp:offer.sdp,session:{voice:selected,instructions:'Это отдельная проверка звучания голоса, а не тренировочный звонок. Сразу после подключения произнеси только одну фразу, не ожидая реплики менеджера: «Здравствуйте. Я вас слушаю. Что вы хотели предложить?» Говори по-русски естественно, с произношением носителя языка, без иностранного акцента.'}}),cache:'no-store'});
   const result=await res.json().catch(()=>({}));
   if(!res.ok||!result.ok||!result.transport?.sdp)throw new Error(result.detail?.error?.message||result.detail?.message||result.error||'Не удалось подключить голос');
   await pc.setRemoteDescription({type:'answer',sdp:result.transport.sdp});
