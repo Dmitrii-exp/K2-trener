@@ -545,31 +545,42 @@
   async function typedTurn(){if(processing||!callOpen)return;const input=$('st-cold-input');const text=input?.value.trim();if(!text)return;input.value='';await turn(text)}
   async function turn(text){if(processing||!callOpen||!state.session)return;processing=true;updateUI();addMessage('manager',text);setStatus('AI-клиент формирует ответ…');try{await save();const reply=await aiClientReply(text,false);if(!reply)throw new Error('AI не вернул реплику клиента');addMessage('client',reply);await save();setStatus('AI-клиент отвечает голосом…');try{await speak(reply)}catch(e){console.error('[SaleTrening] TTS',e);if(typeof toast==='function')toast('Ошибка TTS: '+e.message)}setStatus('Ваш ход — говорите или ответьте текстом.')}catch(e){console.error('[SaleTrening] AI client',e);setStatus('Ошибка AI-клиента: '+e.message);if(typeof toast==='function')toast('Ошибка AI-клиента: '+e.message)}finally{processing=false;updateUI()}}
   async function finish(){
-    if(processing){if(typeof toast==='function')toast('Дождитесь ответа AI-клиента');return}
-    if(!state.session)return;
+    if(!state.session||processing)return;
     processing=true;
-    updateUI();
-    try{
-      if(livePc||liveDc){
-        await new Promise(resolve=>setTimeout(resolve,350));
-        // Give голосового помощника transcript deltas a short window, then use the recorded
-        // WebRTC directions as a reliable fallback if one/both speaker captions are missing.
-        flushLiveTranscriptBuffers();
-        await recoverLiveTranscriptFromAudio();
-        await save();
-        await closeLive();
+    const sessionId=state.session.id;
+    const employeeId=state.user.id;
+    // Capture final transcript before disconnecting; do not wait for STT or scoring.
+    try{flushLiveTranscriptBuffers()}catch(e){console.warn('[SaleTrening] transcript flush',e)}
+    const transcript=JSON.parse(JSON.stringify(state.messages||[]));
+    setStatus('Завершаем тренировку…');
+    cleanup();
+    state.session=null;
+    state.messages=[];
+    state.view='progress';
+    window.render();
+    if(typeof toast==='function')toast('Тренировка завершена. Результат рассчитывается.');
+    // Saving and scoring must not hold the call screen open.
+    (async()=>{
+      try{
+        const {error}=await sb.from('saletrening_sessions').update({transcript,updated_at:new Date().toISOString()}).eq('id',sessionId).eq('employee_id',employeeId);
+        if(error)throw error;
+        const {data}=await sb.auth.getSession();
+        const token=data?.session?.access_token;
+        if(!token)throw new Error('Авторизация истекла');
+        const response=await fetch(SUPABASE_URL+'/functions/v1/evaluate-session-v3',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token},
+          body:JSON.stringify({session_id:sessionId}),cache:'no-store'
+        });
+        if(!response.ok)throw new Error('Ошибка анализа: HTTP '+response.status);
+        await loadAll();
+        if(state.view==='progress')window.render();
+        if(typeof toast==='function')toast('Результат тренировки готов');
+      }catch(e){
+        console.error('[SaleTrening] background finish',e);
+        if(typeof toast==='function')toast('Не удалось сохранить или оценить тренировку. Проверьте историю.');
       }
-      const f=window.finishTraining;
-      if(typeof f==='function')await f();
-    }catch(e){
-      console.error('[SaleTrening] finish cold call',e);
-      try{await save()}catch{}
-      if(typeof toast==='function')toast('Не удалось завершить тренировку: '+(e?.message||e));
-    }finally{
-      cleanup();
-      processing=false;
-      updateUI();
-    }
+    })();
   }
   async function launchColdCall(){
     if(launching||callOpen)return;
