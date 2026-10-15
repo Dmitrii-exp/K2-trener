@@ -79,9 +79,9 @@
       if(!scenario)throw new Error('Сценарий не найден');
       if(!state.user||!state.user.id)throw new Error('Пользователь не авторизован');
       if(!state.profile||!state.profile.company_id)throw new Error('Профиль компании не загружен');
-      var q=await wait(sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:scenario.id,status:'started',transcript:[],voice_mode:false}).select().single(),15000);
+      var q=await wait(sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:scenario.id,status:'started',transcript:[],voice_mode:false,assignment_id:window.__stPendingAssignmentId||null}).select().single(),15000);
       if(q.error)throw new Error(q.error.message||'Не удалось создать сессию');
-      state.session=Object.assign({},q.data,{scenario:scenario});state.messages=[];state.view='training';busy=true;open();toast('Тренировка запущена');
+      window.__stPendingAssignmentId=null;state.session=Object.assign({},q.data,{scenario:scenario});state.messages=[];state.view='training';busy=true;open();toast('Тренировка запущена');
       try{
         if(typeof aiClientReply!=='function')throw new Error('Функция AI-клиента не найдена');
         var opening=await wait(aiClientReply('',true),30000);
