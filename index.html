@@ -69,7 +69,7 @@ function voiceInput(){const SR=window.SpeechRecognition||window.webkitSpeechReco
 </script>
 <script>
 const SUPABASE_URL="https://svxykakyrloqzloerygb.supabase.co";const SUPABASE_KEY="sb_publishable_r7wu9xAgaiIZBTg4tBiJvQ_CVKHaUoi";const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let state={user:null,profile:null,company:null,view:"home",scenarios:[],session:null,messages:[],stats:null,team:[],history:[],recoveryMode:false};const $=id=>document.getElementById(id);function toast(t){$("toast").textContent=t;$("toast").classList.remove("hidden");setTimeout(()=>$("toast").classList.add("hidden"),2800)}function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}function roleName(r){return({employee:"Менеджер",manager:"Менеджер",director:"Руководитель",admin:"Администратор"})[r]||r}
+let state={user:null,profile:null,company:null,view:"home",scenarios:[],session:null,messages:[],stats:null,team:[],history:[],assignments:[],recoveryMode:false};const $=id=>document.getElementById(id);function toast(t){$("toast").textContent=t;$("toast").classList.remove("hidden");setTimeout(()=>$("toast").classList.add("hidden"),2800)}function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}function roleName(r){return({employee:"Менеджер",manager:"Менеджер",director:"Руководитель",admin:"Администратор"})[r]||r}
 function passwordRecoveryScreen(){
 state.recoveryMode=true;
 $("root").innerHTML=`<div class="auth"><div class="auth-card"><div class="auth-brand"><div class="logo"><div class="logo-b"><img src="/assets/saletrening-icon.svg" alt="SaleTrening"></div>SaleTrening</div><span class="auth-badge">ВОССТАНОВЛЕНИЕ</span></div><h1>Новый пароль.</h1><div class="sub">Введите новый пароль для вашего аккаунта.</div><div class="field"><label>Новый пароль</label><input id="newPass" type="password" placeholder="Минимум 6 символов" autocomplete="new-password"></div><div class="field"><label>Повторите пароль</label><input id="newPass2" type="password" placeholder="Повторите пароль" autocomplete="new-password"></div><div class="auth-actions"><button class="primary" onclick="updatePassword()">Сохранить пароль</button><button class="secondary" onclick="authScreen()">Вернуться ко входу</button></div><div class="auth-note">После сохранения вы сможете войти с новым паролем.</div></div></div>`;
@@ -183,7 +183,7 @@ async function finishEmployeeSetup(){
 async function acceptPendingInvitation(userId){const token=new URLSearchParams(location.search).get("invite")||localStorage.getItem("saletrening_invite_token")||"";if(token){const {data,error}=await sb.rpc("accept_company_invitation",{p_token:token});if(!error){localStorage.removeItem("saletrening_invite_token");const u=new URL(location.href);u.searchParams.delete("invite");history.replaceState({},"",u.pathname+(u.search?u.search:""));return data}console.error("accept_company_invitation:",error);const code=String(error.message||"");if(code.includes("email_mismatch")){toast("Приглашение предназначено для другого email");return null}if(code.includes("expired")){toast("Срок приглашения истёк");return null}if(code.includes("already_accepted")){localStorage.removeItem("saletrening_invite_token");const u=new URL(location.href);u.searchParams.delete("invite");history.replaceState({},"",u.pathname+(u.search?u.search:""));return {ok:true,alreadyAccepted:true}}if(!code.includes("invitation_not_found"))throw error;localStorage.removeItem("saletrening_invite_token")}const {data,error}=await sb.rpc("accept_company_invitation_for_current_user");if(error){const code=String(error.message||"");if(!code.includes("invitation_not_found"))console.error("accept_company_invitation_for_current_user:",error);return null}const u=new URL(location.href);u.searchParams.delete("invite");history.replaceState({},"",u.pathname+(u.search?u.search:""));return data}
 async function boot(user){state.user=user;await acceptPendingInvitation(user.id);let p=null,error=null;for(let attempt=0;attempt<6;attempt++){const q=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();p=q.data;error=q.error;if(p)break;await new Promise(r=>setTimeout(r,1000))}if(error||!p){toast("Профиль ещё не готов. Попробуйте обновить страницу через несколько секунд.");return}state.profile=p;
 if(p.role==="employee"&&!String(p.first_name||"").trim()){employeeSetupScreen();return}
-if(p.company_id){let c=await sb.from("companies").select("*").eq("id",p.company_id).single();state.company=c.data}await loadAll();render()}
+if(p.company_id){let c=await sb.from("companies").select("*").eq("id",p.company_id).single();state.company=c.data}await loadAll();await refreshAssignments();render()}
 async function loadAll(){let q=await sb.from("saletrening_scenarios").select("*").eq("active",true).order("id");state.scenarios=q.data||[];let ss=await sb.from("my_training_stats").select("*").eq("employee_id",state.user.id).maybeSingle();state.stats=ss.data||{completed_sessions:0,avg_score:0,best_score:0,active_sessions:0};const h=await sb.from("saletrening_sessions").select("id,scenario_id,status,total_score,ai_summary,created_at,completed_at").eq("employee_id",state.user.id).order("created_at",{ascending:false}).limit(50);state.history=h.data||[];state.team=[];if(["director","admin","manager"].includes(state.profile.role)&&state.profile.company_id){const p=await sb.from("profiles").select("id,first_name,last_name,role,company_id").eq("company_id",state.profile.company_id);if(p.error){console.error("team profiles:",p.error)}else{const members=(p.data||[]).filter(x=>x.id!==state.user.id);const ids=members.map(x=>x.id);let sessions=[];if(ids.length){const tr=await sb.from("saletrening_sessions").select("id,employee_id,scenario_id,status,total_score,created_at,completed_at").eq("company_id",state.profile.company_id).order("created_at",{ascending:false});if(tr.error)console.error("team sessions:",tr.error);else sessions=(tr.data||[]).filter(x=>ids.includes(x.employee_id))}const completed=sessions.filter(x=>x.status==="completed"&&x.total_score!=null);const scoreIds=completed.map(x=>x.id);let scores=[];if(scoreIds.length){const sq=await sb.from("session_scores").select("session_id,discovery_score,objection_score,value_score,closing_score,communication_score").eq("company_id",state.profile.company_id);if(!sq.error)scores=(sq.data||[]).filter(x=>scoreIds.includes(x.session_id))}state.team=members.map(m=>{const ms=sessions.filter(x=>x.employee_id===m.id);const cs=ms.filter(x=>x.status==="completed"&&x.total_score!=null);const vals=cs.map(x=>Number(x.total_score)||0);const sc=scores.filter(x=>cs.some(y=>y.id===x.session_id));const avg=k=>{const a=sc.map(x=>Number(x[k])).filter(Number.isFinite);return a.length?Math.round(a.reduce((u,v)=>u+v,0)/a.length):0};const last=ms[0]||null;return {employee_id:m.id,employee_name:(String([m.first_name,m.last_name].filter(Boolean).join(" ")).trim()||"Сотрудник"),sessions_count:ms.length,completed_sessions:cs.length,avg_score:vals.length?Math.round(vals.reduce((u,v)=>u+v,0)/vals.length):0,discovery_score:avg("discovery_score"),objection_score:avg("objection_score"),value_score:avg("value_score"),closing_score:avg("closing_score"),last_training_at:last?.created_at||null,last_training_status:last?.status||null,last_training_id:last?.id||null}}).sort((a,b)=>(new Date(b.last_training_at||0))-(new Date(a.last_training_at||0)));}}}
 function historyPage(){
   const items=Array.isArray(state.history)?state.history:[];
@@ -253,9 +253,9 @@ function navIcon(name){
   };
   return '<svg class="nav-svg nav-svg-color" viewBox="0 0 24 24" aria-hidden="true">'+(p[name]||p.home)+'</svg>'
 }
-function nav(v,t,icon){return `<button class="${state.view===v?"active":""}" onclick="state.view='${v}';page()"><span class="nav-icon">${navIcon(icon)}</span><span>${t}</span></button>`}function render(){if(!state.user){authScreen();return}$("root").innerHTML=`<div class="shell"><aside class="side"><div class="logo"><div class="logo-b"><img src="/assets/saletrening-icon.svg" alt="SaleTrening"></div><span>SaleTrening</span></div><div class="nav">${nav("home","Главная","home")}${nav("training","Тренировки","training")}${nav("coldcall","Холодный звонок","coldcall")}${nav("scenarios","Сценарии","scenarios")}${nav("progress","Мой прогресс","progress")}${nav("history","История","history")}${nav("ai","AI-чат","ai")}${["director","admin"].includes(state.profile.role)?nav("team","Команда","team")+nav("analytics","Аналитика","analytics"):""}</div><div class="side-bottom"><div class="user-mini">${esc(state.profile.first_name||state.user.email)}<br>${roleName(state.profile.role)}${state.company?" · "+esc(state.company.name):""}</div><button class="secondary" style="width:100%" onclick="logout()">Выйти</button></div></aside><main class="content"><div id="page"></div></main></div>`;page()}
+function nav(v,t,icon){return `<button class="${state.view===v?"active":""}" onclick="state.view='${v}';page()"><span class="nav-icon">${navIcon(icon)}</span><span>${t}</span></button>`}function render(){if(!state.user){authScreen();return}$("root").innerHTML=`<div class="shell"><aside class="side"><div class="logo"><div class="logo-b"><img src="/assets/saletrening-icon.svg" alt="SaleTrening"></div><span>SaleTrening</span></div><div class="nav">${nav("home","Главная","home")}${nav("training","Тренировки","training")}${nav("coldcall","Холодный звонок","coldcall")}${nav("scenarios","Сценарии","scenarios")}${nav("progress","Мой прогресс","progress")}${nav("history","История","history")}${nav("assignments","Задания","scenarios")}${nav("ai","AI-чат","ai")}${["director","admin"].includes(state.profile.role)?nav("team","Команда","team")+nav("analytics","Аналитика","analytics"):""}</div><div class="side-bottom"><div class="user-mini">${esc(state.profile.first_name||state.user.email)}<br>${roleName(state.profile.role)}${state.company?" · "+esc(state.company.name):""}</div><button class="secondary" style="width:100%" onclick="logout()">Выйти</button></div></aside><main class="content"><div id="page"></div></main></div>`;page()}
 function setPageHTML(el,value){try{if(value&&typeof value.then==='function'){value.then(html=>{el.innerHTML=html}).catch(err=>{console.error('Page render promise:',err);el.innerHTML='<div class="empty">Не удалось загрузить страницу. Откройте консоль для диагностики.</div>'})}else el.innerHTML=value}catch(err){console.error('Page render:',err);el.innerHTML='<div class="empty">Ошибка отображения страницы.</div>'}}
-function page(){let p=$("page");if(!p)return;if(state.session){if(state.view==="coldcall")trainingCallPage();else trainingChat();return}if(state.view==="home")setPageHTML(p,home());else if(state.view==="training")setPageHTML(p,trainingList());else if(state.view==="coldcall")setPageHTML(p,coldCallHome());else if(state.view==="scenarios")setPageHTML(p,scenarios());else if(state.view==="progress")setPageHTML(p,progress());else if(state.view==="history")setPageHTML(p,historyPage());else if(state.view==="team")setPageHTML(p,team());else if(state.view==="analytics")setPageHTML(p,analytics());else if(state.view==="ai")setPageHTML(p,aiChat());else setPageHTML(p,aiChat())}
+function page(){let p=$("page");if(!p)return;if(state.session){if(state.view==="coldcall")trainingCallPage();else trainingChat();return}if(state.view==="home")setPageHTML(p,home());else if(state.view==="training")setPageHTML(p,trainingList());else if(state.view==="coldcall")setPageHTML(p,coldCallHome());else if(state.view==="scenarios")setPageHTML(p,scenarios());else if(state.view==="progress")setPageHTML(p,progress());else if(state.view==="history")setPageHTML(p,historyPage());else if(state.view==="assignments")setPageHTML(p,assignmentsPage());else if(state.view==="team")setPageHTML(p,team());else if(state.view==="analytics")setPageHTML(p,analytics());else if(state.view==="ai")setPageHTML(p,aiChat());else setPageHTML(p,aiChat())}
 function home(){let s=state.stats||{},pct=Math.min(100,(Number(s.completed_sessions)||0)*10),done=Number(s.completed_sessions)||0,avg=Number(s.avg_score)||0,best=Number(s.best_score)||0,recent=(state.history||[]).slice(0,3);return `
 <div class="dash-head"><div><div class="eyebrow">SALE TRENЕRING · AI SALES COACH</div><h1>Добро пожаловать, ${esc(state.profile.first_name||"коллега")}</h1><p>Практика продаж в формате живого диалога: сценарий → разговор → AI-разбор → следующий шаг.</p></div><div class="dash-head-actions"><span class="pill">${roleName(state.profile.role)}</span><button class="primary dash-main-cta" onclick="state.view='training';page()">Начать тренировку <span aria-hidden="true">→</span></button></div></div>
 <div class="dashboard-hero"><div class="dashboard-hero-copy"><div class="hero-kicker"><span class="status-dot"></span> AI-тренер готов к работе</div><h2>Отработай следующий разговор<br><span>до реального клиента.</span></h2><p>Выбери ситуацию, поговори с AI-клиентом и получи разбор по ключевым навыкам: потребность, ценность, возражения и закрытие.</p><div class="hero-actions"><button class="primary" onclick="state.view='training';page()">Выбрать сценарий <span>→</span></button><button class="secondary" onclick="state.view='coldcall';page()">Голосовая тренировка</button></div></div><div class="dashboard-hero-progress"><div class="progress-top"><span>Прогресс тренировок</span><b>${done} / 10</b></div><div class="progress-ring-wrap"><div class="ring ring-large" style="--v:${pct}%"><b>${pct}%</b></div><div><strong>${done? "Продолжай в том же темпе":"Начни с первой тренировки"}</strong><p>${done?"Следующая сессия добавит новый материал для AI-разбора.":"Проведи первую сессию, чтобы получить персональную точку отсчёта."}</p></div></div><div class="progress-bar"><i style="width:${pct}%"></i></div></div></div>
@@ -471,6 +471,83 @@ async function startColdCall(difficulty="Средний"){
   if(typeof window.launchColdCall==='function') return window.launchColdCall();
   toast("Голосовой модуль не загружен");
 }
+
+/* ASSIGNED TRAININGS V1 */
+async function refreshAssignments(){
+ if(!state.user||!state.profile?.company_id)return;
+ let q=sb.from('training_assignments').select('id,company_id,employee_id,scenario_id,title,description,training_mode,required_sessions,completed_sessions,status,due_at,assigned_by,created_at').eq('company_id',state.profile.company_id).order('created_at',{ascending:false});
+ if(!['director','admin','manager'].includes(state.profile.role))q=q.eq('employee_id',state.user.id);
+ const r=await q; if(r.error){console.error('Assignments:',r.error);state.assignments=[];}else state.assignments=r.data||[];
+}
+function assignmentDate(d){return d?new Date(d).toLocaleDateString('ru-RU'):'Без срока'}
+function assignmentStatus(a){if(a.status==='completed')return 'Выполнено';if(a.due_at&&new Date(a.due_at)<new Date())return 'Просрочено';return a.completed_sessions?'В работе':'Не начато'}
+function assignmentsPage(){
+ const manager=['director','admin','manager'].includes(state.profile?.role);
+ const arr=state.assignments||[];
+ const employees=state.team||[];
+ return '<div class="top"><div><h2>Задания</h2><div class="muted">'+(manager?'Назначайте тренировки и контролируйте выполнение':'Тренировки, назначенные руководителем')+'</div></div>'+(manager?'<button class="primary" onclick="openAssignmentForm()">+ Назначить тренировку</button>':'')+'</div>'+
+ '<div id="assignmentForm"></div>'+
+ (arr.length?'<div style="display:grid;gap:14px">'+arr.map(a=>{
+ const sc=state.scenarios.find(x=>String(x.id)===String(a.scenario_id));
+ const who=employees.find(x=>x.employee_id===a.employee_id);
+ const done=a.status==='completed';
+ return '<div class="card" style="padding:20px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b style="font-size:18px">'+esc(a.title)+'</b><div class="muted" style="margin-top:7px">'+(a.training_mode==='voice'?'Холодный звонок':'Текстовая тренировка')+' · '+esc(sc?.title||'Сценарий')+(manager?' · '+esc(who?.employee_name||'Сотрудник'):'')+'</div></div><span class="pill">'+assignmentStatus(a)+'</span></div>'+
+ (a.description?'<p class="muted">'+esc(a.description)+'</p>':'')+
+ '<div style="margin-top:12px">Прогресс: <b>'+a.completed_sessions+' / '+a.required_sessions+'</b> · Срок: '+assignmentDate(a.due_at)+'</div>'+
+ '<div style="height:8px;border-radius:9px;background:#ebe8f5;overflow:hidden;margin:10px 0 15px"><div style="height:100%;width:'+Math.min(100,100*a.completed_sessions/a.required_sessions)+'%;background:#7357ff"></div></div>'+
+ (!manager&&!done?'<button class="primary" onclick="launchAssignedTraining(\''+a.id+'\')">Начать тренировку →</button>':'')+
+ (manager&&!done?'<button class="secondary" onclick="cancelAssignment(\''+a.id+'\')">Снять задание</button>':'')+
+ '</div>'
+ }).join('')+'</div>':'<div class="empty">Назначенных тренировок пока нет.</div>');
+}
+function openAssignmentForm(employeeId){
+ const el=$('assignmentForm');if(!el)return;
+ const team=state.team||[];
+ if(!team.length){toast('Сначала добавьте сотрудника в команду');return}
+ const opts=team.map(x=>'<option value="'+esc(x.employee_id)+'" '+(x.employee_id===employeeId?'selected':'')+'>'+esc(x.employee_name)+'</option>').join('');
+ const scenarios=(state.scenarios||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.title)+'</option>').join('');
+ el.innerHTML='<div class="card" style="padding:20px;margin-bottom:18px"><h3>Новое задание</h3><div class="bot-fields">'+
+ '<div class="field"><label>Сотрудник</label><select id="asEmployee">'+opts+'</select></div>'+
+ '<div class="field"><label>Тип тренировки</label><select id="asMode"><option value="text">Текстовая тренировка</option><option value="voice">Холодный звонок (голосовая)</option></select></div>'+
+ '<div class="field"><label>Сценарий</label><select id="asScenario">'+scenarios+'</select></div>'+
+ '<div class="field"><label>Количество завершённых тренировок</label><input id="asCount" type="number" min="1" max="100" value="3"></div>'+
+ '<div class="field"><label>Срок выполнения</label><input id="asDue" type="date"></div>'+
+ '<div class="field"><label>Комментарий руководителя</label><textarea id="asComment" rows="2" placeholder="Например: отработать возражение «Дорого»"></textarea></div></div>'+
+ '<div style="display:flex;gap:10px;margin-top:16px"><button class="primary" onclick="createAssignment()">Назначить</button><button class="secondary" onclick="$(\'assignmentForm\').innerHTML=\'\'">Отмена</button></div></div>';
+ el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function createAssignment(){
+ const employee_id=$('asEmployee')?.value,scenario_id=Number($('asScenario')?.value),training_mode=$('asMode')?.value;
+ const required_sessions=Number($('asCount')?.value),due=$('asDue')?.value;
+ const scenario=state.scenarios.find(x=>Number(x.id)===scenario_id);
+ if(!employee_id||!scenario||!['text','voice'].includes(training_mode)||!Number.isInteger(required_sessions)||required_sessions<1||required_sessions>100){toast('Проверьте параметры задания');return}
+ const payload={company_id:state.profile.company_id,employee_id,assigned_by:state.user.id,scenario_id,title:scenario.title,description:$('asComment')?.value.trim()||'',training_mode,required_sessions,status:'assigned',due_at:due?new Date(due+'T23:59:59').toISOString():null};
+ const r=await sb.from('training_assignments').insert(payload);
+ if(r.error){console.error(r.error);toast('Не удалось назначить: '+r.error.message);return}
+ await refreshAssignments();page();toast('Тренировка назначена');
+}
+async function cancelAssignment(id){
+ if(!confirm('Снять это задание?'))return;
+ const r=await sb.from('training_assignments').delete().eq('id',id).eq('company_id',state.profile.company_id);
+ if(r.error){toast('Не удалось снять задание: '+r.error.message);return}
+ await refreshAssignments();page();
+}
+async function launchAssignedTraining(id){
+ const a=(state.assignments||[]).find(x=>x.id===id&&x.employee_id===state.user.id);
+ if(!a||a.status==='completed'){toast('Задание недоступно');return}
+ const sc=state.scenarios.find(x=>String(x.id)===String(a.scenario_id));
+ if(!sc){toast('Сценарий не найден');return}
+ window.__stPendingAssignmentId=a.id;
+ if(a.training_mode==='voice'){
+   window.__stColdCallScenarioOverride=sc;
+   state.view='coldcall';
+   if(typeof coldCall==='object'){coldCall.difficulty=sc.difficulty||'Средний';coldCall.advanced=true;}
+   if(typeof window.launchColdCall==='function')return window.launchColdCall();
+   toast('Голосовой модуль ещё загружается');window.__stPendingAssignmentId=null;return;
+ }
+ if(typeof window.__launchTextTrainingV7==='function')return window.__launchTextTrainingV7(sc.id);
+ toast('Текстовый модуль ещё загружается');window.__stPendingAssignmentId=null;
+}
 </script><script defer src="/cold-call-filters.js?v=restore-20260831"></script>
 <script src="/manager-history.js?v=20260922-1"></script>
 <script>
@@ -522,6 +599,6 @@ async function startColdCall(difficulty="Средний"){
   else startApp();
 })();
 </script>
-<script src="/cold-call-voice-v5.js?v=20261015-sessionfix"></script>
-<script src="/training-runtime-fix.js?v=20260926-1"></script>
+<script src="/cold-call-voice-v5.js?v=20261015-assignments"></script>
+<script src="/training-runtime-fix.js?v=20261015-assignments"></script>
 </body></html>
