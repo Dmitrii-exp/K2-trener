@@ -414,33 +414,41 @@ let liveVoicePreviewCleanup=null;
 async function previewSelectedLiveVoice(){
  const button=document.getElementById('previewLiveVoiceBtn'),status=document.getElementById('previewLiveVoiceStatus');
  if(liveVoicePreviewCleanup){liveVoicePreviewCleanup();return}
- if(window.RTCPeerConnection===undefined){toast('Браузер не поддерживает прослушивание GPT Live');return}
- let pc=null, audio=null, timer=null, done=false;
- const cleanup=()=>{if(done)return;done=true;clearTimeout(timer);try{audio?.pause();audio.srcObject=null}catch{}try{pc?.close()}catch{}liveVoicePreviewCleanup=null;if(button){button.disabled=false;button.textContent='🔊'}if(status)status.textContent=''};
+ if(!window.RTCPeerConnection||!window.AudioContext){toast('Браузер не поддерживает прослушивание GPT Live');return}
+ let pc=null,output=null,source=null,ctx=null,timer=null,done=false,heard=false;
+ const setStatus=t=>{if(status)status.textContent=t};
+ const cleanup=()=>{if(done)return;done=true;clearTimeout(timer);try{source?.pause()}catch{}try{output?.pause();output.srcObject=null}catch{}try{pc?.close()}catch{}try{ctx?.close()}catch{}liveVoicePreviewCleanup=null;if(button){button.disabled=false;button.textContent='🔊'}};
  liveVoicePreviewCleanup=cleanup;
  if(button){button.disabled=true;button.textContent='…'}
- if(status)status.textContent='Подключаем выбранный голос GPT Live…';
+ setStatus('Подключаем выбранный голос GPT Live…');
  try{
   const selected=document.getElementById('coldLiveVoice')?.value||'meridian';
-  const session=await sb.auth.getSession(),token=session?.data?.session?.access_token;
+  const auth=await sb.auth.getSession(),token=auth?.data?.session?.access_token;
   if(!token)throw new Error('Необходимо войти в аккаунт');
-  pc=new RTCPeerConnection();audio=new Audio();audio.autoplay=true;audio.playsInline=true;
-  pc.addTransceiver('audio',{direction:'recvonly'});
-  pc.ontrack=e=>{audio.srcObject=e.streams?.[0]||new MediaStream([e.track]);audio.play().catch(()=>{})};
+  // The recorded manager greeting is transmitted as a WebRTC audio track.
+  source=new Audio('/voice-preview-greeting.m4a');source.preload='auto';source.playsInline=true;
+  const greeting=await fetch('/voice-preview-greeting.m4a',{cache:'no-store'});
+  if(!greeting.ok)throw new Error('Аудиозапись приветствия ещё не опубликована на сайте');
+  ctx=new AudioContext();await ctx.resume();
+  const node=ctx.createMediaElementSource(source),destination=ctx.createMediaStreamDestination();
+  node.connect(destination);
+  pc=new RTCPeerConnection();
+  const track=destination.stream.getAudioTracks()[0];
+  pc.addTrack(track,destination.stream);
+  output=new Audio();output.autoplay=true;output.playsInline=true;
+  pc.ontrack=e=>{output.srcObject=e.streams?.[0]||new MediaStream([e.track]);output.play().catch(err=>setStatus('Ошибка воспроизведения: '+err.message))};
   const dc=pc.createDataChannel('oai-events');
-  dc.onopen=()=>{
-   if(done)return;
-   if(status)status.textContent='Воспроизводим пример…';
-   // Prepared greeting is supplied via session.input.
-  };
-  dc.onmessage=e=>{try{const ev=JSON.parse(e.data);if(ev.type==='session.output_audio.done'||ev.type==='response.done')setTimeout(cleanup,3000);if(ev.type==='session.output_audio.started'||ev.type==='session.output_audio.delta'){if(status)status.textContent='Голос клиента звучит…'}if(ev.type==='error'){if(status)status.textContent='Ошибка GPT Live: '+String(ev.error?.message||ev.message||'неизвестная ошибка');setTimeout(cleanup,6500)}}catch{}};
+  dc.onmessage=e=>{try{const ev=JSON.parse(e.data);const type=String(ev.type||'');if(type.includes('output_audio')||type.includes('output_transcript')){heard=true;setStatus('Клиент отвечает…')}if(type==='error')setStatus('Ошибка GPT Live: '+String(ev.error?.message||ev.message||'неизвестная ошибка'));if(type==='session.output_audio.done'||type==='response.done')setTimeout(cleanup,3500)}catch{}};
   const offer=await pc.createOffer();await pc.setLocalDescription(offer);
-  const res=await fetch('https://svxykakyrloqzloerygb.supabase.co/functions/v1/gpt-live-session',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({sdp:offer.sdp,session:{voice:selected,instructions:'Это отдельная проверка голоса, а не тренировочный звонок. Ты клиент. Менеджер уже произнёс приветствие в истории сообщений. Ответь ему коротко, естественно и дружелюбно на русском языке, без иностранного акцента. Не жди дополнительной реплики.',input:[{type:'message',role:'user',content:[{type:'input_text',text:'Добрый день! Как у вас настроение?'}]}]}}),cache:'no-store'});
+  const res=await fetch('https://svxykakyrloqzloerygb.supabase.co/functions/v1/gpt-live-session',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({sdp:offer.sdp,session:{voice:selected,instructions:'Это проверка голоса клиента. Ты клиент и слышишь приветствие менеджера. После того как менеджер закончит говорить, ответь ему коротко и естественно на русском языке без иностранного акцента. Не начинай говорить первым.'}}),cache:'no-store'});
   const result=await res.json().catch(()=>({}));
   if(!res.ok||!result.ok||!result.transport?.sdp)throw new Error(result.detail?.error?.message||result.detail?.message||result.error||'Не удалось подключить голос');
   await pc.setRemoteDescription({type:'answer',sdp:result.transport.sdp});
-  timer=setTimeout(()=>{if(status)status.textContent='Время ожидания истекло';setTimeout(cleanup,1500)},18000);
- }catch(e){if(status)status.textContent='Не удалось прослушать: '+e.message;setTimeout(cleanup,4500)}
+  setStatus('Произносим приветствие менеджера…');
+  await source.play();
+  source.onended=()=>{setStatus('Ожидаем ответ клиента…')};
+  timer=setTimeout(()=>{setStatus(heard?'Прослушивание завершено':'GPT Live не ответил на аудиоприветствие');setTimeout(cleanup,3000)},28000);
+ }catch(e){setStatus('Не удалось прослушать: '+e.message);setTimeout(cleanup,5500)}
 }
 function updateLiveVoiceOptions(){
   const select=$("coldLiveVoice");if(!select)return;
