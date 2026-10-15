@@ -205,6 +205,7 @@
       const difficulty=coldCall?.difficulty||'Средний';
       const objections=(state.clientObjections||state.client_settings?.objections||state.session?.objections||[]).slice(0,12);
       const scenario=state.session?.scenario||{};
+      const difficultyBehavior=/легк/i.test(String(difficulty))?'ЛЁГКИЙ УРОВЕНЬ: ты открыт к общению, отвечаешь дружелюбно, при разумном предложении быстро идёшь на контакт. Не соглашайся на покупку без объяснения ценности.':/слож/i.test(String(difficulty))?'СЛОЖНЫЙ УРОВЕНЬ: ты опытный требовательный закупщик, проверяешь экономику, риски, гарантии и условия; требуешь конкретики и убедительных аргументов. Не соглашайся без снятия ключевых возражений, но при убедительном предложении реально закрывай сделку.':'СРЕДНИЙ УРОВЕНЬ: проявляй умеренный скепсис, задавай разумные вопросы и возражения, принимай решение после аргументированного ответа.';
       const instructions=[
         'Ты ВСЕГДА только потенциальный КЛИЕНТ в тренировочном холодном B2B-звонке. Никогда не становись продавцом, менеджером, поставщиком, консультантом или оператором.',
         'Менеджер — единственная сторона, которая ведёт продажу: он начинает разговор, задаёт вопросы, выявляет потребность, предлагает товар и условия и ведёт к сделке. Ты не должен брать инициативу по продаже на себя.',
@@ -218,6 +219,7 @@
         'Не помогай менеджеру продавать и не объясняй ему правильную технику продаж.',
         'Не говори, что ты ИИ, модель, голосовой ассистент или что это тренировка.',
         'Твоя роль: '+character+'. Уровень сложности: '+difficulty+'.',
+        difficultyBehavior,
         'Сценарий: '+(scenario.title||'Холодный звонок')+'. Цель менеджера: '+(scenario.objective||'заинтересовать и договориться о следующем шаге')+'.',
         facts?'Факты о клиенте: '+facts+'.':'',
         objections.length?'Возможные возражения клиента: '+objections.join('; ')+'.':'',
@@ -598,7 +600,7 @@
       if(!base?.id)throw new Error('В базе нет активных сценариев');
       const hard=String(difficulty).toLowerCase().includes('слож');
       const scenario={...base,cold_call:true,difficulty,resistance_level:hard?7:4,cold_call_difficulty:(hard?7:4)+'/10'};
-      const r=await sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:scenario.id,status:'started',transcript:[],voice_mode:true,assignment_id:window.__stPendingAssignmentId||null}).select().single();
+      const r=await sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:scenario.id,status:'started',transcript:[],voice_mode:true,difficulty_level:difficulty,assignment_id:window.__stPendingAssignmentId||null}).select().single();
       if(r.error)throw new Error(r.error.message||'Не удалось создать сессию');
       window.__stPendingAssignmentId=null;window.__stColdCallScenarioOverride=null;state.session={...r.data,scenario};
       state.messages=[];
