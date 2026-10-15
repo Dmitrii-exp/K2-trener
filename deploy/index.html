@@ -279,9 +279,9 @@ function setPageHTML(el,value){try{if(value&&typeof value.then==='function'){val
 function page(){let p=$("page");if(!p)return;if(state.session){if(state.view==="coldcall")trainingCallPage();else trainingChat();return}if(state.view==="home")setPageHTML(p,home());else if(state.view==="training")setPageHTML(p,trainingList());else if(state.view==="coldcall")setPageHTML(p,coldCallHome());else if(state.view==="scenarios")setPageHTML(p,scenarios());else if(state.view==="progress")setPageHTML(p,progress());else if(state.view==="achievements")setPageHTML(p,achievementsPage());else if(state.view==="history")setPageHTML(p,historyPage());else if(state.view==="assignments")setPageHTML(p,assignmentsPage());else if(state.view==="team")setPageHTML(p,team());else if(state.view==="analytics")setPageHTML(p,analytics());else if(state.view==="ai")setPageHTML(p,aiChat());else setPageHTML(p,aiChat())}
 
 const ACHIEVEMENT_LEVELS=[
-{name:"Хиляк",min:0,max:9,score:0},{name:"Новичок",min:10,max:29,score:35},{name:"Практик",min:30,max:59,score:50},
-{name:"Эксперт",min:60,max:99,score:65},{name:"Профи",min:100,max:199,score:75},{name:"Мастер",min:200,max:499,score:83},
-{name:"Легенда",min:500,max:Infinity,score:90}];
+{name:"Хиляк",min:0,max:9,score:0,voice:0,text:0},{name:"Новичок",min:10,max:29,score:35,voice:3,text:6},{name:"Практик",min:30,max:59,score:50,voice:5,text:10},
+{name:"Эксперт",min:60,max:99,score:65,voice:8,text:16},{name:"Профи",min:100,max:199,score:75,voice:10,text:20},{name:"Мастер",min:200,max:499,score:83,voice:12,text:25},
+{name:"Легенда",min:500,max:Infinity,score:90,voice:15,text:30}];
 function achievementRobot(n){const names=['01_hilyak','02_novichok','03_praktik','04_ekspert','05_profi','06_master','07_legenda'];return '<img loading="lazy" alt="Робот '+ACHIEVEMENT_LEVELS[n].name+'" src="/assets/'+names[n]+'.png" style="width:100%;height:100%;object-fit:contain">'}
 function achievementMode(x){
  const title=String((state.scenarios||[]).find(s=>String(s.id)===String(x.scenario_id))?.title||'').toLowerCase();
@@ -289,24 +289,23 @@ function achievementMode(x){
 }
 function achievementPanel(done){
  const entries=(state.achievementHistory||[]).filter(x=>x.status==='completed').slice().sort((a,b)=>new Date(b.completed_at||b.created_at)-new Date(a.completed_at||a.created_at));
- const voice=entries.filter(x=>achievementMode(x)==='voice').slice(0,15),written=entries.filter(x=>achievementMode(x)==='text').slice(0,30);
- const average=a=>{const scores=a.map(x=>Number(x.total_score)).filter(x=>Number.isFinite(x)&&x>=0);return scores.length===a.length&&scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:null};
- const voiceAvg=average(voice),textAvg=average(written);
- const eligible=i=>{const l=ACHIEVEMENT_LEVELS[i];return done>=l.min&&(i===0||(voice.length>=15&&written.length>=30&&voiceAvg!==null&&textAvg!==null&&voiceAvg>=l.score&&textAvg>=l.score))};
- let idx=0;for(let i=1;i<ACHIEVEMENT_LEVELS.length;i++){if(eligible(i))idx=i}
- const level=ACHIEVEMENT_LEVELS[idx],next=ACHIEVEMENT_LEVELS[idx+1];
- const target=ACHIEVEMENT_LEVELS[Math.min(idx+1,6)],remaining=Math.max(0,target.min-done);
+ const allVoice=entries.filter(x=>achievementMode(x)==='voice'),allText=entries.filter(x=>achievementMode(x)==='text');
+ const avg=(arr,n)=>{if(!n)return null;const recent=arr.slice(0,n);if(recent.length<n)return null;const scores=recent.map(x=>Number(x.total_score));return scores.every(v=>Number.isFinite(v)&&v>=0)?scores.reduce((a,b)=>a+b,0)/n:null};
+ const eligible=i=>{const l=ACHIEVEMENT_LEVELS[i];return done>=l.min&&(i===0||(avg(allVoice,l.voice)!==null&&avg(allText,l.text)!==null&&avg(allVoice,l.voice)>=l.score&&avg(allText,l.text)>=l.score))};
+ let idx=0;for(let i=1;i<ACHIEVEMENT_LEVELS.length;i++)if(eligible(i))idx=i;
+ const level=ACHIEVEMENT_LEVELS[idx],next=ACHIEVEMENT_LEVELS[idx+1],target=next||level;
+ const va=avg(allVoice,target.voice),ta=avg(allText,target.text);
  const instructions=[];
  if(next){
- if(remaining)instructions.push('До уровня «'+next.name+'» осталось завершить '+remaining+' тренировок.');
- if(voice.length<15)instructions.push('Проведите ещё '+(15-voice.length)+' голосовых тренировок для расчёта среднего балла.');
- if(written.length<30)instructions.push('Проведите ещё '+(30-written.length)+' текстовых тренировок для расчёта среднего балла.');
- if(voice.length>=15&&voiceAvg!==null&&voiceAvg<next.score)instructions.push('Голосовые: средний балл '+voiceAvg.toFixed(1)+' из 100, требуется '+next.score+'. Улучшайте результаты в следующих голосовых тренировках.');
- if(written.length>=30&&textAvg!==null&&textAvg<next.score)instructions.push('Текстовые: средний балл '+textAvg.toFixed(1)+' из 100, требуется '+next.score+'. Улучшайте результаты в следующих текстовых тренировках.');
+ const remaining=Math.max(0,next.min-done);if(remaining)instructions.push('До уровня «'+next.name+'» осталось '+remaining+' тренировок.');
+ if(allVoice.length<next.voice)instructions.push('Нужно ещё '+(next.voice-allVoice.length)+' голосовых тренировок (для уровня учитываются последние '+next.voice+').');
+ if(allText.length<next.text)instructions.push('Нужно ещё '+(next.text-allText.length)+' текстовых тренировок (для уровня учитываются последние '+next.text+').');
+ if(va!==null&&va<next.score)instructions.push('Голосовые: '+va.toFixed(1)+' балла, требуется '+next.score+'. Улучшайте оценки в следующих голосовых тренировках.');
+ if(ta!==null&&ta<next.score)instructions.push('Текстовые: '+ta.toFixed(1)+' балла, требуется '+next.score+'. Улучшайте оценки в следующих текстовых тренировках.');
  if(!instructions.length)instructions.push('Условия следующего уровня выполнены.');
  }
  const progress=next?Math.min(100,Math.round(100*done/next.min)):100;
- return '<div class="achievement-panel"><div class="achievement-head"><span>Достижения · Эволюция робота</span><b>Уровень '+(idx+1)+' / 7</b></div><div class="achievement-main"><div class="achievement-robot">'+achievementRobot(idx)+'</div><div><h3>'+level.name+'</h3><p>Завершено тренировок: <b>'+done+'</b></p><p>Голосовые, последние '+voice.length+'/15: <b>'+(voiceAvg===null?'—':voiceAvg.toFixed(1))+'</b></p><p>Текстовые, последние '+written.length+'/30: <b>'+(textAvg===null?'—':textAvg.toFixed(1))+'</b></p><p>'+(next?'Для уровня «'+next.name+'» нужен средний балл '+next.score+' в каждом формате':'Максимальный уровень достигнут!')+'</p></div></div><div class="achievement-track"><i style="width:'+progress+'%"></i></div><div class="achievement-levels">'+ACHIEVEMENT_LEVELS.map((l,i)=>'<div class="achievement-level '+(i===idx?'active':'')+'" title="От '+l.min+' тренировок, средний балл от '+l.score+'">'+achievementRobot(i)+'<strong>'+l.name+'</strong><small>'+l.min+(i===6?'+':'–'+l.max)+'</small><small>'+(i===0?'Любой балл':'От '+l.score+' баллов')+'</small></div>').join('')+'</div>'+(instructions.length?'<div class="achievement-requirements" style="margin-top:18px;padding:14px;border-radius:14px;background:#f3efff;color:#41345e"><strong>Что нужно для повышения</strong><div style="margin-top:8px;line-height:1.65">'+instructions.map(x=>'<div>• '+x+'</div>').join('')+'</div></div>':'')+'</div>';
+ return '<div class="achievement-panel"><div class="achievement-head"><span>Достижения · Эволюция робота</span><b>Уровень '+(idx+1)+' / 7</b></div><div class="achievement-main"><div class="achievement-robot">'+achievementRobot(idx)+'</div><div><h3>'+level.name+'</h3><p>Завершено тренировок: <b>'+done+'</b></p><p>Голосовые, последние '+Math.min(allVoice.length,target.voice)+'/'+target.voice+': <b>'+(va===null?'—':va.toFixed(1))+'</b></p><p>Текстовые, последние '+Math.min(allText.length,target.text)+'/'+target.text+': <b>'+(ta===null?'—':ta.toFixed(1))+'</b></p><p>'+(next?'Для уровня «'+next.name+'» нужен средний балл '+next.score+' в каждом формате':'Максимальный уровень достигнут!')+'</p></div></div><div class="achievement-track"><i style="width:'+progress+'%"></i></div><div class="achievement-levels">'+ACHIEVEMENT_LEVELS.map((l,i)=>'<div class="achievement-level '+(i===idx?'active':'')+'" title="От '+l.min+' тренировок; '+l.voice+' голосовых, '+l.text+' текстовых; средний балл от '+l.score+'">'+achievementRobot(i)+'<strong>'+l.name+'</strong><small>'+l.min+(i===6?'+':'–'+l.max)+'</small><small>'+(i===0?'Любой балл':'От '+l.score+' баллов')+'</small></div>').join('')+'</div>'+(instructions.length?'<div class="achievement-requirements" style="margin-top:18px;padding:14px;border-radius:14px;background:#f3efff;color:#41345e"><strong>Что нужно для повышения</strong><div style="margin-top:8px;line-height:1.65">'+instructions.map(x=>'<div>• '+x+'</div>').join('')+'</div></div>':'')+'</div>';
 }
 
 function achievementsPage(){const done=Number(state.stats?.completed_sessions)||0;return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px"><div><h1 style="margin:0">Достижения</h1><p class="muted">Эволюция робота · 7 уровней</p></div><button class="secondary" onclick="state.view=\'home\';page()">← Главная</button></div>'+achievementPanel(done)}
