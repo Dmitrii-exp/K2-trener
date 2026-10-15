@@ -6,7 +6,7 @@
   const PROJECT = 'https://svxykakyrloqzloerygb.supabase.co/functions/v1';
   let stream = null, recorder = null, chunks = [], analyser = null, analyserSource = null, vadTimer = null;
   let audio = null, audioCtx = null, recording = false, processing = false, callOpen = false, continuousMode = false;
-  // GPT-Live voices documented by OpenAI. Gender labels are explicit in the UI;
+  // голосового помощника voices documented by OpenAI. Gender labels are explicit in the UI;
   // keep the technical API names here so the selected voice is passed unchanged.
   const LIVE_VOICES = ['meridian','stone','ripple','vesper','cinder','beacon','willow','quartz','gleam','delta'];
   const LIVE_VOICE = 'meridian';
@@ -52,12 +52,12 @@
       const promise=new Promise(resolve=>{
         rec.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};
         rec.onstop=()=>resolve({blob:new Blob(chunks,{type:actual}),mime:actual});
-        rec.onerror=e=>{console.warn('[SaleTrening] GPT-Live recorder',which,e);resolve({blob:null,mime:actual})};
+        rec.onerror=e=>{console.warn('[SaleTrening] голосового помощника recorder',which,e);resolve({blob:null,mime:actual})};
       });
       rec.start(500);
       if(which==='manager'){liveManagerRecorder=rec;liveManagerChunks=chunks;liveManagerMime=actual;liveManagerStopPromise=promise}
       else {liveClientRecorder=rec;liveClientChunks=chunks;liveClientMime=actual;liveClientStopPromise=promise}
-    }catch(e){console.warn('[SaleTrening] GPT-Live recorder start',which,e)}
+    }catch(e){console.warn('[SaleTrening] голосового помощника recorder start',which,e)}
   }
 
   async function stopLiveRecorders(){
@@ -90,7 +90,7 @@
     const results=await Promise.all(jobs);
     for(const r of results){
       if(r?.text) addMessage(r.speaker,r.text);
-      else if(r?.error) console.warn('[SaleTrening] GPT-Live fallback STT',r.speaker,r.error);
+      else if(r?.error) console.warn('[SaleTrening] голосового помощника fallback STT',r.speaker,r.error);
     }
   }
 
@@ -100,7 +100,7 @@
         liveDc.send(JSON.stringify({type:'session.close'}));
         await new Promise(resolve=>setTimeout(resolve,350));
       }
-    }catch(e){console.warn('[SaleTrening] GPT-Live close',e)}
+    }catch(e){console.warn('[SaleTrening] голосового помощника close',e)}
     try{liveDc?.close()}catch{}
     try{livePc?.close()}catch{}
     try{liveAudio?.pause()}catch{}
@@ -187,7 +187,7 @@
       const pc=new RTCPeerConnection(); livePc=pc;
       const dc=pc.createDataChannel('oai-events'); liveDc=dc;
       dc.onmessage=e=>handleLiveEvent(e.data);
-      dc.onerror=e=>console.error('[SaleTrening] GPT-Live data channel',e);
+      dc.onerror=e=>console.error('[SaleTrening] голосового помощника data channel',e);
       liveAudio=new Audio(); liveAudio.autoplay=true; liveAudio.playsInline=true;
       pc.ontrack=e=>{
         const track=e.streams?.[0];
@@ -233,22 +233,22 @@
       ].filter(Boolean).join('\n');
       const history=(state.messages||[]).slice(-20).map(m=>({type:'message',role:m.speaker==='manager'?'user':'assistant',content:[{type:m.speaker==='manager'?'input_text':'output_text',text:String(m.content||'') }]})).filter(x=>x.content[0].text);
       const offer=await pc.createOffer(); await pc.setLocalDescription(offer);
-      const answerResp=await fetch(PROJECT+'/gpt-live-session',{method:'POST',headers:await authHeaders(true),body:JSON.stringify({sdp:offer.sdp,session:{voice:(LIVE_VOICES.includes(coldCall?.liveVoice)?coldCall.liveVoice:LIVE_VOICE),instructions,input:history}}),cache:'no-store'});
+      const answerResp=await fetch(PROJECT+'/голосового помощника-session',{method:'POST',headers:await authHeaders(true),body:JSON.stringify({sdp:offer.sdp,session:{voice:(LIVE_VOICES.includes(coldCall?.liveVoice)?coldCall.liveVoice:LIVE_VOICE),instructions,input:history}}),cache:'no-store'});
       const raw=await answerResp.text(); let j={}; try{j=raw?JSON.parse(raw):{}}catch{}
       if(!answerResp.ok||!j.ok){
         const detail=j.detail?.error?.message||j.detail?.message||j.detail?.error||'';
-        throw new Error(j.error+(detail?': '+detail:'')||raw||('GPT-Live HTTP '+answerResp.status));
+        throw new Error(j.error+(detail?': '+detail:'')||raw||('голосового помощника HTTP '+answerResp.status));
       }
-      if(!j.transport?.sdp)throw new Error('GPT-Live не вернул SDP answer');
+      if(!j.transport?.sdp)throw new Error('голосового помощника не вернул SDP answer');
       liveSessionId=j.session?.id||null; await pc.setRemoteDescription({type:'answer',sdp:j.transport.sdp});
       dc.onopen=()=>{setStatus('Продвинутый звонок подключён. Вы говорите первым.');updateUI()};
-      pc.onconnectionstatechange=()=>{const s=pc.connectionState;if(s==='failed'||s==='disconnected'){setStatus('Соединение продвинутого звонка прервано.');if(typeof toast==='function')toast('GPT-Live: соединение прервано')}};
+      pc.onconnectionstatechange=()=>{const s=pc.connectionState;if(s==='failed'||s==='disconnected'){setStatus('Соединение продвинутого звонка прервано.');if(typeof toast==='function')toast('голосового помощника: соединение прервано')}};
       setStatus('Подключаю продвинутый звонок…'); updateUI();
     }catch(e){
-      console.error('[SaleTrening] GPT-Live start',e);
+      console.error('[SaleTrening] голосового помощника start',e);
       try{stream?.getTracks().forEach(t=>t.stop())}catch{} stream=null;
       try{liveDc?.close()}catch{} try{livePc?.close()}catch{} liveDc=null;livePc=null;liveAudio=null;
-      setStatus('Ошибка продвинутого звонка: '+e.message); if(typeof toast==='function')toast('GPT-Live: '+e.message);
+      setStatus('Ошибка продвинутого звонка: '+e.message); if(typeof toast==='function')toast('голосового помощника: '+e.message);
     }
   }
 
@@ -275,7 +275,7 @@
   }
 
   function addLiveOutput(itemId,text){
-    // Do not trim individual GPT-Live deltas: leading/trailing spaces are
+    // Do not trim individual голосового помощника deltas: leading/trailing spaces are
     // meaningful because a delta can begin/end in the middle of a sentence.
     // Trimming every delta was causing words to be glued together in the UI.
     const part=String(text??''); if(!part)return;
@@ -286,7 +286,7 @@
       const final=String(liveOutputBuffers.get(key)||'').replace(/\\s+/g,' ').trim();
       if(final){
         addMessage('client',final);
-        try{await save()}catch(e){console.warn('[SaleTrening] GPT-Live save client',e)}
+        try{await save()}catch(e){console.warn('[SaleTrening] голосового помощника save client',e)}
       }
       liveOutputBuffers.delete(key);liveOutputTimers.delete(key);
     },900));
@@ -302,7 +302,7 @@
       clearTimeout(liveOutputTimers.get('in:'+id));
       liveOutputTimers.set('in:'+id,setTimeout(async()=>{
         const text=String(liveInputBuffers.get(id)||'').trim();
-        if(text){addMessage('manager',text);liveInputBuffers.delete(id);try{await save()}catch(err){console.warn('[SaleTrening] GPT-Live save manager',err)}setStatus('Клиент отвечает…')}
+        if(text){addMessage('manager',text);liveInputBuffers.delete(id);try{await save()}catch(err){console.warn('[SaleTrening] голосового помощника save manager',err)}setStatus('Клиент отвечает…')}
         liveOutputTimers.delete('in:'+id);
       },500));
       return;
@@ -313,7 +313,7 @@
       if(text){
         liveInputBuffers.delete(id);
         addMessage('manager',text);
-        save().catch(err=>console.warn('[SaleTrening] GPT-Live save manager',err));
+        save().catch(err=>console.warn('[SaleTrening] голосового помощника save manager',err));
         setStatus('Клиент отвечает…');
       }
       return;
@@ -328,7 +328,7 @@
       if(text)addLiveOutput(id,text);
       return;
     }
-    if(type==='error'){console.error('[SaleTrening] GPT-Live event error',e);const msg=e.error?.message||e.message||'Ошибка GPT-Live';setStatus('Ошибка GPT-Live: '+msg);if(typeof toast==='function')toast('GPT-Live: '+msg)}
+    if(type==='error'){console.error('[SaleTrening] голосового помощника event error',e);const msg=e.error?.message||e.message||'Ошибка голосового помощника';setStatus('Ошибка голосового помощника: '+msg);if(typeof toast==='function')toast('голосового помощника: '+msg)}
   }
   async function startContinuousConversation(){
     if(processing||recording||!callOpen||continuousMode)return;
@@ -357,7 +357,7 @@
     const value=String(text??'').replace(/\\s+/g,' ').trim();
     if(!value)return;
     const last=state.messages[state.messages.length-1];
-    // GPT-Live may emit several transcript chunks for one speaker. Merge
+    // голосового помощника may emit several transcript chunks for one speaker. Merge
     // consecutive chunks into one bubble so the dialogue stays readable.
     if(last?.speaker===speaker){
       const separator=/[\\s([«„—-]$/.test(String(last.content||''))||/^[,.;:!?…»”'")\\]]/.test(value)?'':' ';
@@ -552,7 +552,7 @@
     try{
       if(livePc||liveDc){
         await new Promise(resolve=>setTimeout(resolve,350));
-        // Give GPT-Live transcript deltas a short window, then use the recorded
+        // Give голосового помощника transcript deltas a short window, then use the recorded
         // WebRTC directions as a reliable fallback if one/both speaker captions are missing.
         flushLiveTranscriptBuffers();
         await recoverLiveTranscriptFromAudio();
