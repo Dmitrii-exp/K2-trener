@@ -594,9 +594,9 @@
       if(!base?.id)throw new Error('В базе нет активных сценариев');
       const hard=String(difficulty).toLowerCase().includes('слож');
       const scenario={...base,cold_call:true,difficulty,resistance_level:hard?7:4,cold_call_difficulty:(hard?7:4)+'/10'};
-      const r=await sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:scenario.id,status:'started',transcript:[],voice_mode:true}).select().single();
+      const r=await sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:scenario.id,status:'started',transcript:[],voice_mode:true,assignment_id:window.__stPendingAssignmentId||null}).select().single();
       if(r.error)throw new Error(r.error.message||'Не удалось создать сессию');
-      state.session={...r.data,scenario};
+      window.__stPendingAssignmentId=null;window.__stColdCallScenarioOverride=null;state.session={...r.data,scenario};
       state.messages=[];
       state.view='coldcall';
       window.__stColdCallActive=true;
