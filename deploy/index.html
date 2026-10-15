@@ -431,11 +431,11 @@ async function previewSelectedLiveVoice(){
   dc.onopen=()=>{
    if(done)return;
    if(status)status.textContent='Воспроизводим пример…';
-   dc.send(JSON.stringify({type:'session.commentary.append',delegation_id:null,content:'Здравствуйте. Я вас слушаю. Что вы хотели предложить?'}));
+   // Prepared greeting is supplied via session.input.
   };
-  dc.onmessage=e=>{try{const ev=JSON.parse(e.data);if(ev.type==='session.output_audio.done'||ev.type==='response.done')setTimeout(cleanup,3000);if(ev.type==='error'){if(status)status.textContent='Ошибка GPT Live: '+String(ev.error?.message||ev.message||'неизвестная ошибка');setTimeout(cleanup,6500)}}catch{}};
+  dc.onmessage=e=>{try{const ev=JSON.parse(e.data);if(ev.type==='session.output_audio.done'||ev.type==='response.done')setTimeout(cleanup,3000);if(ev.type==='session.output_audio.started'||ev.type==='session.output_audio.delta'){if(status)status.textContent='Голос клиента звучит…'}if(ev.type==='error'){if(status)status.textContent='Ошибка GPT Live: '+String(ev.error?.message||ev.message||'неизвестная ошибка');setTimeout(cleanup,6500)}}catch{}};
   const offer=await pc.createOffer();await pc.setLocalDescription(offer);
-  const res=await fetch('https://svxykakyrloqzloerygb.supabase.co/functions/v1/gpt-live-session',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({sdp:offer.sdp,session:{voice:selected,instructions:'Это отдельная проверка звучания голоса, а не тренировочный звонок. Сразу после подключения произнеси только одну фразу, не ожидая реплики менеджера: «Здравствуйте. Я вас слушаю. Что вы хотели предложить?» Говори по-русски естественно, с произношением носителя языка, без иностранного акцента.'}}),cache:'no-store'});
+  const res=await fetch('https://svxykakyrloqzloerygb.supabase.co/functions/v1/gpt-live-session',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({sdp:offer.sdp,session:{voice:selected,instructions:'Это отдельная проверка голоса, а не тренировочный звонок. Ты клиент. Менеджер уже произнёс приветствие в истории сообщений. Ответь ему коротко, естественно и дружелюбно на русском языке, без иностранного акцента. Не жди дополнительной реплики.',input:[{type:'message',role:'user',content:[{type:'input_text',text:'Добрый день! Как у вас настроение?'}]}]}}),cache:'no-store'});
   const result=await res.json().catch(()=>({}));
   if(!res.ok||!result.ok||!result.transport?.sdp)throw new Error(result.detail?.error?.message||result.detail?.message||result.error||'Не удалось подключить голос');
   await pc.setRemoteDescription({type:'answer',sdp:result.transport.sdp});
