@@ -24,8 +24,8 @@ end;
 $test$;
 
 set local role authenticated;
-insert into integrity_test_sessions (id,status,total_score,transcript,difficulty_level,assignment_id)
-values ('11111111-1111-4111-8111-111111111111','completed',100,'[{"speaker":"client","content":"fabricated"}]','Средний',null);
+insert into integrity_test_sessions (id,employee_id,company_id,scenario_id,status,total_score,transcript,difficulty_level,assignment_id)
+values ('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333',1,'completed',100,'[{"speaker":"client","content":"fabricated"}]','Средний',null);
 do $test$
 begin
   if not exists(select 1 from integrity_test_sessions where status='started' and total_score is null and transcript='[]'::jsonb) then
