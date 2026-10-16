@@ -23,3 +23,6 @@ Navigation icons use a single 24px container and 22px SVG rule without `!importa
 ## Constraints
 Do not alter Supabase auth, invitation flow, training runtime, AI calls, session persistence or navigation behavior as part of visual work.
 Desktop and mobile must preserve the same functional controls.
+
+## Invitation privacy
+Manager invitation controls are owned by `company-invitations.js`, shared by the root and REG.RU entry points. Managers prepare an invitation and send it by email; the form shows the recipient and delivery status only. Authentication links and invitation tokens are generated and kept server-side, and are delivered only to the recipient. Browser responses carry only a non-secret invitation record ID. Recipient registration behavior is unchanged.
