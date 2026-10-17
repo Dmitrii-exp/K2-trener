@@ -11,6 +11,24 @@ async function backend(body, options = {}) {
   const invitation = { id: inviteId, company_id: 'company', email: 'employee@example.com', role: 'employee', token: secret, expires_at: new Date(Date.now() + 86400000).toISOString(), accepted_at: null };
   const row = table => table === 'profiles' ? { company_id: 'company', role: options.role || 'director' } : table === 'companies' ? { name: 'Test company' } : invitation;
   const client = {
+    async rpc(name, args) {
+      if (name === 'finish_saletrening_invitation_send') {
+        if (options.finishFailure) throw new Error('cleanup unavailable');
+        return { data: null };
+      }
+      assert.equal(name, 'reserve_saletrening_invitation_send');
+      assert.equal(args.p_user_id, 'manager');
+      assert.equal(args.p_company_id, 'company');
+      assert.equal(args.p_invitation_id, inviteId);
+      assert.equal(args.p_email, 'employee@example.com');
+      if (options.limiterThrows) throw new Error('RPC unavailable');
+      if (options.limiterError) return { error: new Error('RPC unavailable') };
+      if (options.malformedLimit) return { data: { allowed: true } };
+      if (options.rateLimited || (options.sharedLimit && options.sharedLimit.used++ > 0)) {
+        return { data: { allowed: false, status: 429, retry_after: 60 } };
+      }
+      return { data: { allowed: true, attempt_id: inviteId } };
+    },
     auth: { getUser: async () => ({ data: { user: options.unauthorized ? null : { id: 'manager' } } }), admin: { generateLink: async () => { generated++; return { data: { properties: { action_link: 'https://auth.example.com/' + secret } } }; } } },
     from(table) {
       const filters = [];
@@ -25,7 +43,7 @@ async function backend(body, options = {}) {
   };
   vm.runInNewContext(edgeSource, {
     Deno: { env: { get: name => name === 'RESEND_API_KEY' && options.noEmailKey ? undefined : 'test-value' }, serve: callback => { handler = callback; } },
-    createClient: () => client, Response, crypto: { randomUUID: () => 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee' },
+    createClient: () => client, Response, AbortSignal, crypto: { randomUUID: () => 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee' },
     fetch: async (url, request) => {
       mailed++;
       const payload = JSON.parse(request.body);
@@ -35,11 +53,12 @@ async function backend(body, options = {}) {
     }, console
   });
   const result = await handler(new Request('https://function.example.com', { method: 'POST', headers: { Authorization: 'Bearer test-user', 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
+  const retryAfter = result.headers.get('Retry-After');
   const text = await result.text();
   assert.ok(!text.includes(secret), 'Response leaked authentication material');
   const data = JSON.parse(text);
   for (const key of ['token', 'invite_url', 'action_link', 'redirect_to']) assert.ok(!(key in data), `Response leaked ${key}`);
-  return { data, status: result.status, generated, mailed };
+  return { data, status: result.status, generated, mailed, retryAfter };
 }
 
 async function frontend() {
@@ -85,6 +104,19 @@ async function frontend() {
   const mismatch = await backend({ ...sendBody, email: 'other@example.com' }); assert.equal(mismatch.status, 400); assert.equal(mismatch.generated, 0);
   assert.equal((await backend(sendBody, { emailFailure: true })).status, 502);
   const unconfigured = await backend(sendBody, { noEmailKey: true }); assert.equal(unconfigured.status, 503); assert.equal(unconfigured.generated, 0);
+  for (const option of ['limiterThrows', 'limiterError', 'malformedLimit']) {
+    const r = await backend(sendBody, { [option]: true });
+    assert.equal(r.status, 503); assert.equal(r.generated, 0); assert.equal(r.mailed, 0);
+  }
+  const denied = await backend(sendBody, { rateLimited: true });
+  assert.equal(denied.status, 429); assert.equal(denied.retryAfter, '60');
+  assert.equal(denied.generated, 0); assert.equal(denied.mailed, 0);
+  const sharedLimit = { used: 0 };
+  const concurrent = await Promise.all(Array.from({ length: 5 }, () => backend(sendBody, { sharedLimit })));
+  assert.equal(concurrent.filter(r => r.status === 200).length, 1);
+  assert.equal(concurrent.reduce((n, r) => n + r.mailed, 0), 1);
+  const cleanupFailure = await backend(sendBody, { finishFailure: true });
+  assert.equal(cleanupFailure.status, 200);
   await frontend();
   assert.equal(fs.readFileSync('company-invitations.js', 'utf8'), fs.readFileSync('deploy/company-invitations.js', 'utf8'));
   for (const path of ['index.html', 'deploy/index.html']) {
@@ -92,5 +124,5 @@ async function frontend() {
     assert.ok(text.includes('/company-invitations.js?v=20261016-private'));
     assert.ok(!text.includes('id="inviteLink"') && !text.includes('pendingCompanyInvitation'));
   }
-  console.log('PASS: invitation privacy, recipient-only email, permission boundaries, retry, duplicate clicks, deployed assets');
+  console.log('PASS: invitation privacy, permission boundaries, fail-closed limiter, 429/retry-after, parallel sends, cleanup failure, frontend retry and deployed assets');
 })().catch(error => { console.error(error); process.exitCode = 1; });
