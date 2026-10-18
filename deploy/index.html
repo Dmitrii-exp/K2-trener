@@ -381,7 +381,12 @@ function renderTrainingCatalog(){
   const difficulties=[...new Set(all.map(s=>String(s.difficulty||"").trim()).filter(Boolean))];
   root.innerHTML=`<div class="training-catalog-toolbar">
     <div class="training-search-wrap"><span class="training-search-icon">⌕</span><input id="trainingSearch" value="${esc(trainingFilters.query)}" oninput="trainingFilters.query=this.value;renderTrainingCatalog()" placeholder="Поиск по сценариям..." aria-label="Поиск по сценариям"></div>
-    <button type="button" class="training-filter" style="background:#7150f5;color:white;border:2px solid #7150f5;font-weight:800;padding:12px 20px;box-shadow:0 6px 18px #7150f533" onclick="openTrainingFilterDialog()">☷ Фильтры <span style="background:#ffffff30;border-radius:12px;padding:2px 7px">${[trainingFilters.role!=="all",trainingFilters.mode!=="all",trainingFilters.difficulty!=="all"].filter(Boolean).length||"Все"}</span></button>
+    <div class="training-filters" role="tablist" aria-label="Категория тренировок" style="padding:8px;background:#f0ecff;border:2px solid #d7caff;border-radius:18px;display:flex;gap:8px;flex-wrap:wrap;margin:14px 0">
+      <button role="tab" aria-selected="${trainingFilters.role==="all"}" class="training-filter ${trainingFilters.role==="all"?"active":""}" onclick="setTrainingFilter('role','all')">Все</button>
+      <button role="tab" aria-selected="${trainingFilters.role==="manager"}" class="training-filter ${trainingFilters.role==="manager"?"active":""}" onclick="setTrainingFilter('role','manager')">Менеджер</button>
+      <button role="tab" aria-selected="${trainingFilters.role==="buyer"}" class="training-filter ${trainingFilters.role==="buyer"?"active":""}" onclick="setTrainingFilter('role','buyer')">Закупщик</button>
+    </div>
+    <button type="button" class="training-filter" style="background:#7150f5;color:white;border:2px solid #7150f5;font-weight:800;padding:12px 20px;box-shadow:0 6px 18px #7150f533" onclick="openTrainingFilterDialog()">☷ Формат и сложность <span style="background:#ffffff30;border-radius:12px;padding:2px 7px">${[trainingFilters.role!=="all",trainingFilters.mode!=="all",trainingFilters.difficulty!=="all"].filter(Boolean).length||"Все"}</span></button>
     <div style="font-size:13px;color:#6b647d;margin-top:6px">Категория: <b>${trainingFilters.role==="all"?"Все":trainingFilters.role==="manager"?"Менеджер":"Закупщик"}</b> · Формат: <b>${trainingFilters.mode==="all"?"Все":trainingModeLabel(trainingFilters.mode)}</b> · Сложность: <b>${trainingFilters.difficulty==="all"?"Любая":trainingFilters.difficulty}</b></div>
   </div>
   <div class="training-catalog-meta"><div><b>${filtered.length}</b> сценариев доступно</div><div class="training-catalog-hint">Выбери ситуацию и сразу начни практику</div></div>
