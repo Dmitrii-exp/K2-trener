@@ -338,7 +338,7 @@ function home(){let s=state.stats||{},pct=Math.min(100,(Number(s.completed_sessi
   return svg('<circle cx="31" cy="31" r="19" fill="#ece8ff"/><circle cx="31" cy="31" r="14" fill="none" stroke="#7357ff" stroke-width="5"/><circle cx="31" cy="31" r="5" fill="#7357ff"/><path d="M45 45 61 61" fill="none" stroke="#7357ff" stroke-width="6" stroke-linecap="round"/><path d="m53 53 10 1-1 10" fill="none" stroke="#ffca5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>');
 }
 function scenarioCards(arr){if(!arr.length)return `<div class="empty">Сценариев пока нет.</div>`;return `<div class="scenario-grid">${arr.map(s=>`<div class="card scenario"><div><span class="tag">${esc(s.difficulty||"Средняя")}</span><span class="tag">${esc(s.client_mood||"Нейтральный")}</span></div><div class="grow"><div class="scenario-context-icon">${scenarioIcon(s)}</div><div class="scenario-title">${esc(s.title)}</div><div class="muted">${esc(s.description||s.objective||"Практика продаж")}</div></div><button class="primary" onclick="startTraining(${esc(JSON.stringify(s.id))})">Начать тренировку</button></div>`).join("")}</div>`}let trainingFilters={query:"",difficulty:"all",mode:"all",role:"all"};
-function trainingRoleOf(s){return Number(s?.id)>=10&&Number(s?.id)<=18?"buyer":"manager"}
+function trainingRoleOf(s){return "manager"}
 function trainingRoleLabel(s){return trainingRoleOf(s)==="buyer"?"Закупщик":"Менеджер"}
 function trainingModeOf(s){
   const t=String(s?.title||"").toLowerCase();
