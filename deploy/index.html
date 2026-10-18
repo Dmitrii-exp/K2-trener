@@ -337,7 +337,9 @@ function home(){let s=state.stats||{},pct=Math.min(100,(Number(s.completed_sessi
   if(t.includes("не нужно")||t.includes("отказ")||t.includes("работа"))return svg('<path d="m36 5 26 9v19c0 17-10 28-26 34C20 61 10 50 10 33V14z" fill="#7357ff"/><path d="m22 35 9 9 19-21" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>');
   return svg('<circle cx="31" cy="31" r="19" fill="#ece8ff"/><circle cx="31" cy="31" r="14" fill="none" stroke="#7357ff" stroke-width="5"/><circle cx="31" cy="31" r="5" fill="#7357ff"/><path d="M45 45 61 61" fill="none" stroke="#7357ff" stroke-width="6" stroke-linecap="round"/><path d="m53 53 10 1-1 10" fill="none" stroke="#ffca5c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>');
 }
-function scenarioCards(arr){if(!arr.length)return `<div class="empty">Сценариев пока нет.</div>`;return `<div class="scenario-grid">${arr.map(s=>`<div class="card scenario"><div><span class="tag">${esc(s.difficulty||"Средняя")}</span><span class="tag">${esc(s.client_mood||"Нейтральный")}</span></div><div class="grow"><div class="scenario-context-icon">${scenarioIcon(s)}</div><div class="scenario-title">${esc(s.title)}</div><div class="muted">${esc(s.description||s.objective||"Практика продаж")}</div></div><button class="primary" onclick="startTraining(${esc(JSON.stringify(s.id))})">Начать тренировку</button></div>`).join("")}</div>`}let trainingFilters={query:"",difficulty:"all",mode:"all"};
+function scenarioCards(arr){if(!arr.length)return `<div class="empty">Сценариев пока нет.</div>`;return `<div class="scenario-grid">${arr.map(s=>`<div class="card scenario"><div><span class="tag">${esc(s.difficulty||"Средняя")}</span><span class="tag">${esc(s.client_mood||"Нейтральный")}</span></div><div class="grow"><div class="scenario-context-icon">${scenarioIcon(s)}</div><div class="scenario-title">${esc(s.title)}</div><div class="muted">${esc(s.description||s.objective||"Практика продаж")}</div></div><button class="primary" onclick="startTraining(${esc(JSON.stringify(s.id))})">Начать тренировку</button></div>`).join("")}</div>`}let trainingFilters={query:"",difficulty:"all",mode:"all",role:"all"};
+function trainingRoleOf(s){return Number(s?.id)>=10&&Number(s?.id)<=18?"buyer":"manager"}
+function trainingRoleLabel(s){return trainingRoleOf(s)==="buyer"?"Закупщик":"Менеджер"}
 function trainingModeOf(s){
   const t=String(s?.title||"").toLowerCase();
   const d=String(s?.description||"").toLowerCase();
@@ -353,7 +355,8 @@ function trainingFilteredScenarios(){
     const text=[s.title,s.description,s.objective,s.client_role,s.client_mood].filter(Boolean).join(" ").toLowerCase();
     return (!q||text.includes(q)) &&
       (trainingFilters.difficulty==="all"||difficulty===trainingFilters.difficulty.toLowerCase()) &&
-      (trainingFilters.mode==="all"||mode===trainingFilters.mode);
+      (trainingFilters.mode==="all"||mode===trainingFilters.mode) &&
+      (trainingFilters.role==="all"||trainingRoleOf(s)===trainingFilters.role);
   });
 }
 function setTrainingFilter(key,value){
@@ -367,7 +370,12 @@ function renderTrainingCatalog(){
   const difficulties=[...new Set(all.map(s=>String(s.difficulty||"").trim()).filter(Boolean))];
   root.innerHTML=`<div class="training-catalog-toolbar">
     <div class="training-search-wrap"><span class="training-search-icon">⌕</span><input id="trainingSearch" value="${esc(trainingFilters.query)}" oninput="trainingFilters.query=this.value;renderTrainingCatalog()" placeholder="Поиск по сценариям..." aria-label="Поиск по сценариям"></div>
-    <div class="training-filters">
+    <div class="training-filters" aria-label="Категория тренировок">
+      <button class="training-filter ${trainingFilters.role==="all"?"active":""}" onclick="setTrainingFilter('role','all')">Все</button>
+      <button class="training-filter ${trainingFilters.role==="manager"?"active":""}" onclick="setTrainingFilter('role','manager')">Менеджер</button>
+      <button class="training-filter ${trainingFilters.role==="buyer"?"active":""}" onclick="setTrainingFilter('role','buyer')">Закупщик</button>
+    </div>
+    <div class="training-filters" aria-label="Формат и сложность">
       <button class="training-filter ${trainingFilters.mode==="all"?"active":""}" onclick="setTrainingFilter('mode','all')">Все</button>
       <button class="training-filter ${trainingFilters.mode==="dialog"?"active":""}" onclick="setTrainingFilter('mode','dialog')">Диалог</button>
       <button class="training-filter ${trainingFilters.mode==="voice"?"active":""}" onclick="setTrainingFilter('mode','voice')">Голосовые</button>
@@ -379,20 +387,20 @@ function renderTrainingCatalog(){
     const mode=trainingModeOf(s);
     const objective=s.objective||s.description||"Практика продаж";
     return `<article class="training-card ${mode==="voice"?"training-card-voice":""}">
-      <div class="training-card-top"><span class="tag">${esc(s.difficulty||"Средняя")}</span><span class="training-mode-badge ${mode}"><span class="training-mode-dot"></span>${trainingModeLabel(mode)}</span></div>
+      <div class="training-card-top"><span class="tag">${esc(s.difficulty||"Средняя")}</span><span class="tag" style="background:${trainingRoleOf(s)==="buyer"?"#ede6ff":"#e8f1ff"};color:${trainingRoleOf(s)==="buyer"?"#6037b4":"#24549a"}">${trainingRoleLabel(s)}</span><span class="training-mode-badge ${mode}"><span class="training-mode-dot"></span>${trainingModeLabel(mode)}</span></div>
       <div class="training-card-icon">${scenarioIcon(s)}</div>
       <h3>${esc(s.title||"Тренировка")}</h3>
       <p>${esc(objective)}</p>
       <div class="training-card-meta"><span>${esc(s.client_role||"AI-клиент")}</span><span>•</span><span>${esc(s.client_mood||"Нейтральный")}</span></div>
       <button class="primary training-card-action" onclick="startTraining(${esc(JSON.stringify(s.id))})">${mode==="voice"?"Начать голосовую":"Начать тренировку"} <span aria-hidden="true">→</span></button>
     </article>`;
-  }).join("")}</div>`:`<div class="empty training-empty"><b>Ничего не найдено</b><div style="margin-top:6px">Измени запрос или сбрось фильтры.</div><button class="secondary" style="margin-top:14px" onclick="trainingFilters={query:"",difficulty:"all",mode:"all"};renderTrainingCatalog()">Сбросить фильтры</button></div>`}
+  }).join("")}</div>`:`<div class="empty training-empty"><b>Ничего не найдено</b><div style="margin-top:6px">Измени запрос или сбрось фильтры.</div><button class="secondary" style="margin-top:14px" onclick="trainingFilters={query:"",difficulty:"all",mode:"all",role:"all"};renderTrainingCatalog()">Сбросить фильтры</button></div>`}
   <div class="training-voice-banner">
     <div><span class="training-banner-kicker">VOICE TRAINING</span><h3>Отдельный режим для реального звонка</h3><p>Живой разговор с AI-клиентом: темп, паузы, возражения и следующий шаг.</p></div>
     <button class="secondary" onclick="state.view='coldcall';page()">Открыть холодный звонок →</button>
   </div>`;
 }
-function trainingList(){trainingFilters={query:"",difficulty:"all",mode:"all"};setTimeout(renderTrainingCatalog,0);return `<div class="training-page">
+function trainingList(){trainingFilters={query:"",difficulty:"all",mode:"all",role:"all"};setTimeout(renderTrainingCatalog,0);return `<div class="training-page">
   <div class="training-page-head"><div><div class="eyebrow">ПРАКТИКА ПРОДАЖ</div><h1>Тренировки</h1><p>Выбери ситуацию, настрой уровень сложности и начни живой диалог с AI-клиентом.</p></div><div class="training-head-badge"><span class="status-dot"></span> AI-клиент готов</div></div>
   <div id="trainingCatalog"></div>
 </div>`}function scenarios(){return `<div class="top"><div><h2>Сценарии</h2><div class="muted">Библиотека ситуаций для команды</div></div></div>${scenarioCards(state.scenarios)}`}function progress(){let s=state.stats||{};return `<div class="top"><div><h2>Мой прогресс</h2><div class="muted">Результаты тренировок из Supabase</div></div></div><div class="grid"><div class="card"><div class="metric-label">Средний балл</div><div class="metric">${s.avg_score||0}</div></div><div class="card"><div class="metric-label">Лучший</div><div class="metric">${s.best_score||0}</div></div><div class="card"><div class="metric-label">Завершено</div><div class="metric">${s.completed_sessions||0}</div></div><div class="card"><div class="metric-label">Активные</div><div class="metric">${s.active_sessions||0}</div></div></div><div class="section card"><h3>Следующий шаг</h3><p class="muted">Запусти тренировку, проведи диалог и получи AI-анализ.</p><button class="primary" onclick="state.view='training';page()">Начать тренировку</button></div>`}
