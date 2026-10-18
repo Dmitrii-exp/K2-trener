@@ -557,6 +557,7 @@
     // Capture final transcript before disconnecting; do not wait for STT or scoring.
     try{flushLiveTranscriptBuffers()}catch(e){console.warn('[SaleTrening] transcript flush',e)}
     const transcript=JSON.parse(JSON.stringify(state.messages||[]));
+    const durationSeconds=Math.min(600,Math.max(0,Math.floor((Date.now()-startedAt)/1000)));
     const hasManager=transcript.some(m=>m.speaker==='manager'&&String(m.content||'').trim());
     const hasClient=transcript.some(m=>m.speaker==='client'&&String(m.content||'').trim());
     const validConversation=hasManager&&hasClient;
@@ -570,7 +571,7 @@
     // Saving and scoring must not hold the call screen open.
     (async()=>{
       try{
-        const {error}=await sb.from('saletrening_sessions').update({transcript,updated_at:new Date().toISOString()}).eq('id',sessionId).eq('employee_id',employeeId);
+        const {error}=await sb.from('saletrening_sessions').update({transcript,duration_seconds:durationSeconds,updated_at:new Date().toISOString()}).eq('id',sessionId).eq('employee_id',employeeId);
         if(error)throw error;
         if(!validConversation)return; // Interrupted/failed call: never request evaluation or credit.
         const {data}=await sb.auth.getSession();
@@ -616,6 +617,7 @@
         const x=$('st-cold-time');
         if(!x||!callOpen){clearInterval(timer);timer=null;return}
         const sec=Math.floor((Date.now()-startedAt)/1000);
+        if(sec>=600){clearInterval(timer);timer=null;setStatus('Лимит звонка — 10 минут. Завершаем и оцениваем тренировку.');finish();return;}
         x.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
       },1000);
       if(coldCall?.advanced){
