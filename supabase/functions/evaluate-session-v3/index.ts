@@ -75,7 +75,9 @@ ${JSON.stringify({title,description:scenario?.description,objective:scenario?.ob
 ПОЛНЫЙ ДИАЛОГ (анализируй его фактически, реплика за репликой):
 ${JSON.stringify(tr)}`;
 
-    const r=await ask([{role:"system",content:"Строгий профессиональный тренер продаж. Анализируй только факты из диалога. Всегда возвращай валидный JSON. strengths и weaknesses не должны быть пустыми при наличии реплик менеджера."},{role:"user",content:prompt}]);
+    const buyer=Number(s.scenario_id)>=19&&Number(s.scenario_id)<=33;
+    const buyerRubric=buyer?`РЕЖИМ ЗАКУПКИ: сотрудник покупает товар, собеседник продаёт. Оцени 5 навыков по 20 баллов: выяснение характеристик и условий товара (discovery_score), работа с возражениями продавца (objection_score), обоснование выгодной закупочной цены и условий (value_score), согласование закупки и следующего шага (closing_score), деловая коммуникация (communication_score). Не оценивай сотрудника как продавца. success=true только при явном согласии продавца на продажу или подтверждении сделки. Укажи доказательства из диалога.`:"";
+    const r=await ask([{role:"system",content:buyerRubric||"Строгий профессиональный тренер продаж. Анализируй только факты из диалога. Всегда возвращай валидный JSON. strengths и weaknesses не должны быть пустыми при наличии реплик менеджера."},{role:"user",content:prompt}]);
     const p=pj(r.text);if(!p)return json({ok:false,error:"Invalid ProxyAPI JSON"},502);
     const skills={discovery_score:skill(p.discovery_score),objection_score:skill(p.objection_score),value_score:skill(p.value_score),closing_score:skill(p.closing_score),communication_score:skill(p.communication_score)};
     const total=Object.values(skills).reduce((a,b)=>a+b,0);
