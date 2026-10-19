@@ -18,6 +18,10 @@ jobs:
           python-version: '3.x'
       - run: python scripts/check_frontend.py
       - run: node scripts/test-invitation-privacy.cjs
+      - name: Test invitation limiter SQL in isolated database
+        run: |
+          npm install --prefix "$RUNNER_TEMP/invitation-sql-audit" @electric-sql/pglite@0.3.14 --ignore-scripts --no-audit --no-fund
+          PGLITE_MODULE="$RUNNER_TEMP/invitation-sql-audit/node_modules/@electric-sql/pglite" node scripts/test-invitation-limits.cjs
       - run: node scripts/test-ai-request-guard.cjs
       - run: node scripts/test-training-runtime.cjs
       - run: node scripts/test-voice-runtime.cjs
