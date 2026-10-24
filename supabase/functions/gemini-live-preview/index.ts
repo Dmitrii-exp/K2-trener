@@ -3,7 +3,7 @@ import { withAiAccess } from "../_shared/ai-access.ts";
 
 const headers = { "Content-Type": "application/json", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers });
-const voices = ["Charon", "Puck", "Fenrir", "Orus", "Kore", "Aoede"];
+const voices = ["Orus", "Alnilam", "Algenib", "Schedar"];
 const models = ["gemini-3.1-flash-live-preview", "gemini-3.8-live"];
 const clean = (value: unknown, limit: number) => typeof value === "string" ? value.trim().slice(0, limit) : "";
 
@@ -15,7 +15,7 @@ const issueToken = withAiAccess("manager-ai-chat", async (req: Request) => {
     const key = (Deno.env.get("GEMINI_API_KEY") || "").trim();
     if (!key) return json({ ok: false, code: "gemini_not_configured", error: "Gemini пока не подключён. Администратору нужно добавить GEMINI_API_KEY в секреты Supabase." }, 503);
     const body = await req.json();
-    const voice = voices.includes(body.voice) ? body.voice : "Charon";
+    const voice = voices.includes(body.voice) ? body.voice : "Orus";
     const selectedModel = (Deno.env.get("GEMINI_LIVE_MODEL") || models[0]).trim();
     if (!models.includes(selectedModel)) return json({ ok: false, error: "Выбрана неподдерживаемая модель Gemini." }, 503);
     const character = ["Лояльный", "Скептик", "Грубит", "Занятой", "Аналитик"].includes(body.character) ? body.character : "Лояльный";

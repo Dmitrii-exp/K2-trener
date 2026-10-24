@@ -16,7 +16,7 @@ const server=http.createServer((req,res)=>{const p=req.url.split('?')[0];if(p===
  });
  let mode='success';await page.route('**/functions/v1/gemini-live-preview',async route=>{assert.equal(JSON.parse(route.request().postData()).character,'Скептик');if(mode==='missing')return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Gemini пока не подключён. Администратору нужно добавить GEMINI_API_KEY в секреты Supabase.'})});await route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,token:'auth_tokens/synthetic=',model:'gemini-3.1-flash-live-preview',api_version:'v1alpha',duration_seconds:180,expires_at:new Date(Date.now()+180000).toISOString(),scored:false})});});
  await page.goto('http://127.0.0.1:'+server.address().port);
- await page.locator('#entry').click();await page.locator('#gemini-preview-voice').selectOption('Orus');assert.equal(await page.locator('#gemini-preview-voice option').count(),6);
+ await page.locator('#entry').click();await page.locator('#gemini-preview-voice').selectOption('Orus');assert.equal(await page.locator('#gemini-preview-voice option').count(),4);
  await page.getByRole('button',{name:'Начать звонок',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#gemini-preview-status').textContent.includes('Соединение установлено'));
  await page.waitForFunction(()=>testPackets.some(p=>p.realtimeInput?.audio?.mimeType==='audio/pcm;rate=16000'));
  await page.evaluate(() => {
@@ -33,5 +33,5 @@ const server=http.createServer((req,res)=>{const p=req.url.split('?')[0];if(p===
  await page.keyboard.press('Escape');assert.equal(await page.locator('dialog').count(),0);assert.equal(await page.locator('#entry').evaluate(e=>document.activeElement===e),true);
  mode='missing';await page.locator('#entry').click();await page.getByRole('button',{name:'Начать звонок',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#gemini-preview-status').textContent.includes('GEMINI_API_KEY'));assert.equal(await page.getByRole('button',{name:'Начать звонок',exact:true}).isEnabled(),true);
  await page.setViewportSize({width:390,height:844});assert.equal(await page.locator('dialog').evaluate(e=>e.scrollWidth<=e.clientWidth),true);await page.screenshot({path:'/tmp/gemini-trial-mobile.png'});
- await page.keyboard.press('Escape');assert.deepEqual(errors,[]);console.log('PASS: real Chromium/WebAudio capture, setup, transcript, interruptions, mute, cleanup, focus/Escape, error/retry, six voices and mobile layout; Auth/Google are mocked.');
+ await page.keyboard.press('Escape');assert.deepEqual(errors,[]);console.log('PASS: real Chromium/WebAudio capture, setup, transcript, interruptions, mute, cleanup, focus/Escape, error/retry, four voices and mobile layout; Auth/Google are mocked.');
  }finally{await browser?.close();await new Promise(r=>server.close(r));}})().catch(e=>{console.error(e);process.exitCode=1});

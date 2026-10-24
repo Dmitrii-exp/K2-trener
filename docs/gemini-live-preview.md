@@ -1,6 +1,6 @@
 # Gemini Live trial
 
-A separate unscored cold-call modal with six selectable voices. Existing GPT Live,
+A separate unscored cold-call modal with four selectable voices (Orus, Alnilam, Algenib, Schedar). Existing GPT Live,
 text/voice training, points, achievements, levels and training credits are unchanged.
 No training session, result or transcript is persisted by this feature. The visible
 trial ends after at most three minutes; switching tabs, closing it or leaving the
@@ -17,7 +17,7 @@ page stops the microphone, output audio and socket.
 3. Merge this feature branch after review. Run the existing manual
    `.github/workflows/deploy-reg-ru.yml` workflow to publish `deploy/`.
 4. Log in with an entitled synthetic test account. Open Cold Call → Try Gemini Live.
-   Start with Charon, then compare Orus and Aoede. Speak first. Test Russian
+   Start with Orus, then compare Alnilam, Algenib and Schedar. Speak first. Test Russian
    pronunciation, interruption during speech, mute/unmute, End, Escape and mobile.
    Check that points, achievements, levels and credit balances do not change.
 

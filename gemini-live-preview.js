@@ -3,7 +3,7 @@
   if (window.STGeminiLive) return;
   const endpoint = 'https://svxykakyrloqzloerygb.supabase.co/functions/v1/gemini-live-preview';
   let active = null;
-  const voiceOptions = [['Charon','Charon — спокойный'],['Puck','Puck — энергичный'],['Fenrir','Fenrir — выразительный'],['Orus','Orus — уверенный'],['Kore','Kore — собранный'],['Aoede','Aoede — мягкий']];
+  const voiceOptions = [['Orus','Orus — уверенный'],['Alnilam','Alnilam — твёрдая подача'],['Algenib','Algenib — с хрипотцой'],['Schedar','Schedar — ровный']];
 
   function open() {
     if (active) { active.dialog.focus(); return; }
