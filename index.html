@@ -119,26 +119,26 @@ history.replaceState({},"",location.pathname);
 authScreen();
 }
 async function logout(){try{const r=await sb.auth.signOut();if(r?.error)throw r.error;state.user=null;state.profile=null;state.company=null;state.session=null;state.recoveryMode=false;state.view="home";toast("Вы вышли из аккаунта");setTimeout(()=>authScreen(),150)}catch(e){console.error("[SaleTrening] logout:",e);toast("Не удалось выйти: "+(e?.message||String(e)))}}
-function authScreen(mode="login"){
+function authScreen(mode="auto"){
   const params=new URLSearchParams(location.search);
   const invite=params.get("invite")||localStorage.getItem("saletrening_invite_token")||"";
-  const inviteEmail=(params.get("email")||"").trim().toLowerCase();
+  const inviteEmail=(params.get("email")||$("email")?.value||"").trim().toLowerCase();
   const hasInvite=!!invite;
   if(invite)localStorage.setItem("saletrening_invite_token",invite);
-  const register=hasInvite||mode==="register";
+  const register=mode==="register"||(hasInvite&&mode!=="login");
   const desktopClass=hasInvite?"auth-desktop-invite":(register?"auth-desktop-register":"");
   $("root").innerHTML=`<div class="auth auth-desktop ${desktopClass}">
     <div class="auth-desktop-left"><div class="auth-desktop-card">
       <div class="auth-brand"><img class="auth-brand-logo" src="/assets/saletraining-logo.svg" alt="SaleTrening"><span class="auth-badge">AI SALES COACH</span></div>
-      <h1>${hasInvite?"Присоединиться к команде.":(register?"Создайте аккаунт.":"Добро пожаловать.")}<br>${hasInvite?"Регистрация сотрудника.":(register?"Начните тренировки.":"")}</h1>
-      <div class="sub">${hasInvite?"Вас пригласили в команду TrenerSale. Зарегистрируйтесь с тем же email, на который отправлено приглашение.":(register?"Создайте аккаунт для доступа к тренировкам и истории.":"Войдите в аккаунт, чтобы продолжить обучение и развивать навыки продаж с AI-тренером.")}</div>
-      ${hasInvite?'<div class="card" style="margin:0 0 18px;padding:13px;background:#faf9ff"><b>Приглашение найдено</b><div class="muted" style="margin-top:4px">После регистрации аккаунт автоматически подключится к компании руководителя.</div></div>':""}
+      <h1>${hasInvite&&register?"Присоединиться к команде.":(register?"Создайте аккаунт.":"Добро пожаловать.")}<br>${hasInvite&&register?"Регистрация сотрудника.":(register?"Начните тренировки.":"")}</h1>
+      <div class="sub">${hasInvite?(register?"Вас пригласили в команду TrenerSale. Зарегистрируйтесь с тем же email, на который отправлено приглашение.":"Войдите с email, на который отправлено приглашение, чтобы присоединиться к команде."):(register?"Создайте аккаунт для доступа к тренировкам и истории.":"Войдите в аккаунт, чтобы продолжить обучение и развивать навыки продаж с AI-тренером.")}</div>
+      ${hasInvite?'<div class="card" style="margin:0 0 18px;padding:13px;background:#faf9ff"><b>Приглашение найдено</b><div class="muted" style="margin-top:4px">После '+(register?'регистрации':'входа')+' аккаунт автоматически подключится к компании руководителя.</div></div>':""}
       ${register?'<div class="field"><label>Имя</label><input id="first" placeholder="Дмитрий" autocomplete="given-name"></div><div class="field" '+(hasInvite?'style="display:none"':'')+'><label>Компания <span class="muted">(для новой организации)</span></label><input id="company" placeholder="Моя компания"></div>':""}
       <div class="field"><label>Email</label><input id="email" type="email" placeholder="Ваш email" value="${esc(inviteEmail)}" ${hasInvite&&inviteEmail?"readonly":""} autocomplete="email"></div>
-      <div class="field"><label>Пароль</label><input id="pass" type="password" placeholder="Пароль" autocomplete="new-password"></div>
+      <div class="field"><label>Пароль</label><input id="pass" type="password" placeholder="Пароль" autocomplete="${register?'new-password':'current-password'}"></div>
       ${!register?'<div class="auth-desktop-forgot"><button type="button" onclick="requestPasswordReset()">Забыли пароль?</button></div>':""}
-      <div class="auth-actions">${register?'<button class="primary" onclick="signUp()">'+(hasInvite?"Зарегистрироваться в команде":"Создать аккаунт")+'</button><button class="secondary" onclick="authScreen()">Уже есть аккаунт — Войти</button>':'<button class="primary" onclick="signIn()">Войти <span style="font-size:24px;vertical-align:-2px;margin-left:7px">→</span></button><button class="secondary" onclick="authScreen(\'register\')">Создать аккаунт</button>'}</div>
-      <div class="auth-desktop-register">${register?'Уже есть аккаунт?<button type="button" onclick="authScreen()">Войти</button>':'Нет аккаунта?<button type="button" onclick="authScreen(\'register\')">Зарегистрироваться</button>'}</div>
+      <div class="auth-actions">${register?'<button class="primary" onclick="signUp()">'+(hasInvite?"Зарегистрироваться в команде":"Создать аккаунт")+'</button><button class="secondary" onclick="authScreen(\'login\')">Уже есть аккаунт — Войти</button>':'<button class="primary" onclick="signIn()">Войти <span style="font-size:24px;vertical-align:-2px;margin-left:7px">→</span></button><button class="secondary" onclick="authScreen(\'register\')">Создать аккаунт</button>'}</div>
+      <div class="auth-desktop-register">${register?'Уже есть аккаунт?<button type="button" onclick="authScreen(\'login\')">Войти</button>':'Нет аккаунта?<button type="button" onclick="authScreen(\'register\')">Зарегистрироваться</button>'}</div>
       <div class="auth-note">${hasInvite?"Используйте email, указанный руководителем в приглашении.":(register?"При регистрации с названием компании создаётся новая организация, а первый пользователь становится руководителем.":"Введите email и пароль, указанные при регистрации.")}</div>
     </div></div>
     <div class="auth-desktop-right"><div class="auth-marketing">

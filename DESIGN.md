@@ -26,3 +26,6 @@ Desktop and mobile must preserve the same functional controls.
 
 ## Invitation privacy
 Manager invitation controls are owned by `company-invitations.js`, shared by the root and REG.RU entry points. Managers prepare an invitation and send it by email; the form shows the recipient and delivery status only. Authentication links and invitation tokens are generated and kept server-side, and are delivered only to the recipient. Browser responses carry only a non-secret invitation record ID. Recipient registration behavior is unchanged.
+
+## Invitation login switch
+Invitation links initially show registration. Both existing-account controls explicitly select login; the invitation token and email stay available for acceptance after sign-in. Login uses current-password autocomplete; registration uses new-password. Switching views never accepts an invitation or changes account data.
