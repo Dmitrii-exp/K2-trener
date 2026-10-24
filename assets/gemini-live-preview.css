@@ -1,0 +1,24 @@
+.gemini-preview{box-sizing:border-box;width:min(640px,calc(100% - 24px));max-height:calc(100dvh - 32px);padding:24px;border:1px solid #dedbe8;border-radius:22px;background:#fff;color:#252133;overflow:auto;box-shadow:0 24px 72px #17132538}
+.gemini-preview::backdrop{background:#17132599}
+.gemini-preview *{box-sizing:border-box}
+.gemini-preview .gemini-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+.gemini-preview h2{margin:0;font-size:24px}
+.gemini-preview .gemini-close{flex-shrink:0;width:44px;height:44px;padding:0;font-size:24px}
+.gemini-preview .gemini-description{color:#696276;line-height:1.55;margin:0 0 18px}
+.gemini-preview .gemini-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.gemini-preview label{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+.gemini-preview select{width:100%;min-height:44px;border:1px solid #d6d0e1;border-radius:12px;padding:10px 12px;background:#fff;color:inherit;font:inherit}
+.gemini-preview button{min-height:44px;cursor:pointer}
+.gemini-preview button:disabled{cursor:default;opacity:.55}
+.gemini-preview button:focus-visible,.gemini-preview select:focus-visible{outline:3px solid #b09aee;outline-offset:3px}
+.gemini-preview .gemini-status{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-height:72px;margin:18px 0;padding:14px;border-radius:14px;background:#f5f2fb;line-height:1.45}
+.gemini-preview .gemini-timer{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:700}
+.gemini-preview .gemini-transcript{height:220px;overflow:auto;padding:14px;border:1px solid #e8e3ef;border-radius:14px;scrollbar-width:thin;scrollbar-color:#b7accd #f5f2fb}
+.gemini-preview .gemini-transcript p{margin:0 0 12px;line-height:1.5;overflow-wrap:anywhere;white-space:pre-wrap}
+.gemini-preview .gemini-transcript p:last-child{margin-bottom:0}
+.gemini-preview .gemini-transcript strong{display:block;font-size:12px;color:#79668f;margin-bottom:3px}
+.gemini-preview .gemini-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.gemini-preview .gemini-actions button{min-width:130px}
+.gemini-preview .gemini-error{color:#a42337}
+.gemini-preview .gemini-footnote{font-size:12px;color:#696276;line-height:1.5;margin:14px 0 0}
+@media(max-width:520px){.gemini-preview{padding:18px}.gemini-preview h2{font-size:21px}.gemini-preview .gemini-fields{grid-template-columns:1fr}.gemini-preview .gemini-transcript{height:180px}.gemini-preview .gemini-actions button{flex:1;min-width:0}}
