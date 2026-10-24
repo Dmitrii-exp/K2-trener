@@ -18,8 +18,6 @@
   let liveManagerStopPromise = null, liveClientStopPromise = null;
   let liveInputBuffers = new Map(), liveOutputBuffers = new Map(), liveOutputTimers = new Map();
   let speechDetected = false, startedAt = 0, timer = null;
-  let regularTurn = null, regularPlaybackStop = null, callEpoch = 0;
-  function cancelRegularTurn(){regularTurn?.abort();regularTurn=null;regularPlaybackStop?.();regularPlaybackStop=null;if(!coldCall?.advanced)processing=false;}
 
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
@@ -36,7 +34,7 @@
     if(vadTimer){clearTimeout(vadTimer);vadTimer=null;}
     try{analyserSource?.disconnect()}catch{}
     analyserSource=null;analyser=null;
-    try{if(recorder){recorder.onstop=null;if(recorder.state!=='inactive')recorder.stop()}}catch{}
+    try{if(recorder&&recorder.state!=='inactive')recorder.stop()}catch{}
     recorder=null;chunks=[];
     if(stream)stream.getTracks().forEach(t=>t.stop());
     stream=null;
@@ -113,7 +111,6 @@
   }
 
   function cleanup(){
-    callEpoch++;cancelRegularTurn();
     callOpen=false;
     continuousMode=false;
     if(timer){clearInterval(timer);timer=null;}
@@ -376,28 +373,11 @@
   async function ensureStream(){if(stream?.active)return;if(!navigator.mediaDevices?.getUserMedia)throw new Error('Браузер не поддерживает микрофон');stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});if(window.AudioContext||window.webkitAudioContext){audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();await audioCtx.resume().catch(()=>{})}}
 
   function startVAD(){
-    if(!stream||!audioCtx)return;try{analyser=audioCtx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.2;analyserSource=audioCtx.createMediaStreamSource(stream);analyserSource.connect(analyser);const data=new Uint8Array(analyser.fftSize),begin=Date.now();let lastSpeech=0,above=0;const tick=()=>{if(!recording||!recorder||recorder.state==='inactive'){try{analyserSource?.disconnect()}catch{}return}analyser.getByteTimeDomainData(data);let sum=0;for(let i=0;i<data.length;i++){const v=(data[i]-128)/128;sum+=v*v}const rms=Math.sqrt(sum/data.length),now=Date.now();if(rms>(processing ? .035 : .018)){above++;if(above>=3){speechDetected=true;lastSpeech=now;if(processing&&!coldCall?.advanced){cancelRegularTurn();setStatus('Слушаю вас…')}}}else above=0;if(speechDetected&&now-lastSpeech>600){stopRecording();return}if(!speechDetected&&now-begin>30000){stopRecording();return}if(speechDetected&&now-begin>45000){stopRecording();return}vadTimer=setTimeout(tick,100)};tick()}catch(e){console.warn('[SaleTrening] VAD unavailable',e)}}
+    if(!stream||!audioCtx)return;try{analyser=audioCtx.createAnalyser();analyser.fftSize=1024;analyser.smoothingTimeConstant=.2;analyserSource=audioCtx.createMediaStreamSource(stream);analyserSource.connect(analyser);const data=new Uint8Array(analyser.fftSize),begin=Date.now();let lastSpeech=0,above=0;const tick=()=>{if(!recording||!recorder||recorder.state==='inactive'){try{analyserSource?.disconnect()}catch{}return}analyser.getByteTimeDomainData(data);let sum=0;for(let i=0;i<data.length;i++){const v=(data[i]-128)/128;sum+=v*v}const rms=Math.sqrt(sum/data.length),now=Date.now();if(rms>.018){above++;if(above>=2){speechDetected=true;lastSpeech=now}}else above=0;if(speechDetected&&now-lastSpeech>350){stopRecording();return}if(!speechDetected&&now-begin>30000){stopRecording();return}if(speechDetected&&now-begin>45000){stopRecording();return}vadTimer=setTimeout(tick,100)};tick()}catch(e){console.warn('[SaleTrening] VAD unavailable',e)}}
   function stopRecording(){if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch(e){console.warn(e)}}else recording=false;}
-  async function recognize(blob,mime,signal){const fd=new FormData(),typ=String(mime||blob.type),ext=typ.includes('mp4')?'m4a':typ.includes('ogg')?'ogg':'webm';fd.append('file',blob,`manager.${ext}`);if(state.session?.id)fd.append('session_id',state.session.id);fd.append('prompt','Разговор менеджера по продажам с потенциальным клиентом. Русская речь, цены, бренды, модели, размеры шин и профессиональные термины.');const r=await fetch(`${PROJECT}/proxy-stt`,{method:'POST',headers:await authHeaders(),body:fd,signal});const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error(j.error||`STT HTTP ${r.status}`);return String(j.text||'').trim()}
-  async function speak(text,signal){
-    if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
-    const ttsEndpoint=String(coldCall?.voice||'').startsWith('preset_')?'voicekit-tts':'proxy-tts';
-    const r=await fetch(`${PROJECT}/${ttsEndpoint}`,{method:'POST',headers:await authHeaders(true),signal,body:JSON.stringify({session_id:state.session?.id,input:String(text),voice:coldCall?.voice||'onyx',instructions:'Говори по-русски без иностранного акцента. Уверенный спокойный мужской голос в низком или среднем регистре. Короткая естественная разговорная реплика, без дикторской подачи.'})});
-    if(!r.ok){const detail=await r.json().catch(()=>({}));throw new Error(detail.error||`TTS HTTP ${r.status}`);}
-    const blob=await r.blob();if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
-    if(!blob.size)throw new Error('TTS вернул пустой аудиофайл');
-    const url=URL.createObjectURL(blob),player=new Audio(url);audio=player;player.preload='auto';
-    let settle;
-    const done=new Promise((resolve,reject)=>{
-      settle=()=>{player.pause();reject(new DOMException('Cancelled','AbortError'))};
-      player.onended=resolve;player.onerror=()=>reject(new Error('Не удалось воспроизвести голос клиента'));
-    });
-    // Register handlers before play so short audio cannot finish between awaits.
-    done.catch(()=>{});regularPlaybackStop=settle;signal?.addEventListener('abort',settle,{once:true});
-    try{if(signal?.aborted)settle();else await player.play();await done}
-    finally{signal?.removeEventListener('abort',settle);if(regularPlaybackStop===settle)regularPlaybackStop=null;player.pause();player.onended=player.onerror=null;URL.revokeObjectURL(url);if(audio===player)audio=null}
-  }
-  async function aiClientReplyStreamAndSpeak(userMessage,signal){
+  async function recognize(blob,mime){const fd=new FormData(),typ=String(mime||blob.type),ext=typ.includes('mp4')?'m4a':typ.includes('ogg')?'ogg':'webm';fd.append('file',blob,`manager.${ext}`);fd.append('prompt','Разговор менеджера по продажам с потенциальным клиентом. Русская речь, цены, бренды, модели, размеры шин и профессиональные термины.');const r=await fetch(`${PROJECT}/proxy-stt`,{method:'POST',headers:await authHeaders(),body:fd});const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error(j.error||`STT HTTP ${r.status}`);return String(j.text||'').trim()}
+  async function speak(text){const r=await fetch(`${PROJECT}/proxy-tts`,{method:'POST',headers:await authHeaders(true),body:JSON.stringify({input:String(text),voice:document.getElementById('coldVoice')?.value||coldCall?.voice||'coral',instructions:'Говори естественно по-русски как живой потенциальный клиент в телефонном разговоре. Разговорная интонация, естественные паузы и эмоции. Не читай как диктор.'})});if(!r.ok)throw new Error(`TTS HTTP ${r.status}`);const blob=await r.blob();if(!blob.size)throw new Error('TTS вернул пустой аудиофайл');const url=URL.createObjectURL(blob);try{audio=new Audio(url);audio.preload='auto';await audio.play();await new Promise(resolve=>{audio.onended=resolve})}finally{URL.revokeObjectURL(url);audio=null}}
+  async function aiClientReplyStreamAndSpeak(userMessage){
     if(!state.session?.scenario)throw new Error('Нет активной тренировки');
     const s=await sb.auth.getSession();
     const token=s?.data?.session?.access_token;
@@ -405,7 +385,7 @@
     const settings=state.clientSettings||state.client_settings||state.session.client_settings||state.session.scenario.client_settings||{};
     const objections=state.clientObjections||state.client_objections||state.session.objections||state.session.client_objections||[];
     const r=await fetch(PROJECT+'/chat-client',{
-      method:'POST',signal,
+      method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({
         session_id:state.session.id,
@@ -427,13 +407,13 @@
       if(j?.ok===false)throw new Error(j?.error||'AI-клиент вернул ошибку');
       const reply=String(j?.reply||j?.message||j?.content||'').trim();
       if(!reply)throw new Error('AI не вернул реплику клиента');
-      await speak(reply,signal);
+      await speak(reply);
       return reply;
     }
     if(!r.body)throw new Error('AI не вернул поток ответа');
     const reader=r.body.getReader(),decoder=new TextDecoder();
-    let buf='',full='',spoken=0,ttsQueue=Promise.resolve(),ttsError=null;
-    const speakSentence=s=>{const clean=s.trim();if(clean)ttsQueue=ttsQueue.then(()=>{if(ttsError)return;return speak(clean,signal)}).catch(e=>{ttsError=e});};
+    let buf='',full='',spoken=0,ttsQueue=Promise.resolve();
+    const speakSentence=s=>{const clean=s.trim();if(clean)ttsQueue=ttsQueue.then(()=>speak(clean));};
     const consume=chunk=>{
       buf+=chunk;
       const lines=buf.split(/\r?\n/);buf=lines.pop()||'';
@@ -463,56 +443,75 @@
       if(done)break;
       consume(decoder.decode(value,{stream:true}));
     }
-    consume(decoder.decode()+'\n');
+    consume(decoder.decode());
     const tail=full.slice(spoken).trim();
     if(tail)speakSentence(tail);
     await ttsQueue;
-    if(ttsError)throw ttsError;
     if(!full.trim())throw new Error('AI не вернул реплику клиента');
     return full.trim();
   }
 
-  async function processSpeech(blob,mime,typedText){
+  async function processSpeech(blob,mime){
     recording=false;
     if(vadTimer){clearTimeout(vadTimer);vadTimer=null}
     try{analyserSource?.disconnect()}catch{}
-    analyserSource=analyser=recorder=null;
-    if(!callOpen||!state.session)return;
-    if(!typedText&&(!blob?.size||!speechDetected)){
-      if(continuousMode&&!processing)startRecording().catch(console.error);
+    analyserSource=null;
+    analyser=null;
+    recorder=null;
+
+    if(!blob?.size||!speechDetected){
+      setStatus('Речь не обнаружена. Слушаю вас снова…');
+      updateUI();
+      if(continuousMode&&callOpen&&!processing){
+        setTimeout(()=>{if(continuousMode&&callOpen&&!processing)startRecording().catch(console.error)},120);
+      }
       return;
     }
-    cancelRegularTurn();
-    const turn=new AbortController(),epoch=callEpoch,sessionId=state.session.id;
-    regularTurn=turn;processing=true;updateUI();setStatus('Распознаю речь…');
-    const current=()=>regularTurn===turn&&epoch===callEpoch&&callOpen&&state.session?.id===sessionId&&!turn.signal.aborted;
+
+    processing=true;
+    updateUI();
+    setStatus('Распознаю речь менеджера…');
+
     try{
-      const text=typedText||await recognize(blob,mime,turn.signal);
-      if(!current())return;
+      const text=await recognize(blob,mime);
       if(!text)throw new Error('Речь не распознана');
-      addMessage('manager',text);await save();if(!current())return;
-      // Keep capture active while the client answers, for speech-triggered interruption.
-      await startRecording(true);if(!current())return;
-      setStatus('Клиент отвечает. Можно перебивать.');
-      const reply=await aiClientReplyStreamAndSpeak(text,turn.signal);
-      if(!current())return;
-      addMessage('client',reply);await save();if(current())setStatus('Ваш ход — говорите.');
+
+      addMessage('manager',text);
+      save().catch(e=>console.warn('[SaleTrening] background save manager',e));
+
+      setStatus('AI-клиент формирует ответ…');
+      const reply=await aiClientReplyStreamAndSpeak(text);
+      if(!reply)throw new Error('AI не вернул реплику клиента');
+
+      addMessage('client',reply);
+      save().catch(e=>console.warn('[SaleTrening] background save',e));
+      setStatus('Ваш ход — говорите. После паузы клиент ответит автоматически.');
     }catch(e){
-      if(current()&&e.name!=='AbortError'){setStatus('Ошибка голосового хода: '+e.message);if(typeof toast==='function')toast('Ошибка голосового хода: '+e.message)}
+      console.error('[SaleTrening] voice turn',e);
+      setStatus('Ошибка голосового хода: '+e.message);
+      if(typeof toast==='function')toast('Ошибка голосового хода: '+e.message);
     }finally{
-      if(regularTurn===turn){regularTurn=null;processing=false;updateUI();
-        if(continuousMode&&callOpen&&!recording)startRecording().catch(console.error);
+      processing=false;
+      updateUI();
+      if(continuousMode&&callOpen){
+        setTimeout(()=>{
+          if(continuousMode&&callOpen&&!processing){
+            setStatus('Слушаю вас… Говорите.');
+            startRecording().catch(e=>{
+              console.error('[SaleTrening] restart recording',e);
+              setStatus('Ошибка повторного запуска микрофона: '+e.message);
+              if(typeof toast==='function')toast('Ошибка микрофона: '+e.message);
+            });
+          }
+        },250);
       }
     }
   }
 
-  async function startRecording(whileAnswering=false){
-    if((processing&&!whileAnswering)||recording||!callOpen||!continuousMode)return;
-    const epoch=callEpoch;
+  async function startRecording(){
+    if(processing||recording||!callOpen||!continuousMode)return;
     try{
       await ensureStream();
-      if(epoch!==callEpoch||!callOpen){stopMic();return}
-      const captured=[];
       chunks=[];
       speechDetected=false;
 
@@ -520,10 +519,9 @@
       recorder=m?new MediaRecorder(stream,{mimeType:m}):new MediaRecorder(stream);
       const actual=recorder.mimeType||m||'audio/webm';
 
-      recorder.ondataavailable=e=>{if(e.data?.size)captured.push(e.data)};
+      recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};
       recorder.onstop=async()=>{
-        if(epoch!==callEpoch||!callOpen)return;
-        const blob=new Blob(captured,{type:actual});
+        const blob=new Blob(chunks,{type:actual});
         chunks=[];
         await processSpeech(blob,actual);
       };
@@ -546,7 +544,7 @@
     }
   }
 
-  async function typedTurn(){if(processing||!callOpen)return;const input=$('st-cold-input');const text=input?.value.trim();if(!text)return;input.value='';if(!coldCall?.advanced){if(recorder){recorder.onstop=null;try{if(recorder.state!=='inactive')recorder.stop()}catch{}}await processSpeech(null,'',text)}else await turn(text)}
+  async function typedTurn(){if(processing||!callOpen)return;const input=$('st-cold-input');const text=input?.value.trim();if(!text)return;input.value='';await turn(text)}
   async function turn(text){if(processing||!callOpen||!state.session)return;processing=true;updateUI();addMessage('manager',text);setStatus('AI-клиент формирует ответ…');try{await save();const reply=await aiClientReply(text,false);if(!reply)throw new Error('AI не вернул реплику клиента');addMessage('client',reply);await save();setStatus('AI-клиент отвечает голосом…');try{await speak(reply)}catch(e){console.error('[SaleTrening] TTS',e);if(typeof toast==='function')toast('Ошибка TTS: '+e.message)}setStatus('Ваш ход — говорите или ответьте текстом.')}catch(e){console.error('[SaleTrening] AI client',e);setStatus('Ошибка AI-клиента: '+e.message);if(typeof toast==='function')toast('Ошибка AI-клиента: '+e.message)}finally{processing=false;updateUI()}}
   async function finish(){
     if(!state.session)return;
@@ -621,7 +619,7 @@
       if(coldCall?.advanced){
         await startAdvancedLiveConversation();
       }else{
-        await startContinuousConversation();
+        setStatus('Нажмите «Начать говорить» один раз. После этого разговор пойдёт автоматически.');
       }
     }catch(e){
       cleanup();

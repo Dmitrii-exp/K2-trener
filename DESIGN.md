@@ -29,9 +29,3 @@ Manager invitation controls are owned by `company-invitations.js`, shared by the
 
 ## Invitation login switch
 Invitation links initially show registration. Both existing-account controls explicitly select login; the invitation token and email stay available for acceptance after sign-in. Login uses current-password autocomplete; registration uses new-password. Switching views never accepts an invitation or changes account data.
-
-## Cold-call mode selection
-The existing cold-call settings own a native radio group: Advanced (default, existing GPT Live) and Regular (experimental STT → streamed text → sentence TTS). Radio labels use the existing violet palette, expose keyboard focus and fit mobile widths. Switching hides only the irrelevant voice selector; character, facts and difficulty remain intact. Assigned voice training retains its existing Advanced route. Regular mode starts microphone capture on launch, carries session_id through every paid request, cancels its in-flight work/audio on interruption or exit, and shares the existing training finish path. Speech recognition currently sends completed utterances; this is not continuous streaming ASR. Price and latency are not promised before real-call measurement.
-
-## Voice Kit trial
-Regular voice selection includes two standard Russian male presets from the public ttsapi.ru catalog: Pavel and Maksim. The native select retains OpenAI voices as explicit alternatives; no silent provider fallback. Voice Kit synthesis uses a separate authenticated Edge Function and existing active-training TTS gate; VOICEKIT_API_KEY stays server-side. Free trial uses ordinary MP3 synthesis, not premium/cloned voices or provider streaming. Existing Advanced/GPT Live routing is unchanged.

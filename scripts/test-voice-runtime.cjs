@@ -34,7 +34,6 @@ vm.runInContext(source.replace('window.launchColdCall=launchColdCall;',
   context.trainingCallPage();
   assert.ok(nodes.get('page').innerHTML.includes('st-cold-card'), 'navigation must retain the V5 phone renderer');
   assert.ok(!nodes.get('page').innerHTML.includes('cold-call-portrait'), 'retired renderer must not return');
-  context.coldCall.advanced=true; // Existing advanced text-send regression; regular audio is tested separately.
   failSave=true;
   await nodes.get('st-cold-send').onclick();
   assert.equal(aiCalls,0,'failed persistence must not start AI request');
