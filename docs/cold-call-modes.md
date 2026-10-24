@@ -36,3 +36,22 @@ Regular separately from direct OpenAI charges for Advanced. No price saving is
 claimed before measurement. No new keys are placed in frontend code.
 
 Rollback: redeploy the previous main commit 497d3af1f25286a7e14353386697a91e31815018.
+
+## Voice Kit on Free
+Regular voice choices Pavel/preset_pavel and Maksim/preset_maksim use the separate
+voicekit-tts function. These presets were checked against the public /v1/voices
+catalog. The function requires VOICEKIT_API_KEY in Supabase secrets and reuses the
+existing proxy-tts authorization scope, including the active session requirement.
+It calls only https://ttsapi.ru/v1/synthesize with Russian MP3, speed 1.05. No
+cloning, premium model, paid upgrade or streaming request is made. OpenAI voices
+remain explicit selectable alternatives through the original proxy-tts function.
+No automatic retry/fallback multiplies provider charges. Quota/provider errors are
+shown without exposing the key or raw upstream errors. Request cancellation and a
+25-second timeout are forwarded to the TTS call.
+
+Three mocked Edge tests cover fixed provider parameters, entitlement rejection,
+missing secret, input limits, voice allowlist, provider errors and bad audio. The
+runtime test covers routing to the new endpoint. Real key validity, synthesis
+quality and latency still require a signed-in training call; no service key or
+user credentials were extracted for testing. The clone can be added in a separate
+step after the provider plan permits it and the user creates their voice.

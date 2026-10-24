@@ -381,8 +381,9 @@
   async function recognize(blob,mime,signal){const fd=new FormData(),typ=String(mime||blob.type),ext=typ.includes('mp4')?'m4a':typ.includes('ogg')?'ogg':'webm';fd.append('file',blob,`manager.${ext}`);if(state.session?.id)fd.append('session_id',state.session.id);fd.append('prompt','Разговор менеджера по продажам с потенциальным клиентом. Русская речь, цены, бренды, модели, размеры шин и профессиональные термины.');const r=await fetch(`${PROJECT}/proxy-stt`,{method:'POST',headers:await authHeaders(),body:fd,signal});const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error(j.error||`STT HTTP ${r.status}`);return String(j.text||'').trim()}
   async function speak(text,signal){
     if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
-    const r=await fetch(`${PROJECT}/proxy-tts`,{method:'POST',headers:await authHeaders(true),signal,body:JSON.stringify({session_id:state.session?.id,input:String(text),voice:coldCall?.voice||'onyx',instructions:'Говори по-русски без иностранного акцента. Уверенный спокойный мужской голос в низком или среднем регистре. Короткая естественная разговорная реплика, без дикторской подачи.'})});
-    if(!r.ok)throw new Error(`TTS HTTP ${r.status}`);
+    const ttsEndpoint=String(coldCall?.voice||'').startsWith('preset_')?'voicekit-tts':'proxy-tts';
+    const r=await fetch(`${PROJECT}/${ttsEndpoint}`,{method:'POST',headers:await authHeaders(true),signal,body:JSON.stringify({session_id:state.session?.id,input:String(text),voice:coldCall?.voice||'onyx',instructions:'Говори по-русски без иностранного акцента. Уверенный спокойный мужской голос в низком или среднем регистре. Короткая естественная разговорная реплика, без дикторской подачи.'})});
+    if(!r.ok){const detail=await r.json().catch(()=>({}));throw new Error(detail.error||`TTS HTTP ${r.status}`);}
     const blob=await r.blob();if(signal?.aborted)throw new DOMException('Cancelled','AbortError');
     if(!blob.size)throw new Error('TTS вернул пустой аудиофайл');
     const url=URL.createObjectURL(blob),player=new Audio(url);audio=player;player.preload='auto';

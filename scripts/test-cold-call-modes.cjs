@@ -33,6 +33,7 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
   holdAudio=true;const controller=c.testRegular.arm();const pending=c.testRegular.speak('Длинный ответ',controller.signal);
   while(plays<4)await new Promise(r=>setImmediate(r));c.testRegular.cancelRegularTurn();await assert.rejects(pending,e=>e.name==='AbortError');assert.ok(pauses>0);
   const again=c.testRegular.arm();const pendingExit=c.testRegular.speak('Ответ',again.signal);while(plays<5)await new Promise(r=>setImmediate(r));c.testRegular.cleanup();await assert.rejects(pendingExit,e=>e.name==='AbortError');
+  holdAudio=false;c.coldCall.voice='preset_pavel';c.fetch=async(url,o)=>{assert.ok(url.endsWith('/voicekit-tts'));assert.equal(JSON.parse(o.body).voice,'preset_pavel');return{ok:true,blob:async()=>new Blob(['voicekit'])}};await c.testRegular.speak('Проверка Voice Kit');
  }
  console.log('PASS: mode routing/preserved fields, STT/TTS session authorization, SSE final delta and ordered speech, interruption and exit cancellation (root/deploy).');
 })().catch(e=>{console.error(e);process.exitCode=1});
