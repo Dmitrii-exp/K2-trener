@@ -214,7 +214,26 @@ function historyPage(){
   if(!items.length)return '<div class="top"><div><h2>История тренировок</h2><div class="muted">Здесь будут сохраняться все ваши тренировки</div></div></div><div class="empty">История пока пуста.</div>';
   return '<div class="top"><div><h2>История тренировок</h2><div class="muted">Последние тренировки менеджера</div></div><span class="pill">'+items.length+' записей</span></div><div class="card" style="padding:0;overflow:hidden"><div style="display:grid;gap:0">'+items.map(function(x,i){const sc=state.scenarios.find(function(s){return String(s.id)===String(x.scenario_id)});return '<button type="button" class="history-row" data-id="'+esc(String(x.id))+'" onclick="openHistorySession(this.dataset.id)" style="border:0;border-bottom:'+(i===items.length-1?'0':'1px')+' solid var(--line);background:#fff;text-align:left;padding:18px 20px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;width:100%"><div><div style="font-weight:800;font-size:16px">'+esc(sc?.title||"Тренировка")+'</div><div class="muted" style="margin-top:5px">'+date(x.created_at)+' · '+statusLabel(x.status)+'</div></div><div style="text-align:right"><div style="font-size:22px;font-weight:850">'+(x.total_score==null?'—':esc(x.total_score))+'</div><div class="muted">балл</div></div></button>'}).join('')+'</div></div>';
 }
-async function openHistorySession(id){
+async async function retryHistoryEvaluation(id){
+  const button=document.getElementById('retryHistoryEvaluationBtn');
+  if(button){button.disabled=true;button.textContent='Повторно оцениваем…';}
+  try{
+    const {data,error}=await sb.auth.getSession();
+    if(error||!data?.session?.access_token)throw new Error('Авторизация истекла');
+    const response=await fetch(SUPABASE_URL+'/functions/v1/evaluate-session-v3',{
+      method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+data.session.access_token},
+      body:JSON.stringify({session_id:id}),cache:'no-store'
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||result.ok===false)throw new Error(result.error||'HTTP '+response.status);
+    await loadAll();await openHistorySession(id);
+    if(typeof toast==='function')toast(result.scored===false?'Недостаточно данных для оценки':'Оценка сформирована');
+  }catch(e){
+    if(typeof toast==='function')toast('Повторная оценка: '+e.message);
+    if(button){button.disabled=false;button.textContent='Повторить оценку';}
+  }
+}
+function openHistorySession(id){
   const p=$("page");if(!p)return;
   p.innerHTML='<div class="empty">Загрузка отчёта…</div>';
   const r=await sb.from("saletrening_sessions").select("id,employee_id,scenario_id,status,total_score,ai_summary,transcript,created_at,completed_at,duration_seconds").eq("id",id).eq("employee_id",state.user.id).maybeSingle();
@@ -242,7 +261,7 @@ async function openHistorySession(id){
   const criterionHtml=criteria.map(function(v){const pct=v[1]*5;return '<div class="criterion"><div class="criterion-head"><span>'+esc(v[0])+'</span><b>'+v[1]+' / 20</b></div><div class="criterion-bar"><i style="width:'+pct+'%"></i></div></div>'}).join("");
   const duration=x.duration_seconds?Math.floor(Number(x.duration_seconds)/60)+':'+String(Math.floor(Number(x.duration_seconds)%60)).padStart(2,"0"):"—";
   p.innerHTML='<div class="report-page">'+
-    '<div class="report-top"><button class="secondary" onclick="state.view=\'history\';page()">← К истории</button><div class="report-top-actions"><span class="pill">'+esc(status)+'</span></div></div>'+
+    '<div class="report-top"><button class="secondary" onclick="state.view=\'history\';page()">← К истории</button><div class="report-top-actions">'+(x.status!=='completed'&&transcript.some(m=>['manager','user','employee'].includes(String(m?.speaker||m?.role||'').toLowerCase())&&String(m?.content??m?.text??'').trim())?'<button type="button" id="retryHistoryEvaluationBtn" class="secondary" onclick="retryHistoryEvaluation(\''+esc(String(x.id))+'\')">Повторить оценку</button>':'')+'<span class="pill">'+esc(status)+'</span></div></div>'
     '<div class="report-title-row"><div><h2>'+esc(sc?.title||"Тренировка")+'</h2><div class="muted">'+date(x.created_at)+'</div></div></div>'+
     '<div class="report-summary-grid">'+
       '<div class="report-score-card"><div class="report-card-label">Итоговый балл</div><div class="report-score">'+total+' <span>из 100</span></div><div class="report-score-bar"><i style="width:'+scorePercent+'%"></i></div></div>'+
