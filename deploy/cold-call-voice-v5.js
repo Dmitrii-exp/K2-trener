@@ -200,10 +200,10 @@
       const mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
       mic.getTracks().forEach(t=>pc.addTrack(t,mic)); stream=mic;
       startLiveRecorder('manager',mic);
-      const character=coldCall?.character||'Лояльный';
+      const character=coldCall?.character||'Уверенный';
       const facts=coldCall?.facts||'';
       const difficulty=coldCall?.difficulty||'Средний';
-      const objections=(state.clientObjections||state.client_settings?.objections||state.session?.objections||[]).slice(0,12);
+      const objections=(state.clientObjections||state.client_settings?.objections||state.session?.objections||[]).slice(0,40);
       const scenario=state.session?.scenario||{};
       const difficultyBehavior=/легк/i.test(String(difficulty))?'ЛЁГКИЙ УРОВЕНЬ: ты открыт к общению, отвечаешь дружелюбно, при разумном предложении быстро идёшь на контакт. Не соглашайся на покупку без объяснения ценности.':/слож/i.test(String(difficulty))?'СЛОЖНЫЙ УРОВЕНЬ: ты опытный требовательный закупщик, проверяешь экономику, риски, гарантии и условия; требуешь конкретики и убедительных аргументов. Не соглашайся без снятия ключевых возражений, но при убедительном предложении реально закрывай сделку.':'СРЕДНИЙ УРОВЕНЬ: проявляй умеренный скепсис, задавай разумные вопросы и возражения, принимай решение после аргументированного ответа.';
       const instructions=[
@@ -218,6 +218,7 @@
         'Русская разговорная фонетика: связывай соседние слова в одну естественную речевую группу, не читай текст по буквам и не проговаривай каждую безударную гласную с одинаковой чёткостью. Например, фразу «мы не можем» произноси как обычный носитель русского языка — плавно, с нормальным ударением в слове «можем» и естественной редукцией, но не искажай написание слов.',
         'Избегай механической послоговой речи, одинаковых промежутков между словами и гиперчёткой артикуляции. Не изображай акцент и не делай нарочито разговорных искажений. Сохраняй разборчивость чисел, цен, размеров шин и названий брендов.',
         'Говори спокойно, уверенно и по-деловому, как обычный русскоязычный мужчина в телефонном разговоре; короткие живые фразы и естественные паузы. Не переигрывай эмоции и не переходи на дикторский тон.',
+        'Если характер «Уверенный», веди себя как опытный закупщик: говори решительно, коротко и по существу, без запинок, робости, заискивания и слов-паразитов «эм», «ээ», «ну-у», «как бы», «наверное». Твёрдо отстаивай позицию, но не груби. Если предложение убедительно — можешь изменить решение.',
         'Не помогай менеджеру продавать и не объясняй ему правильную технику продаж.',
         'Не говори, что ты ИИ, модель, голосовой ассистент или что это тренировка.',
         'Твоя роль: '+character+'. Уровень сложности: '+difficulty+'.',
@@ -397,7 +398,7 @@
         scenario:state.session.scenario,
         client_settings:settings,
         objections,
-        cold_call:{character:coldCall?.character||'Лояльный',facts:coldCall?.facts||'',voice:coldCall?.voice||'coral',difficulty:coldCall?.difficulty||'Средний'},
+        cold_call:{character:coldCall?.character||'Уверенный',facts:coldCall?.facts||'',voice:coldCall?.voice||'coral',difficulty:coldCall?.difficulty||'Средний'},
         stream:true
       }),
       cache:'no-store'
