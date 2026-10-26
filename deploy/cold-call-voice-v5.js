@@ -579,21 +579,18 @@
     const validConversation=hasManager&&hasClient;
     setStatus('Завершаем тренировку…');
     cleanup();
-    state.session=null;
-    state.messages=[];
-    state.view='progress';
-    window.render();
-    if(typeof toast==='function')toast(validConversation?'Тренировка завершена. Результат рассчитывается.':'Разговор не состоялся. Тренировка не засчитана.');
+    // Do not destroy the active session before the database confirms persistence.
     // Persist first, evaluate second. Retry transient failures without awarding a fabricated score.
     (async()=>{
       const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
       let lastError=null;
       for(let attempt=1;attempt<=3;attempt++){
         try{
-          const {error}=await sb.from('saletrening_sessions')
+          const {data:saved,error}=await sb.from('saletrening_sessions')
             .update({transcript,duration_seconds:durationSeconds,updated_at:new Date().toISOString()})
-            .eq('id',sessionId).eq('employee_id',employeeId);
+            .eq('id',sessionId).eq('employee_id',employeeId).select('id');
           if(error)throw new Error('Сохранение: '+error.message);
+          if(!saved?.length)throw new Error('Сервер не подтвердил запись тренировки (0 строк).');
           lastError=null;break;
         }catch(e){lastError=e;console.error('[SaleTrening] save attempt '+attempt,e);if(attempt<3)await wait(attempt*1200);}
       }
@@ -601,6 +598,11 @@
         if(typeof toast==='function')toast('Ошибка сохранения: '+lastError.message);
         return;
       }
+      state.session=null;
+      state.messages=[];
+      state.view='progress';
+      window.render();
+      if(typeof toast==='function')toast(validConversation?'Разговор сохранён. Рассчитываем оценку.':'Разговор сохранён, но недостаточно данных для оценки.');
       if(!validConversation){
         if(typeof toast==='function')toast('Диалог сохранён, но для оценки нужны реплики обеих сторон');
         await loadAll().catch(()=>{});if(state.view==='progress')window.render();
