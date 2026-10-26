@@ -569,28 +569,52 @@
     state.view='progress';
     window.render();
     if(typeof toast==='function')toast(validConversation?'Тренировка завершена. Результат рассчитывается.':'Разговор не состоялся. Тренировка не засчитана.');
-    // Saving and scoring must not hold the call screen open.
+    // Persist first, evaluate second. Retry transient failures without awarding a fabricated score.
     (async()=>{
-      try{
-        const {error}=await sb.from('saletrening_sessions').update({transcript,duration_seconds:durationSeconds,updated_at:new Date().toISOString()}).eq('id',sessionId).eq('employee_id',employeeId);
-        if(error)throw error;
-        if(!validConversation)return; // Interrupted/failed call: never request evaluation or credit.
-        const {data}=await sb.auth.getSession();
-        const token=data?.session?.access_token;
-        if(!token)throw new Error('Авторизация истекла');
-        const response=await fetch(SUPABASE_URL+'/functions/v1/evaluate-session-v3',{
-          method:'POST',
-          headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token},
-          body:JSON.stringify({session_id:sessionId}),cache:'no-store'
-        });
-        if(!response.ok)throw new Error('Ошибка анализа: HTTP '+response.status);
-        await loadAll();
-        if(state.view==='progress')window.render();
-        if(typeof toast==='function')toast('Результат тренировки готов');
-      }catch(e){
-        console.error('[SaleTrening] background finish',e);
-        if(typeof toast==='function')toast('Не удалось сохранить или оценить тренировку. Проверьте историю.');
+      const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+      let lastError=null;
+      for(let attempt=1;attempt<=3;attempt++){
+        try{
+          const {error}=await sb.from('saletrening_sessions')
+            .update({transcript,duration_seconds:durationSeconds,updated_at:new Date().toISOString()})
+            .eq('id',sessionId).eq('employee_id',employeeId);
+          if(error)throw new Error('Сохранение: '+error.message);
+          lastError=null;break;
+        }catch(e){lastError=e;console.error('[SaleTrening] save attempt '+attempt,e);if(attempt<3)await wait(attempt*1200);}
       }
+      if(lastError){
+        if(typeof toast==='function')toast('Ошибка сохранения: '+lastError.message);
+        return;
+      }
+      if(!validConversation){
+        if(typeof toast==='function')toast('Диалог сохранён, но для оценки нужны реплики обеих сторон');
+        await loadAll().catch(()=>{});if(state.view==='progress')window.render();
+        return;
+      }
+      for(let attempt=1;attempt<=3;attempt++){
+        try{
+          const {data,error:authError}=await sb.auth.getSession();
+          const token=data?.session?.access_token;
+          if(authError||!token)throw new Error('Авторизация истекла');
+          const response=await fetch(SUPABASE_URL+'/functions/v1/evaluate-session-v3',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token},
+            body:JSON.stringify({session_id:sessionId}),cache:'no-store'
+          });
+          const result=await response.json().catch(()=>({}));
+          if(!response.ok||result.ok===false)throw new Error(result.error||('HTTP '+response.status));
+          if(result.scored===false){
+            if(typeof toast==='function')toast('Разговор сохранён. Оценка не выставлена: недостаточно данных.');
+          }else if(typeof toast==='function')toast('Результат тренировки готов');
+          await loadAll();if(state.view==='progress')window.render();
+          return;
+        }catch(e){
+          console.error('[SaleTrening] evaluation attempt '+attempt,e);
+          lastError=e;if(attempt<3)await wait(attempt*1500);
+        }
+      }
+      if(typeof toast==='function')toast('Разговор сохранён, но оценка не готова: '+String(lastError?.message||'ошибка'));
+      await loadAll().catch(()=>{});if(state.view==='progress')window.render();
     })();
   }
   async function launchColdCall(){
