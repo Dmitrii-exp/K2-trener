@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const {stripTypeScriptTypes} = require('node:module');
-const compile = path => stripTypeScriptTypes(fs.readFileSync(path,'utf8')).replace(/^import .*;\s*$/gm,'').replace(/export function /g,'function ');
+const compile = path => stripTypeScriptTypes(fs.readFileSync(path,'utf8')).replace(/^import .*;\s*$/gm,'').replace(/export (function|const) /g,'$1 ');
 const behavior = compile('supabase/functions/_shared/cold-call-behavior.ts');
 const ctx = {console};vm.createContext(ctx);vm.runInContext(behavior,ctx);
 let seed=73;
@@ -54,13 +54,14 @@ const server={console,Request,Response,FormData,TextDecoder,Uint8Array,atob,
  }
 };
 vm.createContext(server);
-vm.runInContext(compile('supabase/functions/_shared/ai-access.ts')+'\n'+behavior+'\n'+compile('supabase/functions/gpt-live-session/index.ts'),server);
+vm.runInContext(compile('supabase/functions/_shared/ai-access.ts')+'\n'+behavior+'\n'+compile('supabase/functions/_shared/product-catalog-data.ts')+'\n'+compile('supabase/functions/_shared/product-catalog.ts')+'\n'+compile('supabase/functions/gpt-live-session/index.ts'),server);
 (async()=>{
  const req = body=>new Request('https://function.test',{method:'POST',headers:{Authorization:'Bearer test-user','Content-Type':'application/json'},body:JSON.stringify(body)});
  const response=await liveHandler(req({session_id:id,sdp:'offer',session:{voice:'stone',client_context:sample,input:[]}}));
  assert.equal(response.status,200);const data=await response.json();assert.equal(data.behavior_version,'cc2');assert.equal(gateId,id);
  assert.equal(providerPayload.session.audio.output.voice,'stone');assert.equal(providerPayload.session.model,'gpt-live-1');
  assert.ok(providerPayload.session.instructions.includes(sample.facts));
+ assert.equal(data.catalog.total,1545);assert.ok(data.catalog.selected>0);assert.ok(providerPayload.session.instructions.includes('СПРАВОЧНИК ТОВАРОВ'));
  assert.equal(providerPayload.transport.sdp,'offer');assert.equal(data.transport.sdp,'answer');
  const old=await liveHandler(req({sdp:'offer',session:{instructions:'Твоя роль: Уверенный. Уровень сложности: Средний.\nФакты о клиенте: Закупка осенью.'}}));
  assert.equal(old.status,200);assert.ok(providerPayload.session.instructions.includes('Закупка осенью.'));

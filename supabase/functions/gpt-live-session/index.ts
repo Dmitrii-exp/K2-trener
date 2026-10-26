@@ -1,3 +1,4 @@
+import { buildProductContext } from "../_shared/product-catalog.ts";
 import { buildColdCallBehavior, legacyColdCallContext } from "../_shared/cold-call-behavior.ts";
 import { withAiAccess } from "../_shared/ai-access.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -48,11 +49,13 @@ Deno.serve(withAiAccess("gpt-live-session", async (req: Request) => {
     if (!sdp) return json({ ok: false, error: "Missing SDP offer" }, 400);
 
     const session = body?.session || {};
-    const behavior = buildColdCallBehavior(session.client_context || legacyColdCallContext(session.instructions));
+    const clientContext = session.client_context || legacyColdCallContext(session.instructions);
+    const behavior = buildColdCallBehavior(clientContext);
+    const catalogContext = buildProductContext(clientContext, behavior.persona.id);
     const payload = {
       session: {
         model: "gpt-live-1",
-        instructions: behavior.instructions,
+        instructions: behavior.instructions + catalogContext.instructions,
         audio: {
           output: { voice: String(session.voice || "marin") }
         },
@@ -91,7 +94,7 @@ Deno.serve(withAiAccess("gpt-live-session", async (req: Request) => {
       return json({ ok: false, error: "Invalid OpenAI response" }, 502);
     }
 
-    return json({ ok: true, session: data.session, transport: data.transport, persona: behavior.persona, behavior_version: "cc2" });
+    return json({ ok: true, session: data.session, transport: data.transport, persona: behavior.persona, behavior_version: "cc2", catalog: catalogContext.meta });
   } catch (e) {
     return json({
       ok: false,
