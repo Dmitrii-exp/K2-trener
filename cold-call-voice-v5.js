@@ -180,6 +180,14 @@
     b.disabled=!!(recording||processing||continuousMode||(coldCall?.advanced&&livePc));
     b.setAttribute('aria-label',processing?'ИИ отвечает':(recording||continuousMode||livePc?'Разговор активен':'Начать говорить'));
   }
+  // Only opaque persona IDs are stored, scoped to the signed-in user in this browser.
+  function readPersonaHistory(){
+    try{const value=JSON.parse(localStorage.getItem('st.cold.personas.v2:'+state.user.id)||'[]');return Array.isArray(value)?value.filter(x=>typeof x==='string'&&/^cc2-\d+-\d+-\d+$/.test(x)).slice(-20):[]}catch{return []}
+  }
+  function rememberPersona(id){
+    if(typeof id!=='string'||!/^cc2-\d+-\d+-\d+$/.test(id))return;
+    try{const recent=readPersonaHistory().filter(x=>x!==id);localStorage.setItem('st.cold.personas.v2:'+state.user.id,JSON.stringify([...recent,id].slice(-20)))}catch{}
+  }
   async function startAdvancedLiveConversation(){
     if(!callOpen||processing||livePc)return;
     try{
@@ -205,43 +213,23 @@
       const difficulty=coldCall?.difficulty||'Средний';
       const objections=(state.clientObjections||state.client_settings?.objections||state.session?.objections||[]).slice(0,12);
       const scenario=state.session?.scenario||{};
-      const difficultyBehavior=/легк/i.test(String(difficulty))?'ЛЁГКИЙ УРОВЕНЬ: ты открыт к общению, отвечаешь дружелюбно, при разумном предложении быстро идёшь на контакт. Не соглашайся на покупку без объяснения ценности.':/слож/i.test(String(difficulty))?'СЛОЖНЫЙ УРОВЕНЬ: ты опытный требовательный закупщик, проверяешь экономику, риски, гарантии и условия; требуешь конкретики и убедительных аргументов. Не соглашайся без снятия ключевых возражений, но при убедительном предложении реально закрывай сделку.':'СРЕДНИЙ УРОВЕНЬ: проявляй умеренный скепсис, задавай разумные вопросы и возражения, принимай решение после аргументированного ответа.';
-      const instructions=[
-        'Ты ВСЕГДА только потенциальный КЛИЕНТ в тренировочном холодном B2B-звонке. Никогда не становись продавцом, менеджером, поставщиком, консультантом или оператором.',
-        'Менеджер — единственная сторона, которая ведёт продажу: он начинает разговор, задаёт вопросы, выявляет потребность, предлагает товар и условия и ведёт к сделке. Ты не должен брать инициативу по продаже на себя.',
-        'Если менеджер здоровается или представляется (например: «Здравствуйте, я Лёша»), ответь как клиент коротко и естественно: например «Здравствуйте» или «Добрый день». Не представляйся продавцом и не отвечай «Что хотели?» без необходимости. Дай менеджеру самому вовлечь тебя в разговор.',
-        'Не начинай тему продажи сам. Не предлагай товар, цену, скидку, доставку или условия сделки без того, чтобы менеджер вывел разговор к этому.',
-        'Не придумывай за менеджера его вопросы, предложения, действия или аргументы. Реагируй только на то, что реально сказал менеджер.',
-        'Встречные вопросы задавай только когда это естественно необходимо для ответа или когда менеджер уже вовлёк тебя в предметное обсуждение. Не используй вопросы, чтобы самому вести разговор.',
-        'Говори только на естественном русском языке, как живой человек по телефону: разговорно, без дикторской подачи, без длинных монологов.',
-        'Произношение: только современный нормативный русский язык носителя из России. Никакого иностранного акцента, англоязычной артикуляции, необычной мелодики или растягивания гласных. Соблюдай естественные русские ударения, редукцию безударных гласных и разговорный ритм. Не имитируй переводную речь.',
-        'Говори спокойно, уверенно и по-деловому, как обычный русскоязычный мужчина в телефонном разговоре; короткие живые фразы и естественные паузы. Не переигрывай эмоции и не переходи на дикторский тон.',
-        'Не помогай менеджеру продавать и не объясняй ему правильную технику продаж.',
-        'Не говори, что ты ИИ, модель, голосовой ассистент или что это тренировка.',
-        'Твоя роль: '+character+'. Уровень сложности: '+difficulty+'.',
-        difficultyBehavior,
-        'Сценарий: '+(scenario.title||'Холодный звонок')+'. Цель менеджера: '+(scenario.objective||'заинтересовать и договориться о следующем шаге')+'.',
-        facts?'Факты о клиенте: '+facts+'.':'',
-        objections.length?'Возможные возражения клиента: '+objections.join('; ')+'.':'',
-        'Ты отвечаешь на последнюю реплику менеджера и сохраняешь контекст. Не используй все возражения сразу.',
-        'Менеджер говорит первым. После его первой реплики ответь как клиент.',
-        'Если менеджер перебивает или меняет тему, реагируй естественно. Если задаёт конкретный вопрос — отвечай как клиент, но не раскрывай сразу всю информацию.',
-        'Отвечай обычно 1–3 короткими фразами. Иногда задавай встречный вопрос или выражай сомнение.',
-        'ВАЖНО: «сбросьте на почту» — это не автоматическое завершение звонка, а только одно из возможных возражений или способов продолжить контакт. Если менеджер грамотно отрабатывает эту реплику, не повторяй её механически.',
-        'Если менеджер хорошо выявил потребность, снял сомнения и создал ценность, постепенно переходи к предметному обсуждению: конкретный товар, количество, цена, наличие, поставка, оплата и условия сделки.',
-        'Если предложение менеджера тебя устраивает, можешь прямо сказать, что готов двигаться дальше: попросить счёт, уточнить реквизиты/условия оплаты, подтвердить количество и сказать, что ставите заказ в оплату. Например: «Хорошо, мне подходит. Сбрасывайте счёт, ставим в оплату».',
-        'Не создавай новое искусственное возражение после того, как ключевое возражение уже качественно снято. Если менеджер действительно убедил тебя, меняй позицию клиента в сторону покупки.',
-        'При хорошем разговоре допускай реальное закрытие сделки в этом же звонке. Цель клиента — принять решение на основании диалога, а не любой ценой закончить разговор отправкой письма.'
-      ].filter(Boolean).join('\n');
+      const clientContext={
+        character,facts,difficulty,objections,
+        scenario_title:scenario.title||'Холодный звонок',
+        objective:scenario.objective||'Заинтересовать и согласовать следующий шаг',
+        recent_persona_ids:readPersonaHistory(),
+        persona_id:state.session?.clientPersonaId||null
+      };
       const history=(state.messages||[]).slice(-20).map(m=>({type:'message',role:m.speaker==='manager'?'user':'assistant',content:[{type:m.speaker==='manager'?'input_text':'output_text',text:String(m.content||'') }]})).filter(x=>x.content[0].text);
       const offer=await pc.createOffer(); await pc.setLocalDescription(offer);
-      const answerResp=await fetch(PROJECT+'/gpt-live-session',{method:'POST',headers:await authHeaders(true),body:JSON.stringify({sdp:offer.sdp,session:{voice:(LIVE_VOICES.includes(coldCall?.liveVoice)?coldCall.liveVoice:LIVE_VOICE),instructions,input:history}}),cache:'no-store'});
+      const answerResp=await fetch(PROJECT+'/gpt-live-session',{method:'POST',headers:await authHeaders(true),body:JSON.stringify({session_id:state.session.id,sdp:offer.sdp,session:{voice:(LIVE_VOICES.includes(coldCall?.liveVoice)?coldCall.liveVoice:LIVE_VOICE),client_context:clientContext,input:history}}),cache:'no-store'});
       const raw=await answerResp.text(); let j={}; try{j=raw?JSON.parse(raw):{}}catch{}
       if(!answerResp.ok||!j.ok){
         const detail=j.detail?.error?.message||j.detail?.message||j.detail?.error||'';
         throw new Error(j.error+(detail?': '+detail:'')||raw||('голосового помощника HTTP '+answerResp.status));
       }
       if(!j.transport?.sdp)throw new Error('голосового помощника не вернул SDP answer');
+      if(j.persona?.id&&state.session){state.session.clientPersonaId=j.persona.id;rememberPersona(j.persona.id);}
       liveSessionId=j.session?.id||null; await pc.setRemoteDescription({type:'answer',sdp:j.transport.sdp});
       dc.onopen=()=>{setStatus('Продвинутый звонок подключён. Вы говорите первым.');updateUI()};
       pc.onconnectionstatechange=()=>{const s=pc.connectionState;if(s==='failed'||s==='disconnected'){setStatus('Соединение продвинутого звонка прервано.');if(typeof toast==='function')toast('голосового помощника: соединение прервано')}};
