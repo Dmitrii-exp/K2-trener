@@ -214,7 +214,7 @@ function historyPage(){
   if(!items.length)return '<div class="top"><div><h2>История тренировок</h2><div class="muted">Здесь будут сохраняться все ваши тренировки</div></div></div><div class="empty">История пока пуста.</div>';
   return '<div class="top"><div><h2>История тренировок</h2><div class="muted">Последние тренировки менеджера</div></div><span class="pill">'+items.length+' записей</span></div><div class="card" style="padding:0;overflow:hidden"><div style="display:grid;gap:0">'+items.map(function(x,i){const sc=state.scenarios.find(function(s){return String(s.id)===String(x.scenario_id)});return '<button type="button" class="history-row" data-id="'+esc(String(x.id))+'" onclick="openHistorySession(this.dataset.id)" style="border:0;border-bottom:'+(i===items.length-1?'0':'1px')+' solid var(--line);background:#fff;text-align:left;padding:18px 20px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;width:100%"><div><div style="font-weight:800;font-size:16px">'+esc(sc?.title||"Тренировка")+'</div><div class="muted" style="margin-top:5px">'+date(x.created_at)+' · '+statusLabel(x.status)+'</div></div><div style="text-align:right"><div style="font-size:22px;font-weight:850">'+(x.total_score==null?'—':esc(x.total_score))+'</div><div class="muted">балл</div></div></button>'}).join('')+'</div></div>';
 }
-async async function retryHistoryEvaluation(id){
+async function retryHistoryEvaluation(id){
   const button=document.getElementById('retryHistoryEvaluationBtn');
   if(button){button.disabled=true;button.textContent='Повторно оцениваем…';}
   try{
@@ -233,7 +233,7 @@ async async function retryHistoryEvaluation(id){
     if(button){button.disabled=false;button.textContent='Повторить оценку';}
   }
 }
-function openHistorySession(id){
+async function openHistorySession(id){
   const p=$("page");if(!p)return;
   p.innerHTML='<div class="empty">Загрузка отчёта…</div>';
   const r=await sb.from("saletrening_sessions").select("id,employee_id,scenario_id,status,total_score,ai_summary,transcript,created_at,completed_at,duration_seconds").eq("id",id).eq("employee_id",state.user.id).maybeSingle();
