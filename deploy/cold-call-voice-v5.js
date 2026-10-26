@@ -564,6 +564,21 @@
 
   async function typedTurn(){if(processing||!callOpen)return;const input=$('st-cold-input');const text=input?.value.trim();if(!text)return;input.value='';await turn(text)}
   async function turn(text){if(processing||!callOpen||!state.session)return;processing=true;updateUI();addMessage('manager',text);setStatus('AI-клиент формирует ответ…');try{await save();const reply=await aiClientReply(text,false);if(!reply)throw new Error('AI не вернул реплику клиента');addMessage('client',reply);await save();setStatus('AI-клиент отвечает голосом…');try{await speak(reply)}catch(e){console.error('[SaleTrening] TTS',e);if(typeof toast==='function')toast('Ошибка TTS: '+e.message)}setStatus('Ваш ход — говорите или ответьте текстом.')}catch(e){console.error('[SaleTrening] AI client',e);setStatus('Ошибка AI-клиента: '+e.message);if(typeof toast==='function')toast('Ошибка AI-клиента: '+e.message)}finally{processing=false;updateUI()}}
+  function showFinishOverlay(){
+    let el=document.getElementById('st-finish-overlay');
+    if(!el){
+      el=document.createElement('div');
+      el.id='st-finish-overlay';
+      el.setAttribute('role','status');
+      el.setAttribute('aria-live','polite');
+      el.style.cssText='position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:rgba(12,11,26,.73);padding:24px';
+      el.innerHTML='<div style="width:min(350px,100%);background:#fff;color:#171629;border-radius:22px;padding:36px 25px;text-align:center;box-shadow:0 20px 70px #0005"><div style="width:45px;height:45px;border:4px solid #e7e1ff;border-top-color:#7655ff;border-radius:50%;animation:st-finish-spin .85s linear infinite;margin:0 auto 22px"></div><div style="font-size:19px;font-weight:700">Подождите, сохраняем тренировку</div><div style="font-size:13px;color:#77748c;margin-top:10px">Не закрывайте страницу</div></div>';
+      document.body.appendChild(el);
+      if(!document.getElementById('st-finish-animation')){const style=document.createElement('style');style.id='st-finish-animation';style.textContent='@keyframes st-finish-spin{to{transform:rotate(360deg)}}';document.head.appendChild(style);}
+    }
+    el.style.display='flex';
+    return ()=>{el.remove();};
+  }
   async function finish(){
     if(!state.session)return;
     // Hang up is always allowed, including while the AI is speaking or processing.
@@ -579,6 +594,7 @@
     const validConversation=hasManager&&hasClient;
     setStatus('Завершаем тренировку…');
     cleanup();
+    const dismissFinishOverlay=showFinishOverlay();
     // Do not destroy the active session before the database confirms persistence.
     // Persist first, evaluate second. Retry transient failures without awarding a fabricated score.
     (async()=>{
@@ -595,16 +611,19 @@
         }catch(e){lastError=e;console.error('[SaleTrening] save attempt '+attempt,e);if(attempt<3)await wait(attempt*1200);}
       }
       if(lastError){
-        if(typeof toast==='function')toast('Ошибка сохранения: '+lastError.message);
+        dismissFinishOverlay();
+        if(typeof toast==='function')toast('Не удалось сохранить тренировку. Попробуйте завершить ещё раз.');
+        processing=false;
         return;
       }
+      dismissFinishOverlay();
       state.session=null;
       state.messages=[];
       state.view='progress';
       window.render();
-      if(typeof toast==='function')toast(validConversation?'Разговор сохранён. Рассчитываем оценку.':'Разговор сохранён, но недостаточно данных для оценки.');
+      // Evaluation continues quietly after the save overlay closes.
       if(!validConversation){
-        if(typeof toast==='function')toast('Диалог сохранён, но для оценки нужны реплики обеих сторон');
+        // No score for an incomplete conversation.
         await loadAll().catch(()=>{});if(state.view==='progress')window.render();
         return;
       }
@@ -621,8 +640,8 @@
           const result=await response.json().catch(()=>({}));
           if(!response.ok||result.ok===false)throw new Error(result.error||('HTTP '+response.status));
           if(result.scored===false){
-            if(typeof toast==='function')toast('Разговор сохранён. Оценка не выставлена: недостаточно данных.');
-          }else if(typeof toast==='function')toast('Результат тренировки готов');
+            console.info('[SaleTrening] Evaluation: insufficient data');
+          }
           await loadAll();if(state.view==='progress')window.render();
           return;
         }catch(e){
@@ -630,7 +649,7 @@
           lastError=e;if(attempt<3)await wait(attempt*1500);
         }
       }
-      if(typeof toast==='function')toast('Разговор сохранён, но оценка не готова: '+String(lastError?.message||'ошибка'));
+      console.error('[SaleTrening] Evaluation deferred',lastError);
       await loadAll().catch(()=>{});if(state.view==='progress')window.render();
     })();
   }
