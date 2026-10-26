@@ -588,7 +588,6 @@
     // Capture final transcript before disconnecting; do not wait for STT or scoring.
     try{flushLiveTranscriptBuffers()}catch(e){console.warn('[SaleTrening] transcript flush',e)}
     const transcript=JSON.parse(JSON.stringify(state.messages||[]));
-    const durationSeconds=Math.min(600,Math.max(0,Math.floor((Date.now()-startedAt)/1000)));
     const hasManager=transcript.some(m=>m.speaker==='manager'&&String(m.content||'').trim());
     const hasClient=transcript.some(m=>m.speaker==='client'&&String(m.content||'').trim());
     const validConversation=hasManager&&hasClient;
@@ -603,7 +602,7 @@
       for(let attempt=1;attempt<=3;attempt++){
         try{
           const {data:saved,error}=await sb.from('saletrening_sessions')
-            .update({transcript,duration_seconds:durationSeconds,updated_at:new Date().toISOString()})
+            .update({transcript,updated_at:new Date().toISOString()})
             .eq('id',sessionId).eq('employee_id',employeeId).select('id');
           if(error)throw new Error('Сохранение: '+error.message);
           if(!saved?.length)throw new Error('Сервер не подтвердил запись тренировки (0 строк).');

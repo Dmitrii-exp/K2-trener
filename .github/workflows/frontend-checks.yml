@@ -21,3 +21,4 @@ jobs:
       - run: node scripts/test-ai-request-guard.cjs
       - run: node scripts/test-training-runtime.cjs
       - run: node scripts/test-voice-runtime.cjs
+      - run: node scripts/test-finish-persistence.cjs
