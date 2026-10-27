@@ -3,7 +3,7 @@ async function companyTopPage(){
   const escTop = (value) => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const shell = '<div class="top"><div><h2>ТОП сотрудников</h2><div class="muted">Рейтинг сотрудников вашей компании по среднему баллу</div></div></div>';
   try {
-    const result = await window.supabase.from('company_top_public').select('employee_id,employee_name,branch_name,text_count,voice_count,best_score,average_score').order('average_score',{ascending:false});
+    const result = await window.supabase.createClient().from('company_top_public').select('employee_id,employee_name,branch_name,text_count,voice_count,best_score,average_score').order('average_score',{ascending:false});
     if(result.error) throw result.error;
     const rows = result.data || [];
     if(!rows.length) return shell + '<div class="empty">Пока нет завершённых тренировок для рейтинга.</div>';
