@@ -1,0 +1,63 @@
+name: Branches release — REG.RU backup and deploy
+on:
+  push:
+    branches: [feature/branches-roles-top, release/branches-roles-top]
+    paths:
+      - '.github/workflows/branches-release.yml'
+      - 'scripts/reg_ru_release.py'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Back up only, or deploy after backup (database must be ready)
+        type: choice
+        options: [backup, deploy, restore]
+        default: backup
+        required: true
+      backup_run_id:
+        description: Run containing the backup to restore (restore mode only)
+        type: string
+        default: '40572104212'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: saletrener-deploy
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      REG_FTP_PASSWORD: ${{ secrets.REG_FTP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Check frontend
+        run: python scripts/check_frontend.py
+      - name: Download and verify current production assets
+        run: python scripts/reg_ru_release.py backup
+      - name: Preserve backup before any writes
+        uses: actions/upload-artifact@v4
+        with:
+          name: reg-ru-before-branches-${{ github.run_id }}
+          path: release-backup/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Deploy with checksum verification and automatic rollback
+        if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy') || (github.event_name == 'push' && github.ref == 'refs/heads/release/branches-roles-top')
+        run: python scripts/reg_ru_release.py deploy
+      - name: Download selected rollback backup
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'restore'
+        uses: actions/download-artifact@v4
+        with:
+          name: reg-ru-before-branches-${{ inputs.backup_run_id }}
+          run-id: ${{ inputs.backup_run_id }}
+          github-token: ${{ github.token }}
+          path: restore-source/
+      - name: Restore and verify previous assets
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'restore'
+        run: python scripts/reg_ru_release.py restore --backup-dir restore-source

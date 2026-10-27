@@ -1,0 +1,23 @@
+-- Restore the previous access policies without deleting any branch or training data.
+begin;
+drop policy if exists branch_scope_guard on public.saletrening_sessions;
+drop policy if exists branch_scope_read on public.saletrening_sessions;
+drop policy if exists branch_scope_guard on public.session_scores;
+drop policy if exists branch_scope_read on public.session_scores;
+drop policy if exists branch_scope_guard on public.training_results;
+drop policy if exists branch_scope_read on public.training_results;
+drop policy if exists branch_scope_guard on public.realtime_training_sessions;
+drop policy if exists branch_scope_read on public.realtime_training_sessions;
+drop policy if exists branch_scope_guard on public.realtime_training_feedback;
+drop policy if exists branch_scope_read on public.realtime_training_feedback;
+drop policy if exists branch_scope_guard on public.employee_learning_profiles;
+drop policy if exists branch_scope_read on public.employee_learning_profiles;
+drop policy if exists branch_scope_guard on public.employee_training_goals;
+drop policy if exists branch_scope_read on public.employee_training_goals;
+drop policy if exists branch_scope_guard on public.training_assignments;
+drop policy if exists branch_scope_read on public.training_assignments;
+drop policy if exists branch_profile_read on public.profiles;
+drop policy if exists branch_profile_guard on public.profiles;
+drop policy if exists branch_message_guard on public.session_messages;
+drop policy if exists branch_message_read on public.session_messages;
+commit;

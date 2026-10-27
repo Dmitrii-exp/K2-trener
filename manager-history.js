@@ -1,11 +1,20 @@
 (function(){
-  const isManager=()=>["director","admin","manager"].includes(state.profile?.role);
+  const isManager=()=>state.branchContext?.branch_role
+    ? state.branchContext.branch_role==='branch_director'
+    : ["director","admin","manager"].includes(state.profile?.role);
+  window.canViewCompanyHistory=isManager;
   function empName(id){
     const e=(state.historyEmployees||[]).find(x=>x.id===id);
     if(!e)return id===state.user?.id?(state.profile?.first_name||state.user?.email||"Сотрудник"):"Сотрудник";
     return String([e.first_name,e.last_name].filter(Boolean).join(" ")).trim()||"Сотрудник";
   }
   window.loadAll=async function(){
+    state.branchContext=null;
+    const context=await sb.rpc('company_branch_context');
+    if(context.error)throw new Error('Не удалось проверить права доступа к филиалу');
+    state.branchContext=context.data||{};
+    const ah=await sb.from("saletrening_sessions").select("status,scenario_id,total_score,created_at,completed_at,difficulty_level,deal_closed,voice_mode").eq("employee_id",state.user.id).eq("status","completed").order("completed_at",{ascending:false}).limit(1000);
+    state.achievementHistory=ah.data||[];
     let q=await sb.from("saletrening_scenarios").select("*").eq("active",true).order("id");
     state.scenarios=q.data||[];
     state.historyEmployees=[];
@@ -36,14 +45,15 @@
       state.history=h.data||[];state.team=[];
     }
   };
-  window.historyPage=function(){
+  window.historyPage=async function(){
+    await window.loadAll();
     const manager=isManager(),filter=state.historyEmployeeFilter||"all";
     const items=(state.history||[]).filter(x=>!manager||filter==="all"||x.employee_id===filter);
     const status=s=>({completed:"Завершена",started:"Не завершена",in_progress:"В процессе",limit_exceeded:"Лимит превышен",insufficient_data:"Недостаточно данных",cancelled:"Отменена"}[s]||s||"—");
     const date=v=>v?new Date(v).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
     const opts=manager?'<select id="historyEmployeeFilter" onchange="state.historyEmployeeFilter=this.value;page()" style="min-width:220px"><option value="all">Все сотрудники</option>'+(state.historyEmployees||[]).filter(x=>x.id!==state.user.id).map(x=>'<option value="'+esc(x.id)+'" '+(filter===x.id?"selected":"")+'>'+esc(empName(x.id))+'</option>').join("")+'</select>':"";
-    if(!items.length)return '<div class="top"><div><h2>История тренировок</h2><div class="muted">'+(manager?"История всей команды":"Последние тренировки менеджера")+'</div></div>'+opts+'</div><div class="empty">'+(manager&&filter!=="all"?"У выбранного сотрудника пока нет тренировок.":"История пока пуста.")+'</div>';
-    return '<div class="top"><div><h2>История тренировок</h2><div class="muted">'+(manager?(filter==="all"?"История всей команды":"История: "+esc(empName(filter))):"Последние тренировки менеджера")+'</div></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+opts+'<span class="pill">'+items.length+' записей</span></div></div><div class="card" style="padding:0;overflow:hidden"><div style="display:grid">'+items.map((x,i)=>{const sc=state.scenarios.find(s=>String(s.id)===String(x.scenario_id));return '<button type="button" class="history-row" onclick="openHistorySession(this.dataset.id)" data-id="'+esc(x.id)+'" style="border:0;border-bottom:'+(i===items.length-1?'0':'1px')+' solid var(--line);background:#fff;text-align:left;padding:18px 20px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;width:100%"><div><div style="font-weight:800;font-size:16px">'+esc(sc?.title||"Тренировка")+'</div><div class="muted" style="margin-top:5px">'+(manager?esc(empName(x.employee_id))+' · ':"")+date(x.created_at)+' · '+status(x.status)+'</div></div><div style="text-align:right"><div style="font-size:22px;font-weight:850">'+(x.total_score==null?'—':esc(x.total_score))+'</div><div class="muted">'+(x.total_score==null?"без оценки":"балл")+'</div></div></button>'}).join("")+'</div></div>';
+    if(!items.length)return '<div class="top"><div><h2>История тренировок</h2><div class="muted">'+(manager?(state.branchContext?.branch_role==='branch_director'?"История сотрудников филиала":"История всей команды"):"Последние тренировки менеджера")+'</div></div>'+opts+'</div><div class="empty">'+(manager&&filter!=="all"?"У выбранного сотрудника пока нет тренировок.":"История пока пуста.")+'</div>';
+    return '<div class="top"><div><h2>История тренировок</h2><div class="muted">'+(manager?(filter==="all"?(state.branchContext?.branch_role==='branch_director'?"История сотрудников филиала":"История всей команды"):"История: "+esc(empName(filter))):"Последние тренировки менеджера")+'</div></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+opts+'<span class="pill">'+items.length+' записей</span></div></div><div class="card" style="padding:0;overflow:hidden"><div style="display:grid">'+items.map((x,i)=>{const sc=state.scenarios.find(s=>String(s.id)===String(x.scenario_id));return '<button type="button" class="history-row" onclick="openHistorySession(this.dataset.id)" data-id="'+esc(x.id)+'" style="border:0;border-bottom:'+(i===items.length-1?'0':'1px')+' solid var(--line);background:#fff;text-align:left;padding:18px 20px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;width:100%"><div><div style="font-weight:800;font-size:16px">'+esc(sc?.title||"Тренировка")+'</div><div class="muted" style="margin-top:5px">'+(manager?esc(empName(x.employee_id))+' · ':"")+date(x.created_at)+' · '+status(x.status)+'</div></div><div style="text-align:right"><div style="font-size:22px;font-weight:850">'+(x.total_score==null?'—':esc(x.total_score))+'</div><div class="muted">'+(x.total_score==null?"без оценки":"балл")+'</div></div></button>'}).join("")+'</div></div>';
   };
   window.openHistorySession=async function(id){
     const p=$("page");if(!p)return;p.innerHTML='<div class="empty">Загрузка отчёта…</div>';
