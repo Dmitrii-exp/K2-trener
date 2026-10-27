@@ -1,4 +1,5 @@
 name: Branches release — REG.RU backup and deploy
+run-name: REG.RU branches release (${{ github.ref_name }})
 on:
   push:
     branches: [feature/branches-roles-top, release/branches-roles-top]
