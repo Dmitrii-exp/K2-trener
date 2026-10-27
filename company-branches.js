@@ -4,6 +4,7 @@
   const safe = v => String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const client = () => window.supabase.createClient();
   window.companyBranchesPage = async function(canManage,companyId){
+    companyId = companyId || (typeof state !== 'undefined' ? state.company?.id : null);
     const header='<div class="top"><div><h2>Филиалы</h2><div class="muted">Подразделения компании и ответственные руководители</div></div></div>';
     const {data,error}=await client().rpc('list_company_branches');
     if(error) return header+'<div class="empty">Управление филиалами пока не подключено к базе данных.</div>';
