@@ -3,17 +3,22 @@
 (function(){
   const safe = v => String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const client = () => window.supabase.createClient();
+  const refresh = () => { if (typeof page === 'function') page(); };
   window.companyBranchesPage = async function(canManage,companyId){
     companyId = companyId || (typeof state !== 'undefined' ? state.company?.id : null);
     const header='<div class="top"><div><h2>Филиалы</h2><div class="muted">Подразделения компании и ответственные руководители</div></div></div>';
-    const {data,error}=await client().rpc('list_company_branches');
+    let data,error;
+    try { ({data,error}=await client().rpc('list_company_branches')); }
+    catch (err) { error=err; }
     if(error) return header+'<div class="empty">Управление филиалами пока не подключено к базе данных.</div>';
     const rows=Array.isArray(data)?data:[];
     const form=canManage?'<div class="card" style="padding:18px;margin:18px 0"><label for="branchName">Новый филиал</label><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="branchName" maxlength="120" placeholder="Название филиала" style="flex:1;min-width:200px;padding:10px"><button class="primary" onclick="createCompanyBranch()">Создать филиал</button></div></div>':'';
     const table=rows.length?'<div style="overflow-x:auto"><table class="table"><thead><tr><th>Филиал</th><th>Руководитель</th><th>Сотрудников</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+safe(r.branch_name)+'</td><td>'+safe(r.director_name||'Не назначен')+'</td><td>'+Number(r.employee_count||0)+'</td></tr>').join('')+'</tbody></table></div>':'<div class="empty">Филиалы ещё не созданы.</div>';
     let assignment='';
     if(canManage && companyId && rows.length){
-      const result=await client().rpc('list_company_branch_candidates',{p_company_id:companyId});
+      let result;
+      try { result=await client().rpc('list_company_branch_candidates',{p_company_id:companyId}); }
+      catch(err) { result={error:err,data:[]}; }
       if(!result.error && Array.isArray(result.data) && result.data.length){
         const options=result.data.map(e=>'<option value="'+safe(e.employee_id)+'">'+safe(e.employee_name)+'</option>').join('');
         const branches=rows.map(b=>'<option value="'+safe(b.branch_id)+'">'+safe(b.branch_name)+'</option>').join('');
@@ -29,7 +34,7 @@
     if(!companyId||!employeeId||!branchId)return;
     const {error}=await client().rpc('assign_company_branch',{p_company_id:companyId,p_branch_id:branchId,p_employee_id:employeeId,p_branch_role:branchRole});
     if(error){window.toast?.('Назначение не сохранено: '+error.message);return;}
-    window.toast?.('Назначение сохранено');window.page?.();
+    window.toast?.('Назначение сохранено');refresh();
   };
   window.createCompanyBranch=async function(){
     const name=document.getElementById('branchName')?.value.trim();
@@ -37,6 +42,6 @@
     const {error}=await client().rpc('create_company_branch',{p_name:name});
     if(error){window.toast?.('Не удалось создать филиал: '+error.message);return;}
     window.toast?.('Филиал создан');
-    window.page?.();
+    refresh();
   };
 })();
