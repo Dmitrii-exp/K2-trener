@@ -48,9 +48,7 @@ language sql stable security definer set search_path='' as $$
  select 1 from public.profiles p join public.organization_members actor
  on actor.user_id=p.id and actor.company_id=p.company_id
  where p.id=(select auth.uid()) and actor.company_id=p_company and actor.status='active'
- and exists(select 1 from public.profiles target join public.organization_members tm
- on tm.user_id=target.id and tm.company_id=target.company_id
- where target.id=p_employee and target.company_id=p_company and tm.status='active')
+
  and (
  (actor.role in ('director','admin','manager') and not exists(
  select 1 from public.company_branch_members b where b.company_id=p_company and b.user_id=p.id))
@@ -58,7 +56,10 @@ language sql stable security definer set search_path='' as $$
  join public.company_branch_members employee on employee.company_id=leader.company_id
  and employee.branch_id=leader.branch_id
  where leader.company_id=p_company and leader.user_id=p.id
- and leader.branch_role='branch_director' and employee.user_id=p_employee)
+ and leader.branch_role='branch_director' and employee.user_id=p_employee
+ and exists(select 1 from public.profiles target join public.organization_members tm
+ on tm.user_id=target.id and tm.company_id=target.company_id
+ where target.id=p_employee and target.company_id=p_company and tm.status='active'))
  )))
 $$;
 revoke all on function app_private.branch_company(),app_private.branch_can_manage(uuid),app_private.branch_can_read(uuid,uuid) from public,anon;

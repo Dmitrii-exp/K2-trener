@@ -100,9 +100,12 @@ def deploy(ftp):
     print("Release deployed; all remote checksums verified")
 
 def main():
+    global BACKUP
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=("backup", "deploy", "restore"))
+    parser.add_argument("--backup-dir", default="release-backup")
     args = parser.parse_args()
+    BACKUP = Path(args.backup_dir)
     with connect() as ftp:
         if args.mode == "backup":
             backup(ftp)

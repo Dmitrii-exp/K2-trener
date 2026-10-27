@@ -46,3 +46,5 @@
 - `scripts/build_branch_sql_test.py` генерирует изолированные SQL fixtures с ROLLBACK; проверяет восемь таблиц, сообщения, роли и перевод.
 - `scripts/reg_ru_release.py` сохраняет точные заменяемые файлы и их хеши, проверяет отсутствие параллельных изменений, выкладывает index последним, при ошибке пытается восстановить заменённые пути.
 - Откат frontend: архив `reg-ru-before-branches-40572104212`; откат RLS без удаления данных: `supabase/branches-release-rollback.sql`.
+
+Для отката в workflow `Branches release — REG.RU backup and deploy` выбрать `restore` и указать `backup_run_id=40572104212`. Перед восстановлением автоматически сохраняется ещё один бэкап текущих файлов.

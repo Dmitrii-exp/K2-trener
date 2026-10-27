@@ -76,6 +76,11 @@ select branch_test.assign_company_branch('10000000-0000-4000-8000-000000000001',
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
 select pg_temp.assert_branch((select count(*)=0 from branch_test.saletrening_sessions),'transfer immediately removes old leader access');
 reset role;
+update branch_test.organization_members set status='suspended' where user_id='00000000-0000-4000-8000-000000000004';
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+select pg_temp.assert_branch((select count(*)=2 from branch_test.saletrening_sessions),'network director retains inactive employee history');
+reset role;
 select pg_temp.assert_branch(not has_function_privilege('anon','branch_test.company_top_public()','EXECUTE'),'anonymous TOP denied');
 select pg_temp.assert_branch(not has_table_privilege('authenticated','branch_test.company_branch_members','INSERT'),'direct membership writes denied');
 select 'PASS: branch read isolation on 8 tables, company directory/TOP, ownership, role mutation and transfer guards' as result;

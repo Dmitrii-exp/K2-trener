@@ -10,11 +10,16 @@ on:
       mode:
         description: Back up only, or deploy after backup (database must be ready)
         type: choice
-        options: [backup, deploy]
+        options: [backup, deploy, restore]
         default: backup
         required: true
+      backup_run_id:
+        description: Run containing the backup to restore (restore mode only)
+        type: string
+        default: '40572104212'
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: saletrener-deploy
   cancel-in-progress: false
@@ -43,5 +48,16 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - name: Deploy with checksum verification and automatic rollback
-        if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy') || github.ref == 'refs/heads/release/branches-roles-top'
+        if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy') || (github.event_name == 'push' && github.ref == 'refs/heads/release/branches-roles-top')
         run: python scripts/reg_ru_release.py deploy
+      - name: Download selected rollback backup
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'restore'
+        uses: actions/download-artifact@v4
+        with:
+          name: reg-ru-before-branches-${{ inputs.backup_run_id }}
+          run-id: ${{ inputs.backup_run_id }}
+          github-token: ${{ github.token }}
+          path: restore-source/
+      - name: Restore and verify previous assets
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'restore'
+        run: python scripts/reg_ru_release.py restore --backup-dir restore-source
