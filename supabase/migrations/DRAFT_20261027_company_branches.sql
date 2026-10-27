@@ -16,9 +16,9 @@ create table if not exists public.company_branch_members (
   created_at timestamptz not null default now(),
   primary key(company_id,user_id),
   foreign key(company_id,branch_id) references public.company_branches(company_id,id) on delete cascade,
-  foreign key(company_id,user_id) references public.organization_members(company_id,user_id)
+  foreign key(user_id) references public.profiles(id)
 );
--- Requires checking whether organization_members(company_id,user_id) is UNIQUE before applying.
+-- Membership to company must be checked by privileged write API; no browser write policy is granted.
 -- No RLS policies are enabled here intentionally: these tables must remain inaccessible to
 -- browser roles until secured RPC and complete RLS policy audit are ready.
 alter table public.company_branches enable row level security;
