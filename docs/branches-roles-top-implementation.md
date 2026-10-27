@@ -1,6 +1,6 @@
 # Филиалы, роли и рейтинг ТОП — спецификация внедрения
 
-Статус: исправления подготовлены; бэкап REG.RU подтверждён (Actions 40572104212). SQL fixture-тесты с ROLLBACK пройдены. Production SQL и frontend ещё не обновлены.
+Статус: 27.10.2026 функции подключены в production Supabase и выложены на REG.RU. Деплой Actions 40574283340; FTPS и публичные HTTPS-хеши четырёх файлов проверены. Исходный бэкап: Actions 40572104212. Проверки frontend, Chromium и SQL fixtures с ROLLBACK пройдены.
 
 ## Роли
 - super_admin: действующая защищённая роль; администратор expert-26@yandex.ru после проверки auth user ID.
