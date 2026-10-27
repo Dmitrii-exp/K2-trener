@@ -23,3 +23,18 @@ jobs:
       - run: node scripts/test-voice-runtime.cjs
       - run: node scripts/test-finish-persistence.cjs
       - run: node scripts/test-cold-call-behavior.cjs
+      - name: Install browser test runtime
+        run: npm install --prefix "$RUNNER_TEMP/branch-ui" --no-package-lock --no-save playwright@1.62.1
+      - name: Install Chromium
+        run: node "$RUNNER_TEMP/branch-ui/node_modules/playwright/cli.js" install --with-deps chromium --only-shell
+      - name: Branch workflow browser checks
+        run: node scripts/test-branches-ui.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/branch-ui/node_modules
+      - name: Keep browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-ui-evidence
+          path: test-results/
+          if-no-files-found: ignore

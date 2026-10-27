@@ -29,3 +29,6 @@ Manager invitation controls are owned by `company-invitations.js`, shared by the
 
 ## Invitation login switch
 Invitation links initially show registration. Both existing-account controls explicitly select login; the invitation token and email stay available for acceptance after sign-in. Login uses current-password autocomplete; registration uses new-password. Switching views never accepts an invitation or changes account data.
+
+## Branches and company TOP
+The current static HTML, native selects, primary/secondary buttons, card/table styling and `toast()` remain canonical. `company-branches.js` owns branch creation/assignment and the names-only directory. `manager-history.js` loads server-confirmed branch capabilities before history. The database enforces branch scope; frontend flags only control navigation. New async pages share `setPageHTML` loading/error and stale-response protection. Assignment controls use explicit labels and prevent duplicate requests. Existing auth, training and billing behavior is preserved.

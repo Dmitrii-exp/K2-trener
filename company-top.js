@@ -11,6 +11,6 @@ async function companyTopPage(){
     return shell+'<div style="overflow-x:auto"><table class="table"><thead><tr><th>Место</th><th>Сотрудник</th><th>Филиал</th><th>Текстовые</th><th>Холодные звонки</th><th>Лучший балл</th><th>Средний балл</th></tr></thead><tbody>'+cells+'</tbody></table></div>';
   } catch(error) {
     console.warn('[SaleTrener TOP] aggregate unavailable',error);
-    return shell+'<div class="empty">Рейтинг пока недоступен. Требуется подключение защищённой статистики.</div>';
+    return shell+'<div class="empty">Не удалось загрузить рейтинг. <button class="secondary" onclick="page()">Повторить</button></div>';
   }
 }

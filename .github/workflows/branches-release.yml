@@ -1,7 +1,7 @@
 name: Branches release — REG.RU backup and deploy
 on:
   push:
-    branches: [feature/branches-roles-top]
+    branches: [feature/branches-roles-top, release/branches-roles-top]
     paths:
       - '.github/workflows/branches-release.yml'
       - 'scripts/reg_ru_release.py'
@@ -43,5 +43,5 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - name: Deploy with checksum verification and automatic rollback
-        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy'
+        if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy') || github.ref == 'refs/heads/release/branches-roles-top'
         run: python scripts/reg_ru_release.py deploy
