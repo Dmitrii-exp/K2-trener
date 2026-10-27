@@ -28,7 +28,8 @@ class Release(unittest.TestCase):
         self.previous=Path.cwd();self.tmp=tempfile.TemporaryDirectory();os.chdir(self.tmp.name)
         for name in m.FILES:Path(name).write_text('new '+name)
         self.ftp=FTP();self.old=dict(self.ftp.files)
-    def tearDown(self):os.chdir(self.previous);self.tmp.cleanup()
+        self.original_verify=m.verify_public;m.verify_public=lambda:None
+    def tearDown(self):m.verify_public=self.original_verify;os.chdir(self.previous);self.tmp.cleanup()
     def test_backup_deploy_restore(self):
         m.backup(self.ftp);self.assertEqual(self.ftp.files,self.old)
         m.deploy(self.ftp)
@@ -37,6 +38,12 @@ class Release(unittest.TestCase):
     def test_partial_failure_rolls_back(self):
         m.backup(self.ftp);self.ftp.fail='manager-history.js'
         with self.assertRaises(OSError):m.deploy(self.ftp)
+        self.assertEqual(self.ftp.files,self.old)
+    def test_http_failure_rolls_back(self):
+        m.backup(self.ftp)
+        def fail():raise RuntimeError('public HTTP mismatch')
+        m.verify_public=fail
+        with self.assertRaises(RuntimeError):m.deploy(self.ftp)
         self.assertEqual(self.ftp.files,self.old)
     def test_changed_remote_aborts(self):
         m.backup(self.ftp);self.ftp.files['index.html']=b'<html>someone else</html>';before=dict(self.ftp.files)

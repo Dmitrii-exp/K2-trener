@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import ssl
+import urllib.request
 
 FILES = ("company-top.js", "company-branches.js", "manager-history.js", "index.html")
 BACKUP = Path("release-backup")
@@ -80,6 +81,18 @@ def restore(ftp, manifest, names=FILES):
             upload(ftp, name, (BACKUP / name).read_bytes())
     print("Previous assets restored and verified")
 
+def verify_public():
+    run = os.environ.get("GITHUB_RUN_ID", "local")
+    for name in FILES:
+        route = "/" if name == "index.html" else "/" + name
+        request = urllib.request.Request("https://app.sale-trener.ru" + route + "?release=" + run,
+                                         headers={"Cache-Control": "no-cache"})
+        with urllib.request.urlopen(request, timeout=45) as response:
+            data = response.read()
+        if digest(data) != digest(Path(name).read_bytes()):
+            raise RuntimeError("Public HTTP checksum mismatch: " + name)
+    print("Public HTTPS serves all four exact release assets")
+
 def deploy(ftp):
     manifest = load_backup()
     for name in FILES:
@@ -93,6 +106,7 @@ def deploy(ftp):
         for name in FILES:
             attempted.append(name)
             upload(ftp, name, Path(name).read_bytes())
+        verify_public()
     except Exception:
         print("Deployment failed; restoring attempted paths")
         restore(ftp, manifest, attempted)
