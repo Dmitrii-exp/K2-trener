@@ -76,6 +76,7 @@
 })();
 /* Employee analytics: full authorized score history, responsive ordinal charts. */
 (function(){
+  const renderSummary=typeof analyticsSummary==='function'?analyticsSummary:window.analytics;
   let generation=0,controller=null,observer=null;
   const chartData=new WeakMap();
   const escape=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -171,12 +172,12 @@
       if(generation!==token)return '';
       if(!window.canViewCompanyHistory())return '<div class="empty">Нет доступа к аналитике команды.</div>';
       const members=state.team||[];
-      if(!members.length)return analyticsSummary(members);
+      if(!members.length)return renderSummary(members);
       const rows=await readHistory(members,signal);
       if(generation!==token)return '';
       const complete=series(members,rows);
       requestAnimationFrame(()=>mount(complete,token));
-      return analyticsSummary(complete)+`<style>
+      return renderSummary(complete)+`<style>
         .employee-progress-section{margin-top:28px}
         .employee-progress-card{padding:20px;margin-top:16px;min-width:0}
         .employee-progress-heading{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
@@ -191,7 +192,7 @@
     }catch(error){
       if(generation!==token||error?.name==='AbortError')return '';
       console.warn('[SaleTrener analytics] score history unavailable');
-      return analyticsSummary()+'<div class="empty" role="alert">Не удалось загрузить полную историю оценок. <button class="secondary" onclick="page()">Повторить загрузку графиков</button></div>';
+      return renderSummary()+'<div class="empty" role="alert">Не удалось загрузить полную историю оценок. <button class="secondary" onclick="page()">Повторить загрузку графиков</button></div>';
     }
   };
 })();

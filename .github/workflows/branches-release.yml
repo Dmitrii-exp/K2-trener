@@ -5,6 +5,10 @@ on:
     paths:
       - '.github/workflows/branches-release.yml'
       - 'scripts/reg_ru_release.py'
+      - 'manager-history.js'
+      - 'index.html'
+      - 'company-branches.js'
+      - 'company-top.js'
   workflow_dispatch:
     inputs:
       mode:

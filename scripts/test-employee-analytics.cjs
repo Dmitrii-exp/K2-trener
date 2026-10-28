@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const source=fs.readFileSync('manager-history.js','utf8');
 const member={employee_id:'employee',employee_name:'Сотрудник'};
 function row(id,score,day=1){return {id:String(id),employee_id:'employee',status:'completed',total_score:score,created_at:`2026-09-${String(day).padStart(2,'0')}T10:00:00Z`,completed_at:`2026-09-${String(day).padStart(2,'0')}T10:30:00Z`,session_scores:{discovery_score:10,objection_score:12,value_score:13,closing_score:14}};}
-async function run(batches,{auth=true,fail=false,repeated=false}={}){
+async function run(batches,{auth=true,fail=false,repeated=false,legacy=false}={}){
  let calls=0,summary;
  const state={profile:{company_id:'company',role:'director'},user:{id:'manager'},team:[member],view:'analytics',branchContext:{can_manage:true}};
  const context={state,URLSearchParams,AbortController,Date,Intl,console:{warn(){}},requestAnimationFrame(){},SUPABASE_URL:'https://database.example.test',SUPABASE_KEY:'public-test-key',
@@ -20,6 +20,7 @@ async function run(batches,{auth=true,fail=false,repeated=false}={}){
    return {ok:!fail,json:async()=>data};
   }
  };
+ if(legacy){context.analytics=context.analyticsSummary;delete context.analyticsSummary;}
  context.window=context;vm.createContext(context);vm.runInContext(source,context);
  context.loadAll=async()=>{};
  const html=await context.analytics();return {html,calls,summary,state,context};
@@ -37,6 +38,7 @@ async function run(batches,{auth=true,fail=false,repeated=false}={}){
  const failure=await run([[]],{fail:true});assert.ok(failure.html.includes('role="alert"'));assert.ok(failure.html.includes('Повторить загрузку графиков'));
  const noAuth=await run([[]],{auth:false});assert.equal(noAuth.calls,0);assert.ok(noAuth.html.includes('role="alert"'));
  const stalled=await run([[row(1,10)]],{repeated:true});assert.equal(stalled.calls,2);assert.ok(stalled.html.includes('role="alert"'),'Repeated pages fail rather than hang or silently truncate');
+ const compatible=await run([[row('legacy',60)],[]],{legacy:true});assert.ok(compatible.html.includes('Оценённых тренировок: 1'),'Older cached HTML retains a working analytics summary during rollout');
  const stale=await run([[]]);stale.context.clearEmployeeAnalyticsCharts();assert.equal(stale.context.state.view,'analytics');
  console.log('PASS: 501-point history, server page caps, valid scores including zero, chronology, own-team filtering, unchanged shared state, empty/single/error/auth and stalled pagination');
 })().catch(e=>{console.error(e);process.exitCode=1;});
