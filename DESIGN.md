@@ -41,3 +41,5 @@ The existing database director role is labeled «Руководитель сет
 
 ## Employee progress charts
 Analytics owns per-employee SVG line charts of all completed numeric scores. X is the ordinal scored training, Y is fixed 0–100. Native range controls reveal exact score/date on touch and keyboard; ResizeObserver keeps axes legible on phones. Failed/unevaluated sessions are excluded, empty and single-point states remain honest. The existing analytics summary receives the same full-history metrics without mutating shared team state. REST reads use the current user token and existing company/branch RLS; no new database grants or AI requests.
+
+Analytics uses the canonical labeled native select to show one authorized employee at a time. Selection updates both summary and chart immediately from loaded history, keeps focus in the select, and is retained in memory only while that employee remains in the current authorized roster. Platform-owned popup geometry is intentional, including on phones.

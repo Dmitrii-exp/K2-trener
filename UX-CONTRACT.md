@@ -12,3 +12,5 @@
 Navigation remains in application state, as in the existing shell. No URL-based routing is introduced. Existing tables are read-oriented with horizontal scrolling; this release does not redesign the application shell.
 
 TOP switches to complete per-employee metric cards at 700px and below; desktop retains the table. Team assignment uses the native dialog owned by company-branches.js: explicit Save, busy guard, inline errors with retained selections, Escape and focus restoration, and inline creation for the first branch.
+
+Analytics employee selection: native select (same platform-owned behavior as branch forms), visible label «Сотрудник». Only the selected employee’s metrics, skills and chart render. Switching is immediate without extra network calls; navigation reloads authorization and validates the remembered selection against the current roster. No employee IDs are persisted to browser storage.
