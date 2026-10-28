@@ -27,7 +27,7 @@ const server=http.createServer((req,res)=>{
    if(name==='company_team_directory')return {data:[{employee_name:'Сотрудник',branch_name:'Филиал'}]};
    if(name==='company_top_public')return {data:[{employee_name:'Иван Оченьдлинноеимябезпробеловдляпроверкиадаптивности',branch_name:'Не назначен',text_count:10,voice_count:32,best_score:90,average_score:84.5}]};
    if(name==='create_company_branch'){window.noBranches=false;return {data:'branch'};}
-   if(name==='assign_company_branch')return await new Promise(resolve=>window.finishAssignment=resolve);
+   if(name==='set_company_position')return await new Promise(resolve=>window.finishAssignment=resolve);
    return {data:null,error:null};
   };render();
  });
@@ -39,7 +39,7 @@ const server=http.createServer((req,res)=>{
  await page.getByRole('button',{name:'Сохранить назначение'}).click();
  assert.equal(await page.locator('#assignBranchButton').isDisabled(),true);
  await page.evaluate(()=>assignCompanyBranch('company'));
- const calls=await page.evaluate(()=>rpcCalls.filter(c=>c.name==='assign_company_branch'));
+ const calls=await page.evaluate(()=>rpcCalls.filter(c=>c.name==='set_company_position'));
  assert.equal(calls.length,1);assert.equal(calls[0].args.p_company_id,'company');
  await page.evaluate(()=>finishAssignment({error:new Error('transport error')}));
  await page.getByRole('alert').filter({hasText:'Изменения не сохранены'}).waitFor();
@@ -85,8 +85,8 @@ const server=http.createServer((req,res)=>{
  await dialog.getByLabel('Должность',{exact:true}).selectOption('branch_director');
  await dialog.getByRole('button',{name:'Сохранить назначение'}).click();
  assert.equal(await dialog.locator('#employeeBranchSave').isDisabled(),true);
- const call=await page.evaluate(()=>rpcCalls.filter(c=>c.name==='assign_company_branch').at(-1));
- assert.deepEqual(call.args,{p_company_id:'company',p_branch_id:'branch',p_employee_id:'employee',p_branch_role:'branch_director'});
+ const call=await page.evaluate(()=>rpcCalls.filter(c=>c.name==='set_company_position').at(-1));
+ assert.deepEqual(call.args,{p_company_id:'company',p_branch_id:'branch',p_employee_id:'employee',p_position:'branch_director'});
  await page.evaluate(()=>finishAssignment({error:new Error('network failure')}));
  await dialog.getByRole('alert').filter({hasText:'Изменения не сохранены'}).waitFor();
  assert.equal(await dialog.getByLabel('Должность',{exact:true}).inputValue(),'branch_director');
@@ -107,6 +107,18 @@ const server=http.createServer((req,res)=>{
  assert.equal(await dialog.evaluate(el=>{const r=el.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight}),true,'Assignment dialog fits phone');
  await page.screenshot({path:'test-results/team-assignment-mobile.png',fullPage:true});
  await dialog.getByRole('button',{name:'Отмена',exact:true}).click();
+ await assign.click();await dialog.getByLabel('Должность',{exact:true}).waitFor();
+ assert.equal(await dialog.locator('option[value="network_director"]').count(),0,'Network director option is hidden from normal company directors');
+ await dialog.getByRole('button',{name:'Отмена',exact:true}).click();
+ await page.evaluate(()=>{state.branchContext.can_assign_network_director=true;window.noBranches=true;});
+ await assign.click();await dialog.getByLabel('Должность',{exact:true}).waitFor();
+ assert.equal(await dialog.getByLabel('Должность',{exact:true}).inputValue(),'network_director');
+ assert.equal(await dialog.getByLabel('Филиал',{exact:true}).isVisible(),false,'Network role needs no branch');
+ await dialog.getByRole('button',{name:'Сохранить назначение'}).click();
+ const networkCall=await page.evaluate(()=>rpcCalls.filter(c=>c.name==='set_company_position').at(-1));
+ assert.deepEqual(networkCall.args,{p_company_id:'company',p_branch_id:null,p_employee_id:'employee',p_position:'network_director'});
+ await page.evaluate(()=>finishAssignment({data:null,error:null}));await dialog.waitFor({state:'detached'});
+ await page.getByText('Руководитель сети · SaleTrening',{exact:true}).waitFor();
  await page.evaluate(()=>{state.branchContext={can_manage:false,branch_role:'branch_director'};render();});
  assert.equal(await page.getByRole('button',{name:'Назначить должность и филиал',exact:true}).count(),0,'Only network managers can assign');
  assert.deepEqual(errors,[]);
