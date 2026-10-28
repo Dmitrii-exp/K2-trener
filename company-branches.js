@@ -3,6 +3,22 @@
 (function(){
   const safe = v => String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const client = () => window.supabase.createClient();
+  let assignmentCandidates=[];
+  const canAssignNetwork=()=>!!state.branchContext?.can_assign_network_director;
+  function positionOptions(selected='employee'){
+    return [['employee','Сотрудник'],['branch_director','Руководитель филиала'],...(canAssignNetwork()?[['network_director','Руководитель сети']]:[])].map(([value,label])=>'<option value="'+value+'" '+(selected===value?'selected':'')+'>'+label+'</option>').join('');
+  }
+  window.updateCompanyPositionFields=function(dialogMode=false){
+    const role=document.getElementById(dialogMode?'employeeBranchRole':'branchRole')?.value;
+    const branch=document.getElementById(dialogMode?'employeeBranchTarget':'branchTarget');
+    if(branch){branch.disabled=role==='network_director';branch.closest('.field')?.classList.toggle('hidden',role==='network_director');}
+  };
+  window.selectCompanyBranchCandidate=function(id){
+    const candidate=assignmentCandidates.find(c=>c.employee_id===id);
+    const role=document.getElementById('branchRole'),branch=document.getElementById('branchTarget');
+    if(candidate&&role){role.value=candidate.branch_role||'employee';if(branch&&candidate.branch_id)branch.value=candidate.branch_id;}
+    updateCompanyPositionFields();
+  };
   const refresh = () => { if (typeof page === 'function') page(); };
   window.companyBranchesPage = async function(canManage,companyId){
     companyId = companyId || (typeof state !== 'undefined' ? state.company?.id : null);
@@ -15,14 +31,15 @@
     const form=canManage?'<div class="card" style="padding:18px;margin:18px 0"><label for="branchName">Новый филиал</label><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="branchName" maxlength="120" placeholder="Название филиала" style="flex:1;min-width:200px;padding:10px"><button class="primary" id="createBranchButton" onclick="createCompanyBranch()">Создать филиал</button></div></div>':'';
     const table=rows.length?'<div style="overflow-x:auto"><table class="table"><thead><tr><th>Филиал</th><th>Руководитель</th><th>Сотрудников</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+safe(r.branch_name)+'</td><td>'+safe(r.director_name||'Не назначен')+'</td><td>'+Number(r.employee_count||0)+'</td></tr>').join('')+'</tbody></table></div>':'<div class="empty">Филиалы ещё не созданы.</div>';
     let assignment='';
-    if(canManage && companyId && rows.length){
+    if(canManage && companyId && (rows.length||canAssignNetwork())){
       let result;
       try { result=await client().rpc('list_company_branch_candidates',{p_company_id:companyId}); }
       catch(err) { result={error:err,data:[]}; }
       if(!result.error && Array.isArray(result.data) && result.data.length){
+        assignmentCandidates=result.data;const currentRole=result.data[0].branch_role||'employee';
         const options=result.data.map(e=>'<option value="'+safe(e.employee_id)+'">'+safe(e.employee_name)+'</option>').join('');
         const branches=rows.map(b=>'<option value="'+safe(b.branch_id)+'">'+safe(b.branch_name)+'</option>').join('');
-        assignment='<div class="card" style="padding:18px;margin-top:18px"><h3>Назначить сотрудника</h3><div class="bot-fields"><div class="field"><label for="branchEmployee">Сотрудник</label><select id="branchEmployee">'+options+'</select></div><div class="field"><label for="branchTarget">Филиал</label><select id="branchTarget">'+branches+'</select></div><div class="field"><label for="branchRole">Роль</label><select id="branchRole"><option value="employee">Сотрудник</option><option value="branch_director">Руководитель филиала</option></select></div></div><button class="primary" id="assignBranchButton" data-company="'+safe(companyId)+'" onclick="assignCompanyBranch(this.dataset.company)">Сохранить назначение</button></div>';
+        assignment='<div class="card" style="padding:18px;margin-top:18px"><h3>Назначить сотрудника</h3><div class="bot-fields"><div class="field"><label for="branchEmployee">Сотрудник</label><select id="branchEmployee" onchange="selectCompanyBranchCandidate(this.value)">'+options+'</select></div><div class="field '+(currentRole==='network_director'?'hidden':'')+'"><label for="branchTarget">Филиал</label><select id="branchTarget">'+branches+'</select></div><div class="field"><label for="branchRole">Роль</label><select id="branchRole" onchange="updateCompanyPositionFields()">'+positionOptions(currentRole)+'</select></div></div><button class="primary" id="assignBranchButton" data-company="'+safe(companyId)+'" onclick="assignCompanyBranch(this.dataset.company)">Сохранить назначение</button></div>';
       }
     }
     return header+form+table+assignment+'<div id="branchError" role="alert" style="margin-top:12px"></div>';
@@ -46,8 +63,8 @@
     const employeeId=document.getElementById('branchEmployee')?.value;
     const branchId=document.getElementById('branchTarget')?.value;
     const branchRole=document.getElementById('branchRole')?.value;
-    if(!companyId||!employeeId||!branchId)return;
-    return mutate('assignBranchButton',()=>client().rpc('assign_company_branch',{p_company_id:companyId,p_branch_id:branchId,p_employee_id:employeeId,p_branch_role:branchRole}),'Назначение сохранено');
+    if(!companyId||!employeeId||(!branchId&&branchRole!=='network_director'))return;
+    return mutate('assignBranchButton',()=>client().rpc('set_company_position',{p_company_id:companyId,p_branch_id:branchRole==='network_director'?null:branchId,p_employee_id:employeeId,p_position:branchRole}),'Назначение сохранено');
   };
   window.createCompanyBranch=async function(){
     const input=document.getElementById('branchName'),name=input?.value.trim();
@@ -80,14 +97,14 @@
       const rows=branches.data||[];
       const header='<h2 id="employeeBranchTitle">Должность и филиал</h2><p class="muted" style="overflow-wrap:anywhere">'+safe(employee.employee_name)+'</p>';
       const actions='<button class="secondary" onclick="closeEmployeeBranchDialog()">Отмена</button>';
-      if(!rows.length){
+      if(!rows.length&&!canAssignNetwork()){
         dialog.innerHTML=header+'<p>Сначала создайте филиал, чтобы назначить в него сотрудника.</p><div class="field"><label for="employeeNewBranchName">Название филиала</label><input id="employeeNewBranchName" maxlength="120" placeholder="Например, Ставрополь"></div><div id="employeeBranchError" role="alert"></div><div class="dialog-actions"><button id="employeeBranchCreate" class="primary" onclick="createEmployeeBranch()">Создать филиал</button>'+actions+'</div>';
         document.getElementById('employeeNewBranchName').focus();return;
       }
       const target=preferredBranch||employee.branch_id;
       const branchesOptions=rows.map(b=>'<option value="'+safe(b.branch_id)+'" '+(b.branch_id===target?'selected':'')+'>'+safe(b.branch_name)+'</option>').join('');
-      dialog.innerHTML=header+'<div class="field"><label for="employeeBranchTarget">Филиал</label><select id="employeeBranchTarget">'+branchesOptions+'</select></div><div class="field"><label for="employeeBranchRole">Должность</label><select id="employeeBranchRole"><option value="employee">Сотрудник</option><option value="branch_director" '+(employee.branch_role==='branch_director'?'selected':'')+'>Руководитель филиала</option></select></div><p class="muted">Руководитель филиала сможет смотреть историю сотрудников выбранного филиала.</p><div id="employeeBranchError" role="alert"></div><div class="dialog-actions"><button id="employeeBranchSave" class="primary" onclick="saveEmployeeBranchAssignment()">Сохранить назначение</button>'+actions+'</div>';
-      document.getElementById('employeeBranchTarget').focus();
+      dialog.innerHTML=header+'<div class="field"><label for="employeeBranchTarget">Филиал</label><select id="employeeBranchTarget">'+(branchesOptions||'<option value="">Нет филиалов</option>')+'</select></div><div class="field"><label for="employeeBranchRole">Должность</label><select id="employeeBranchRole" onchange="updateCompanyPositionFields(true)">'+positionOptions(!rows.length?'network_director':(employee.branch_role||'employee'))+'</select></div><p class="muted">Руководитель филиала видит свой филиал. Руководитель сети управляет всеми филиалами компании; его назначает только администратор.</p><div id="employeeBranchError" role="alert"></div><div class="dialog-actions"><button id="employeeBranchSave" class="primary" onclick="saveEmployeeBranchAssignment()">Сохранить назначение</button>'+actions+'</div>';
+      updateCompanyPositionFields(true);document.getElementById('employeeBranchRole').focus();
     }catch(error){
       if(dialog.isConnected&&dialog.open)dialog.innerHTML='<h2 id="employeeBranchTitle">Должность и филиал</h2><p role="alert">Не удалось загрузить филиалы и должности. Проверьте соединение и повторите.</p><div class="dialog-actions"><button class="primary" onclick="retryEmployeeBranchDialog()">Повторить</button><button class="secondary" onclick="closeEmployeeBranchDialog()">Отмена</button></div>';
     }
@@ -112,10 +129,10 @@
     const dialog=document.getElementById('employeeBranchDialog');
     const branchId=document.getElementById('employeeBranchTarget')?.value;
     const role=document.getElementById('employeeBranchRole')?.value;
-    if(!dialog||!branchId||!role)return;
-    return mutate('employeeBranchSave',()=>client().rpc('assign_company_branch',{
-      p_company_id:dialog.dataset.company,p_branch_id:branchId,p_employee_id:dialog.dataset.employee,p_branch_role:role
-    }),'Назначение сохранено',{errorId:'employeeBranchError',onSuccess:()=>dialog.close()});
+    if(!dialog||!role||(!branchId&&role!=='network_director'))return;
+    return mutate('employeeBranchSave',()=>client().rpc('set_company_position',{
+      p_company_id:dialog.dataset.company,p_branch_id:role==='network_director'?null:branchId,p_employee_id:dialog.dataset.employee,p_position:role
+    }),'Назначение сохранено',{errorId:'employeeBranchError',onSuccess:()=>{const employee=(state.team||[]).find(e=>e.employee_id===dialog.dataset.employee);if(employee)employee.employee_role=role==='network_director'?'director':role;const id=dialog.dataset.employee;dialog.close();refresh();Array.from(document.querySelectorAll('button[data-employee]')).find(b=>b.dataset.employee===id)?.focus();}});
   };
   window.createEmployeeBranch=function(){
     const dialog=document.getElementById('employeeBranchDialog'),input=document.getElementById('employeeNewBranchName'),name=input?.value.trim();
