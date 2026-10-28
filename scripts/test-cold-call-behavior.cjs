@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const {stripTypeScriptTypes} = require('node:module');
 const compile = path => stripTypeScriptTypes(fs.readFileSync(path,'utf8')).replace(/^import .*;\s*$/gm,'').replace(/export (function|const) /g,'$1 ');
-const behavior = compile('supabase/functions/_shared/cold-call-behavior.ts');
+const behavior = compile('supabase/functions/_shared/client-outcomes.ts')+'\n'+compile('supabase/functions/_shared/cold-call-behavior.ts');
 const ctx = {console};vm.createContext(ctx);vm.runInContext(behavior,ctx);
 let seed=73;
 const rng=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);
