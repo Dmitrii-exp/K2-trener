@@ -35,3 +35,6 @@ The current static HTML, native selects, primary/secondary buttons, card/table s
 
 ## Mobile TOP and team assignment
 At 700px and below, TOP uses employee cards with all four labeled metrics; larger screens keep the table. The team card opens the company-branches native dialog to assign role and branch through the existing RPC. Native dialog owns focus trapping/Escape; branch creation is available when there are no branches.
+
+## Network director assignment
+The existing database director role is labeled «Руководитель сети». Only the server-confirmed platform-administrator capability exposes that assignment option. Network directors need no branch selection. Existing branch/member roles use the shared position RPC; no client flag grants permissions.

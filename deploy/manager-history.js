@@ -38,7 +38,7 @@
         const vals=cs.map(x=>Number(x.total_score)||0),sc=scores.filter(x=>cs.some(y=>y.id===x.session_id));
         const avg=k=>{const a=sc.map(x=>Number(x[k])).filter(Number.isFinite);return a.length?Math.round(a.reduce((u,v)=>u+v,0)/a.length):0};
         const last=ms[0]||null;
-        return {employee_id:m.id,employee_name:empName(m.id),sessions_count:ms.length,completed_sessions:cs.length,avg_score:vals.length?Math.round(vals.reduce((u,v)=>u+v,0)/vals.length):0,discovery_score:avg("discovery_score"),objection_score:avg("objection_score"),value_score:avg("value_score"),closing_score:avg("closing_score"),last_training_at:last?.created_at||null,last_training_status:last?.status||null,last_training_id:last?.id||null};
+        return {employee_role:m.role,employee_id:m.id,employee_name:empName(m.id),sessions_count:ms.length,completed_sessions:cs.length,avg_score:vals.length?Math.round(vals.reduce((u,v)=>u+v,0)/vals.length):0,discovery_score:avg("discovery_score"),objection_score:avg("objection_score"),value_score:avg("value_score"),closing_score:avg("closing_score"),last_training_at:last?.created_at||null,last_training_status:last?.status||null,last_training_id:last?.id||null};
       }).sort((a,b)=>new Date(b.last_training_at||0)-new Date(a.last_training_at||0));
     }else{
       const h=await sb.from("saletrening_sessions").select("id,scenario_id,status,total_score,ai_summary,created_at,completed_at,duration_seconds").eq("employee_id",state.user.id).order("created_at",{ascending:false}).limit(50);
