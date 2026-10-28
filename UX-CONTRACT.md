@@ -10,3 +10,5 @@
 | Permissions | app_private.branch_can_read | Current active membership and branch assignment; own history preserved |
 
 Navigation remains in application state, as in the existing shell. No URL-based routing is introduced. Existing tables are read-oriented with horizontal scrolling; this release does not redesign the application shell.
+
+TOP switches to complete per-employee metric cards at 700px and below; desktop retains the table. Team assignment uses the native dialog owned by company-branches.js: explicit Save, busy guard, inline errors with retained selections, Escape and focus restoration, and inline creation for the first branch.
