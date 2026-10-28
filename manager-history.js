@@ -77,13 +77,13 @@
 /* Employee analytics: full authorized score history, responsive ordinal charts. */
 (function(){
   const renderSummary=typeof analyticsSummary==='function'?analyticsSummary:window.analytics;
-  let generation=0,controller=null,observer=null;
+  let generation=0,controller=null,observer=null,selectedEmployeeId=null,loadedMembers=[],loadedToken=null;
   const chartData=new WeakMap();
   const escape=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date=v=>{const d=new Date(v);return Number.isFinite(d.getTime())?d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Дата не сохранена';};
   const score=s=>s.total_score!==null&&s.total_score!==undefined&&typeof s.total_score==='number'&&Number.isFinite(s.total_score)&&s.total_score>=0&&s.total_score<=100;
   window.clearEmployeeAnalyticsCharts=function(){
-    generation++;controller?.abort();controller=null;observer?.disconnect();observer=null;
+    generation++;loadedMembers=[];loadedToken=null;controller?.abort();controller=null;observer?.disconnect();observer=null;
   };
   async function readHistory(members,signal){
     const companyId=state.profile?.company_id;
@@ -148,7 +148,7 @@
   }
   window.selectEmployeeAnalyticsTraining=function(input){const card=input.closest('.employee-progress-card');if(card)draw(card);};
   function cards(members,token){
-    return '<section class="employee-progress-section"><h3>Динамика каждого сотрудника</h3><p class="muted">По горизонтали — оценённые тренировки по порядку, по вертикали — баллы от 0 до 100. Слева ранние, справа последние.</p>'+members.map((e,i)=>{
+    return '<section class="employee-progress-section"><h3>Динамика сотрудника</h3><p class="muted">По горизонтали — оценённые тренировки по порядку, по вертикали — баллы от 0 до 100. Слева ранние, справа последние.</p>'+members.map((e,i)=>{
       const points=e.points,latest=points.at(-1),difference=points.length>1?latest.total_score-points.at(-2).total_score:null;
       const trend=difference===null?(points.length?'Для сравнения нужна ещё одна оценённая тренировка.':'Пока нет завершённых тренировок с оценкой.'):difference>0?'К предыдущей тренировке: рост на '+difference+' баллов.':difference<0?'К предыдущей тренировке: спад на '+Math.abs(difference)+' баллов.':'Результат не изменился по сравнению с предыдущей тренировкой.';
       const title='<div class="employee-progress-heading"><h4>'+escape(e.employee_name)+'</h4><span class="pill">Оценённых тренировок: '+points.length+'</span></div><p class="muted">'+trend+'</p>';
@@ -164,6 +164,19 @@
       chartData.set(card,{points:member.points,name:member.employee_name});draw(card);observer.observe(card.querySelector('.employee-progress-plot'));
     }
   }
+  function employeeResult(member,token){
+    return renderSummary([member],true)+cards([member],token);
+  }
+  window.changeAnalyticsEmployee=function(input){
+    if(loadedToken!==generation||state.view!=='analytics'||!window.canViewCompanyHistory())return;
+    const member=loadedMembers.find(e=>e.employee_id===input.value);
+    const target=document.getElementById('employee-analytics-result');
+    if(!member||!target)return;
+    selectedEmployeeId=member.employee_id;
+    observer?.disconnect();observer=null;
+    target.innerHTML=employeeResult(member,loadedToken);
+    mount([member],loadedToken);
+  };
   window.analytics=async function(){
     window.clearEmployeeAnalyticsCharts();const token=generation;
     controller=new AbortController();const signal=controller.signal;
@@ -176,8 +189,15 @@
       const rows=await readHistory(members,signal);
       if(generation!==token)return '';
       const complete=series(members,rows);
-      requestAnimationFrame(()=>mount(complete,token));
-      return renderSummary(complete)+`<style>
+      loadedMembers=complete;loadedToken=token;
+      const selected=complete.find(e=>e.employee_id===selectedEmployeeId)||complete[0];
+      selectedEmployeeId=selected.employee_id;
+      requestAnimationFrame(()=>mount([selected],token));
+      return `<style>
+        .employee-analytics-picker{margin-bottom:24px;max-width:480px}
+        .employee-analytics-picker label{display:block;margin-bottom:8px;font-weight:600}
+        .employee-analytics-picker select{width:100%;min-width:0;min-height:44px}
+        .employee-analytics-picker select:focus-visible{outline:3px solid var(--p);outline-offset:3px}
         .employee-progress-section{margin-top:28px}
         .employee-progress-card{padding:20px;margin-top:16px;min-width:0}
         .employee-progress-heading{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
@@ -188,11 +208,11 @@
         .employee-progress-card input:focus-visible{outline:3px solid var(--p);outline-offset:3px}
         .employee-progress-card output{display:block;font-size:13px;line-height:1.6;overflow-wrap:anywhere;min-height:42px}
         @media(max-width:700px){.employee-progress-card{padding:16px}}
-      </style>`+cards(complete,token);
+      </style><div class="field employee-analytics-picker"><label for="analytics-employee">Сотрудник</label><select id="analytics-employee" onchange="changeAnalyticsEmployee(this)">`+complete.map(e=>'<option value="'+escape(e.employee_id)+'"'+(e.employee_id===selectedEmployeeId?' selected':'')+'>'+escape(e.employee_name)+'</option>').join('')+'</select></div><div id="employee-analytics-result">'+employeeResult(selected,token)+'</div>';
     }catch(error){
       if(generation!==token||error?.name==='AbortError')return '';
       console.warn('[SaleTrener analytics] score history unavailable');
-      return renderSummary()+'<div class="empty" role="alert">Не удалось загрузить полную историю оценок. <button class="secondary" onclick="page()">Повторить загрузку графиков</button></div>';
+      return '<div class="top"><h2>Аналитика сотрудника</h2></div><div class="empty" role="alert">Не удалось загрузить полную историю оценок. <button class="secondary" onclick="page()">Повторить загрузку графиков</button></div>';
     }
   };
 })();
