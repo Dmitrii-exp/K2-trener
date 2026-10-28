@@ -208,11 +208,11 @@
         .employee-progress-card input:focus-visible{outline:3px solid var(--p);outline-offset:3px}
         .employee-progress-card output{display:block;font-size:13px;line-height:1.6;overflow-wrap:anywhere;min-height:42px}
         @media(max-width:700px){.employee-progress-card{padding:16px}}
-      </style><div class="employee-analytics-picker"><label for="analytics-employee">Сотрудник</label><select id="analytics-employee" onchange="changeAnalyticsEmployee(this)">`+complete.map(e=>'<option value="'+escape(e.employee_id)+'"'+(e.employee_id===selectedEmployeeId?' selected':'')+'>'+escape(e.employee_name)+'</option>').join('')+'</select></div><div id="employee-analytics-result">'+employeeResult(selected,token)+'</div>';
+      </style><div class="field employee-analytics-picker"><label for="analytics-employee">Сотрудник</label><select id="analytics-employee" onchange="changeAnalyticsEmployee(this)">`+complete.map(e=>'<option value="'+escape(e.employee_id)+'"'+(e.employee_id===selectedEmployeeId?' selected':'')+'>'+escape(e.employee_name)+'</option>').join('')+'</select></div><div id="employee-analytics-result">'+employeeResult(selected,token)+'</div>';
     }catch(error){
       if(generation!==token||error?.name==='AbortError')return '';
       console.warn('[SaleTrener analytics] score history unavailable');
-      return renderSummary()+'<div class="empty" role="alert">Не удалось загрузить полную историю оценок. <button class="secondary" onclick="page()">Повторить загрузку графиков</button></div>';
+      return '<div class="top"><h2>Аналитика сотрудника</h2></div><div class="empty" role="alert">Не удалось загрузить полную историю оценок. <button class="secondary" onclick="page()">Повторить загрузку графиков</button></div>';
     }
   };
 })();
