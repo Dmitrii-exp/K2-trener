@@ -32,3 +32,6 @@ Invitation links initially show registration. Both existing-account controls exp
 
 ## Branches and company TOP
 The current static HTML, native selects, primary/secondary buttons, card/table styling and `toast()` remain canonical. `company-branches.js` owns branch creation/assignment and the names-only directory. `manager-history.js` loads server-confirmed branch capabilities before history. The database enforces branch scope; frontend flags only control navigation. New async pages share `setPageHTML` loading/error and stale-response protection. Assignment controls use explicit labels and prevent duplicate requests. Existing auth, training and billing behavior is preserved.
+
+## Mobile TOP and team assignment
+At 700px and below, TOP uses employee cards with all four labeled metrics; larger screens keep the table. The team card opens the company-branches native dialog to assign role and branch through the existing RPC. Native dialog owns focus trapping/Escape; branch creation is available when there are no branches.
