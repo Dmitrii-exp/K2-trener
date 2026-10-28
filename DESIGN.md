@@ -38,3 +38,6 @@ At 700px and below, TOP uses employee cards with all four labeled metrics; large
 
 ## Network director assignment
 The existing database director role is labeled «Руководитель сети». Only the server-confirmed platform-administrator capability exposes that assignment option. Network directors need no branch selection. Existing branch/member roles use the shared position RPC; no client flag grants permissions.
+
+## Employee progress charts
+Analytics owns per-employee SVG line charts of all completed numeric scores. X is the ordinal scored training, Y is fixed 0–100. Native range controls reveal exact score/date on touch and keyboard; ResizeObserver keeps axes legible on phones. Failed/unevaluated sessions are excluded, empty and single-point states remain honest. The existing analytics summary receives the same full-history metrics without mutating shared team state. REST reads use the current user token and existing company/branch RLS; no new database grants or AI requests.

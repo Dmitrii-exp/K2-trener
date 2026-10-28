@@ -74,3 +74,125 @@
     p.innerHTML='<div class="report-page"><div class="report-top"><button class="secondary" onclick="state.view=\'history\';page()">← К истории</button><span class="pill">'+esc(status)+'</span></div><div class="report-title-row"><div><h2>'+esc(sc?.title||"Тренировка")+'</h2><div class="muted">'+(isManager()?esc(empName(x.employee_id))+' · ':"")+date(x.created_at)+'</div></div></div><div class="report-summary-grid"><div class="report-score-card"><div class="report-card-label">Итоговый балл</div><div class="report-score">'+(total===null?'—':total)+' <span>'+(total===null?"оценка не сформирована":"из 100")+'</span></div></div><div class="report-info-card"><div class="report-card-label">Сценарий</div><strong>'+esc(sc?.title||"Тренировка")+'</strong></div><div class="report-info-card"><div class="report-card-label">Завершена</div><strong>'+date(x.completed_at)+'</strong></div></div>'+(total===null?'':'<section class="report-section"><div class="report-section-title"><h3>Критерии оценки</h3><span>5 × 20 = 100</span></div><div class="criteria-grid">'+criteria.map(v=>'<div class="criterion"><div class="criterion-head"><span>'+esc(v[0])+'</span><b>'+v[1]+' / 20</b></div><div class="criterion-bar"><i style="width:'+(v[1]*5)+'%"></i></div></div>').join("")+'</div><div class="criteria-total"><span>Итог</span><b>'+total+' / 100</b></div></section>')+'<section class="report-section"><h3>Анализ AI</h3><div class="analysis-grid"><div class="analysis-card positive"><h3>Сильные стороны</h3>'+list(arr(s.strengths),"Нет сохранённых сильных сторон.")+'</div><div class="analysis-card negative"><h3>Что улучшить</h3>'+list(arr(s.weaknesses),"Недостаточно данных для оценки.")+'</div></div>'+(arr(s.recommendations).length?'<div class="recommendation-card"><strong>Рекомендации</strong>'+list(arr(s.recommendations),"")+'</div>':"")+(x.ai_summary?'<div class="ai-conclusion"><strong>Вывод AI</strong><p>'+esc(x.ai_summary)+'</p></div>':"")+'</section><section class="report-section"><h3>Полный диалог</h3><div class="messages report-dialog">'+dialog+'</div></section></div>';
   };
 })();
+/* Employee analytics: full authorized score history, responsive ordinal charts. */
+(function(){
+  const renderSummary=typeof analyticsSummary==='function'?analyticsSummary:window.analytics;
+  let generation=0,controller=null,observer=null;
+  const chartData=new WeakMap();
+  const escape=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const date=v=>{const d=new Date(v);return Number.isFinite(d.getTime())?d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Дата не сохранена';};
+  const score=s=>s.total_score!==null&&s.total_score!==undefined&&typeof s.total_score==='number'&&Number.isFinite(s.total_score)&&s.total_score>=0&&s.total_score<=100;
+  window.clearEmployeeAnalyticsCharts=function(){
+    generation++;controller?.abort();controller=null;observer?.disconnect();observer=null;
+  };
+  async function readHistory(members,signal){
+    const companyId=state.profile?.company_id;
+    if(!companyId)throw new Error('Company missing');
+    const asOf=new Date().toISOString(),seen=new Set(),rows=[];
+    let offset=0;
+    for(;;){
+      const {data,error}=await sb.auth.getSession();
+      const token=data?.session?.access_token;
+      if(error||!token)throw new Error('Session expired');
+      const params=new URLSearchParams({
+        select:'id,employee_id,status,total_score,voice_mode,created_at,completed_at,session_scores(overall_score,discovery_score,objection_score,value_score,closing_score,communication_score)',
+        company_id:'eq.'+companyId,employee_id:'in.('+members.map(e=>e.employee_id).join(',')+')',
+        status:'eq.completed',created_at:'lte.'+asOf,or:'(completed_at.lte.'+asOf+',completed_at.is.null)',
+        order:'created_at.asc,id.asc',limit:'500',offset:String(offset)
+      });
+      const response=await fetch(SUPABASE_URL+'/rest/v1/saletrening_sessions?'+params,{
+        headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+token},signal,cache:'no-store'
+      });
+      if(!response.ok)throw new Error('History unavailable');
+      const batch=await response.json();
+      if(!Array.isArray(batch))throw new Error('Invalid history');
+      if(!batch.length)break;
+      let added=0;
+      for(const row of batch){if(row.id&&!seen.has(row.id)){seen.add(row.id);rows.push(row);added++;}}
+      if(!added)throw new Error('History pagination stalled');
+      offset+=batch.length;
+    }
+    return rows;
+  }
+  function series(members,rows){
+    const grouped=new Map(members.map(e=>[e.employee_id,[]]));
+    for(const s of rows){if(s.status==='completed'&&score(s)&&grouped.has(s.employee_id))grouped.get(s.employee_id).push(s);}
+    return members.map(e=>{
+      const points=grouped.get(e.employee_id).sort((a,b)=>{
+        const at=new Date(a.completed_at||a.created_at).getTime()||0,bt=new Date(b.completed_at||b.created_at).getTime()||0;
+        return at-bt||String(a.id).localeCompare(String(b.id));
+      });
+      const skill=key=>{const values=points.map(s=>{const details=Array.isArray(s.session_scores)?s.session_scores[0]:s.session_scores;return details?.[key];}).filter(v=>typeof v==='number'&&Number.isFinite(v));return values.length?Math.round(values.reduce((a,b)=>a+b,0)/values.length):0;};
+      return {...e,points,completed_sessions:points.length,avg_score:points.length?Math.round(points.reduce((a,s)=>a+s.total_score,0)/points.length):0,
+        discovery_score:skill('discovery_score'),objection_score:skill('objection_score'),value_score:skill('value_score'),closing_score:skill('closing_score')};
+    });
+  }
+  function selectedDescription(point,index){
+    return 'Тренировка №'+(index+1)+' · '+point.total_score+' из 100 · '+date(point.completed_at||point.created_at)+' · '+(point.voice_mode?'Голосовая':'Текстовая');
+  }
+  function draw(card){
+    const record=chartData.get(card);if(!record||!card.isConnected)return;
+    const {points,name}=record,plot=card.querySelector('.employee-progress-plot');
+    if(!plot)return;
+    const width=Math.max(240,Math.round(plot.clientWidth)),height=238,left=36,right=16,top=24,bottom=182;
+    const x=i=>points.length===1?(left+width-right)/2:left+(width-left-right)*i/(points.length-1);
+    const y=value=>bottom-(bottom-top)*value/100;
+    const index=Math.max(0,Math.min(points.length-1,Number(card.querySelector('input[type="range"]').value)-1));
+    const grid=[0,25,50,75,100].map(v=>'<line x1="'+left+'" x2="'+(width-right)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)"/><text x="'+(left-9)+'" y="'+(y(v)+4)+'" text-anchor="end">'+v+'</text>').join('');
+    const ticks=points.length<=6?points.map((_,i)=>i):[...new Set([0,Math.round((points.length-1)/4),Math.round((points.length-1)/2),Math.round((points.length-1)*3/4),points.length-1])];
+    const labels=ticks.map(i=>'<text x="'+x(i)+'" y="204" text-anchor="middle">'+(i+1)+'</text>').join('');
+    const line=points.length>1?'<polyline class="employee-progress-line" points="'+points.map((p,i)=>x(i)+','+y(p.total_score)).join(' ')+'" fill="none" stroke="var(--p)" stroke-width="2.5" stroke-linejoin="round"/>':'';
+    const dots=points.length<=30?points.map((p,i)=>'<circle cx="'+x(i)+'" cy="'+y(p.total_score)+'" r="3" fill="var(--p)"/>').join(''):'';
+    plot.innerHTML='<svg width="100%" height="238" viewBox="0 0 '+width+' '+height+'" role="img" aria-label="'+escape('Баллы сотрудника '+name+' по '+points.length+' тренировкам; вертикальная шкала от 0 до 100')+'"><g font-size="12" fill="var(--muted)" font-family="inherit"><text x="0" y="12">Баллы</text>'+grid+labels+'<text x="'+((left+width-right)/2)+'" y="229" text-anchor="middle">Номер тренировки</text></g>'+line+dots+'<circle class="employee-progress-selected" cx="'+x(index)+'" cy="'+y(points[index].total_score)+'" r="5" fill="var(--p)" stroke="var(--card,#fff)" stroke-width="2"/></svg>';
+    card.querySelector('output').textContent=selectedDescription(points[index],index);
+  }
+  window.selectEmployeeAnalyticsTraining=function(input){const card=input.closest('.employee-progress-card');if(card)draw(card);};
+  function cards(members,token){
+    return '<section class="employee-progress-section"><h3>Динамика каждого сотрудника</h3><p class="muted">По горизонтали — оценённые тренировки по порядку, по вертикали — баллы от 0 до 100. Слева ранние, справа последние.</p>'+members.map((e,i)=>{
+      const points=e.points,latest=points.at(-1),difference=points.length>1?latest.total_score-points.at(-2).total_score:null;
+      const trend=difference===null?(points.length?'Для сравнения нужна ещё одна оценённая тренировка.':'Пока нет завершённых тренировок с оценкой.'):difference>0?'К предыдущей тренировке: рост на '+difference+' баллов.':difference<0?'К предыдущей тренировке: спад на '+Math.abs(difference)+' баллов.':'Результат не изменился по сравнению с предыдущей тренировкой.';
+      const title='<div class="employee-progress-heading"><h4>'+escape(e.employee_name)+'</h4><span class="pill">Оценённых тренировок: '+points.length+'</span></div><p class="muted">'+trend+'</p>';
+      if(!points.length)return '<article class="card employee-progress-card">'+title+'</article>';
+      return '<article class="card employee-progress-card" data-analytics-token="'+token+'" data-analytics-member="'+i+'">'+title+'<div class="employee-progress-plot"></div><label class="muted" for="employee-progress-'+token+'-'+i+'">Выбрать тренировку</label><input id="employee-progress-'+token+'-'+i+'" type="range" min="1" max="'+points.length+'" value="'+points.length+'" step="1" aria-label="'+escape('Тренировка сотрудника '+e.employee_name)+'" oninput="selectEmployeeAnalyticsTraining(this)"><output aria-live="polite">'+escape(selectedDescription(latest,points.length-1))+'</output></article>';
+    }).join('')+'</section>';
+  }
+  function mount(members,token){
+    if(generation!==token||state.view!=='analytics')return;
+    observer=new ResizeObserver(entries=>{for(const e of entries)draw(e.target.closest('.employee-progress-card'));});
+    for(const card of document.querySelectorAll('[data-analytics-token="'+token+'"]')){
+      const member=members[Number(card.dataset.analyticsMember)];
+      chartData.set(card,{points:member.points,name:member.employee_name});draw(card);observer.observe(card.querySelector('.employee-progress-plot'));
+    }
+  }
+  window.analytics=async function(){
+    window.clearEmployeeAnalyticsCharts();const token=generation;
+    controller=new AbortController();const signal=controller.signal;
+    try{
+      await window.loadAll();
+      if(generation!==token)return '';
+      if(!window.canViewCompanyHistory())return '<div class="empty">Нет доступа к аналитике команды.</div>';
+      const members=state.team||[];
+      if(!members.length)return renderSummary(members);
+      const rows=await readHistory(members,signal);
+      if(generation!==token)return '';
+      const complete=series(members,rows);
+      requestAnimationFrame(()=>mount(complete,token));
+      return renderSummary(complete)+`<style>
+        .employee-progress-section{margin-top:28px}
+        .employee-progress-card{padding:20px;margin-top:16px;min-width:0}
+        .employee-progress-heading{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+        .employee-progress-heading h4{font-size:18px;margin:0;overflow-wrap:anywhere;min-width:0}
+        .employee-progress-plot{width:100%;height:238px;min-width:0}
+        .employee-progress-plot svg{display:block;overflow:visible}
+        .employee-progress-card input[type=range]{display:block;width:100%;margin:12px 0 16px;accent-color:var(--p);min-height:32px;cursor:pointer}
+        .employee-progress-card input:focus-visible{outline:3px solid var(--p);outline-offset:3px}
+        .employee-progress-card output{display:block;font-size:13px;line-height:1.6;overflow-wrap:anywhere;min-height:42px}
+        @media(max-width:700px){.employee-progress-card{padding:16px}}
+      </style>`+cards(complete,token);
+    }catch(error){
+      if(generation!==token||error?.name==='AbortError')return '';
+      console.warn('[SaleTrener analytics] score history unavailable');
+      return renderSummary()+'<div class="empty" role="alert">Не удалось загрузить полную историю оценок. <button class="secondary" onclick="page()">Повторить загрузку графиков</button></div>';
+    }
+  };
+})();
