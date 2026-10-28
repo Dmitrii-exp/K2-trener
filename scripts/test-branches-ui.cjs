@@ -121,6 +121,55 @@ const server=http.createServer((req,res)=>{
  await page.getByText('Руководитель сети · SaleTrening',{exact:true}).waitFor();
  await page.evaluate(()=>{state.branchContext={can_manage:false,branch_role:'branch_director'};render();});
  assert.equal(await page.getByRole('button',{name:'Назначить должность и филиал',exact:true}).count(),0,'Only network managers can assign');
+ // Per-employee growth charts use real SVG layout and current-user REST reads.
+ let historyFailure=false,historyRequests=0;
+ const historyRows=[
+   {id:'a',employee_id:'employee',status:'completed',total_score:40,created_at:'2026-09-01T10:00:00Z',completed_at:'2026-09-01T10:30:00Z',session_scores:{discovery_score:10}},
+   {id:'b',employee_id:'employee',status:'completed',total_score:80,created_at:'2026-09-02T10:00:00Z',completed_at:'2026-09-02T10:30:00Z',session_scores:{discovery_score:12}},
+   {id:'c',employee_id:'employee',status:'completed',total_score:55,created_at:'2026-09-03T10:00:00Z',completed_at:'2026-09-03T10:30:00Z',voice_mode:true,session_scores:{discovery_score:14}},
+   {id:'d',employee_id:'employee2',status:'completed',total_score:70,created_at:'2026-09-01T10:00:00Z',completed_at:'2026-09-01T10:30:00Z'}
+ ];
+ await page.route(/\/rest\/v1\/saletrening_sessions\?/,async route=>{
+   const cors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey','access-control-allow-methods':'GET, OPTIONS'};
+   if(route.request().method()==='OPTIONS'){await route.fulfill({status:204,headers:cors});return;}
+   historyRequests++;
+   assert.equal(route.request().headers().authorization,'Bearer chart-test-token');
+   const offset=Number(new URL(route.request().url()).searchParams.get('offset'));
+   await route.fulfill({status:historyFailure?503:200,headers:cors,contentType:'application/json',body:JSON.stringify(offset?[]:historyRows)});
+ });
+ await page.evaluate(()=>{
+   window.loadAll=async()=>{};
+   sb.auth.getSession=async()=>({data:{session:{access_token:'chart-test-token'}}});
+   state.profile.role='director';state.branchContext={can_manage:true};
+   state.team=[{employee_id:'employee',employee_name:'Сотрудник'},{employee_id:'employee2',employee_name:'Одна тренировка'},{employee_id:'employee3',employee_name:'Без тренировок'}];
+   state.view='analytics';page();
+ });
+ const charts=page.locator('.employee-progress-card');await page.locator('.employee-progress-line').waitFor();
+ assert.equal(await charts.count(),3);assert.equal(await charts.nth(0).getByText('К предыдущей тренировке: спад на 25 баллов.',{exact:true}).count(),1);
+ assert.equal(await charts.nth(1).locator('polyline').count(),0,'One training is a point, not fabricated trend');
+ assert.equal(await charts.nth(2).locator('svg').count(),0,'No training does not become a zero score');
+ const linePoints=await charts.nth(0).locator('polyline').evaluate(el=>Array.from({length:el.points.numberOfItems},(_,i)=>({x:el.points.getItem(i).x,y:el.points.getItem(i).y})));
+ assert.equal(linePoints.length,3);assert.ok(linePoints[0].x<linePoints[1].x&&linePoints[1].x<linePoints[2].x);assert.ok(linePoints[1].y<linePoints[0].y&&linePoints[2].y>linePoints[1].y,'Shows growth then decline');
+ const slider=charts.nth(0).getByRole('slider');await slider.focus();await slider.press('Home');
+ await charts.nth(0).locator('output').filter({hasText:'Тренировка №1 · 40 из 100'}).waitFor();
+ await slider.press('End');await charts.nth(0).locator('output').filter({hasText:'Тренировка №3 · 55 из 100'}).waitFor();
+ for(const width of [320,390,1440]){
+   await page.setViewportSize({width,height:1000});
+   await page.waitForFunction(()=>Array.from(document.querySelectorAll('.employee-progress-plot')).every(p=>Math.abs(p.querySelector('svg').viewBox.baseVal.width-p.clientWidth)<=2));
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Analytics fits '+width+'px');
+   await charts.nth(0).getByText('Баллы',{exact:true}).waitFor();await charts.nth(0).getByText('Номер тренировки',{exact:true}).waitFor();
+ }
+ await page.setViewportSize({width:390,height:1000});
+ await page.waitForFunction(()=>Array.from(document.querySelectorAll('.employee-progress-plot')).every(p=>Math.abs(p.querySelector('svg').viewBox.baseVal.width-p.clientWidth)<=2));
+ await page.screenshot({path:'test-results/employee-analytics-mobile.png',fullPage:true});
+ assert.equal(historyRequests,2,'Complete history includes empty terminal page');
+ historyFailure=true;await page.evaluate(()=>page());
+ await page.getByRole('alert').filter({hasText:'Не удалось загрузить полную историю оценок'}).waitFor();
+ assert.equal(await page.locator('.employee-progress-card').count(),0,'Failed history is not silently rendered as empty employee scores');
+ historyFailure=false;await page.getByRole('button',{name:'Повторить загрузку графиков'}).click();await page.locator('.employee-progress-line').waitFor();
+ const beforeForbidden=historyRequests;
+ await page.evaluate(()=>{state.branchContext={branch_role:'employee',can_manage:false};state.view='analytics';page();});
+ await page.getByText('Нет доступа к аналитике команды.',{exact:true}).waitFor();assert.equal(historyRequests,beforeForbidden);
  assert.deepEqual(errors,[]);
  console.log('PASS: real Chromium, assignment parameters, duplicate save, RPC failure recovery, escaping, select keyboard, obsolete response, role navigation, employee directory and 390px layout; responsive TOP at 320/390/440px, desktop table, per-employee assignment, errors, focus, Escape and first-branch creation');
  }finally{await browser.close();await new Promise(r=>server.close(r));}
