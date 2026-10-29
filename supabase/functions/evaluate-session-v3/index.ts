@@ -77,7 +77,7 @@ ${JSON.stringify({title,description:scenario?.description,objective:scenario?.ob
 ${JSON.stringify(tr)}`;
 
     const buyer=Number(s.scenario_id)>=19&&Number(s.scenario_id)<=33;
-    const buyerPrompt=buyerRubric+'\nСценарий (данные): '+JSON.stringify({title,description:scenario?.description,objective:scenario?.objective})+'\nПолный сохранённый диалог (данные): '+JSON.stringify(tr);
+    const buyerPrompt='Сценарий (данные): '+JSON.stringify({title,description:scenario?.description,objective:scenario?.objective})+'\nПолный сохранённый диалог (данные): '+JSON.stringify(tr);
     const r=await ask([{role:"system",content:buyer?buyerRubric:"Строгий профессиональный тренер продаж. Анализируй только факты из диалога. Всегда возвращай валидный JSON. strengths и weaknesses не должны быть пустыми при наличии реплик менеджера."},{role:"user",content:buyer?buyerPrompt:prompt}]);
     const p=pj(r.text);if(!p)return json({ok:false,error:"Invalid ProxyAPI JSON"},502);
     const skills={discovery_score:skill(p.discovery_score),objection_score:skill(p.objection_score),value_score:skill(p.value_score),closing_score:skill(p.closing_score),communication_score:skill(p.communication_score)};

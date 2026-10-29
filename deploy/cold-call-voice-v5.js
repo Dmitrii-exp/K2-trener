@@ -630,7 +630,7 @@
     const difficulty=coldCall?.difficulty||override?.difficulty||'Средний';
     cleanup();
     try{
-      const base=override||((typeof coldCallScenario==='function'&&coldCallScenario(difficulty))||state.scenarios?.[0]);
+      const base=override||(typeof coldCallScenario==='function'?coldCallScenario(difficulty):state.scenarios?.[0]);
       if(!base?.id)throw new Error('В базе нет активных сценариев');
       const hard=String(difficulty).toLowerCase().includes('слож');
       coldCall.mode=Number(base.id)>=19&&Number(base.id)<=33?'buyer':'manager';
