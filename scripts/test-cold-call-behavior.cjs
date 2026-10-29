@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const {stripTypeScriptTypes} = require('node:module');
 const compile = path => stripTypeScriptTypes(fs.readFileSync(path,'utf8')).replace(/^import .*;\s*$/gm,'').replace(/export (function|const) /g,'$1 ');
-const behavior = compile('supabase/functions/_shared/cold-call-behavior.ts');
+const behavior = compile('supabase/functions/_shared/client-outcomes.ts')+'\n'+compile('supabase/functions/_shared/cold-call-behavior.ts');
 const ctx = {console};vm.createContext(ctx);vm.runInContext(behavior,ctx);
 let seed=73;
 const rng=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);
@@ -43,18 +43,19 @@ assert.equal(browser.readPersonaHistory().length,20);
 browser.state.user.id='two';assert.equal(browser.readPersonaHistory().length,0,'history must be user scoped');
 storage.set('st.cold.personas.v2:two','broken');assert.equal(browser.readPersonaHistory().length,0);
 
-let liveHandler,providerPayload,gateId;
+let liveHandler,providerPayload,gateId,storedScenario=19,providerCalls=0;
 const id='11111111-2222-4333-8444-555555555555';
 const server={console,Request,Response,FormData,TextDecoder,Uint8Array,atob,
  Deno:{env:{get:key=>({OPENAI_API_KEY:'test-key',SUPABASE_URL:'https://db.test',SUPABASE_ANON_KEY:'public',SUPABASE_SERVICE_ROLE_KEY:'private'})[key]},serve:fn=>{liveHandler=fn}},
  fetch:async(url,init)=>{
   if(url.endsWith('/auth/v1/user'))return Response.json({id:'verified-user'});
   if(url.includes('/rpc/')){gateId=JSON.parse(init.body).p_session_id;return Response.json({allowed:true});}
-  providerPayload=JSON.parse(init.body);return Response.json({session:{id:'live'},transport:{sdp:'answer'}});
+  if(url.includes('/rest/v1/saletrening_sessions'))return Response.json([{scenario_id:storedScenario}]);
+  providerCalls++;providerPayload=JSON.parse(init.body);return Response.json({session:{id:'live'},transport:{sdp:'answer'}});
  }
 };
 vm.createContext(server);
-vm.runInContext(compile('supabase/functions/_shared/ai-access.ts')+'\n'+behavior+'\n'+compile('supabase/functions/_shared/product-catalog-data.ts')+'\n'+compile('supabase/functions/_shared/product-catalog.ts')+'\n'+compile('supabase/functions/gpt-live-session/index.ts'),server);
+vm.runInContext(compile('supabase/functions/_shared/ai-access.ts')+'\n'+behavior+'\n'+compile('supabase/functions/_shared/product-catalog-data.ts')+'\n'+compile('supabase/functions/_shared/product-catalog.ts')+'\n'+compile('supabase/functions/_shared/supplier-behavior.ts')+'\n'+compile('supabase/functions/gpt-live-session/index.ts'),server);
 (async()=>{
  const req = body=>new Request('https://function.test',{method:'POST',headers:{Authorization:'Bearer test-user','Content-Type':'application/json'},body:JSON.stringify(body)});
  const response=await liveHandler(req({session_id:id,sdp:'offer',session:{voice:'stone',client_context:sample,input:[]}}));
@@ -65,5 +66,9 @@ vm.runInContext(compile('supabase/functions/_shared/ai-access.ts')+'\n'+behavior
  assert.equal(providerPayload.transport.sdp,'offer');assert.equal(data.transport.sdp,'answer');
  const old=await liveHandler(req({sdp:'offer',session:{instructions:'Твоя роль: Уверенный. Уровень сложности: Средний.\nФакты о клиенте: Закупка осенью.'}}));
  assert.equal(old.status,200);assert.ok(providerPayload.session.instructions.includes('Закупка осенью.'));
+ const buyerReq={session_id:id,sdp:'offer',session:{voice:'stone',client_context:{training_mode:'buyer',facts:'Нужны 40 шин 315/70 R22.5',difficulty:'Средний',persona_id:'sp1-1-2'}}};
+ const buyer=await liveHandler(req(buyerReq));assert.equal(buyer.status,200);const buyerData=await buyer.json();assert.equal(buyerData.persona.id,'sp1-1-2');
+ assert.ok(providerPayload.session.instructions.includes('Ты — ПРОДАВЕЦ шин'));assert.ok(providerPayload.session.instructions.includes('Не переключайся в роль покупателя'));assert.ok(!providerPayload.session.instructions.includes('ПРАВИЛА ИСХОДА РАЗГОВОРА'));
+ const count=providerCalls;storedScenario=4;const mismatch=await liveHandler(req(buyerReq));assert.equal(mismatch.status,409);assert.equal(providerCalls,count,'Client flag cannot override persisted scenario');
  console.log('PASS: 250 varied personas, recent-repeat exclusions, stable reconnect, difficulty, facts, legacy compatibility, scoped browser history, real handler request/response and access gate');
 })().catch(e=>{console.error(e);process.exitCode=1});
