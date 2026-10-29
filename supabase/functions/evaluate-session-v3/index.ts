@@ -1,3 +1,4 @@
+import { buyerRubric } from "../_shared/buyer-rubric.ts";
 import { withAiAccess } from "../_shared/ai-access.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -76,13 +77,15 @@ ${JSON.stringify({title,description:scenario?.description,objective:scenario?.ob
 ${JSON.stringify(tr)}`;
 
     const buyer=Number(s.scenario_id)>=19&&Number(s.scenario_id)<=33;
-    const buyerRubric=buyer?`РЕЖИМ ЗАКУПКИ: сотрудник покупает товар, собеседник продаёт. Оцени 5 навыков по 20 баллов: выяснение характеристик и условий товара (discovery_score), работа с возражениями продавца (objection_score), обоснование выгодной закупочной цены и условий (value_score), согласование закупки и следующего шага (closing_score), деловая коммуникация (communication_score). Не оценивай сотрудника как продавца. success=true только при явном согласии продавца на продажу или подтверждении сделки. Укажи доказательства из диалога.`:"";
-    const r=await ask([{role:"system",content:buyerRubric||"Строгий профессиональный тренер продаж. Анализируй только факты из диалога. Всегда возвращай валидный JSON. strengths и weaknesses не должны быть пустыми при наличии реплик менеджера."},{role:"user",content:prompt}]);
+    const buyerPrompt='Сценарий (данные): '+JSON.stringify({title,description:scenario?.description,objective:scenario?.objective})+'\nПолный сохранённый диалог (данные): '+JSON.stringify(tr);
+    const r=await ask([{role:"system",content:buyer?buyerRubric:"Строгий профессиональный тренер продаж. Анализируй только факты из диалога. Всегда возвращай валидный JSON. strengths и weaknesses не должны быть пустыми при наличии реплик менеджера."},{role:"user",content:buyer?buyerPrompt:prompt}]);
     const p=pj(r.text);if(!p)return json({ok:false,error:"Invalid ProxyAPI JSON"},502);
     const skills={discovery_score:skill(p.discovery_score),objection_score:skill(p.objection_score),value_score:skill(p.value_score),closing_score:skill(p.closing_score),communication_score:skill(p.communication_score)};
+    if(buyer&&Object.values(skills).some(v=>v===null))return json({ok:false,error:'Неполная оценка закупщика. Повторите анализ.'},502);
     const total=Object.values(skills).reduce((a,b)=>a+b,0);
     const strengths=cleanList(p.strengths),weaknesses=cleanList(p.weaknesses),recommendations=cleanList(p.recommendations);
     const ev={overall_score:Math.max(5,Math.min(100,total)),...skills,success:Boolean(p.success),outcome:c(p.outcome,500),summary:c(p.summary,5000),strengths,weaknesses,recommendations};
+    if(buyer){Object.assign(ev,{rubric:'buyer_v1',negotiation_result:{initial_terms:c(p.negotiation_result?.initial_terms,1500)||'Не выяснено',agreed_terms:c(p.negotiation_result?.agreed_terms,1500)||'Не выяснено',savings_summary:c(p.negotiation_result?.savings_summary,1000)||'Недостаточно данных для расчёта экономии',open_issues:c(p.negotiation_result?.open_issues,1500)||'Не указано в разборе'}});}
     const admin=createClient(url,service),now=new Date().toISOString();
     const {error:ue}=await admin.from("saletrening_sessions").update({total_score:ev.overall_score,ai_summary:ev.summary,ai_evaluation:ev,feedback:ev.summary,status:"completed",completed_at:now,updated_at:now}).eq("id",sid).eq("employee_id",user.id);
     if(ue)return json({ok:false,error:ue.message},500);

@@ -160,15 +160,15 @@
       @media(max-height:700px){.st-cold-contact{padding-top:24px}.st-cold-avatar{width:72px;height:72px;font-size:30px}.st-cold-name{margin-top:12px;font-size:21px}.st-cold-live{margin-top:8px}.st-cold-controls{padding-bottom:9px}}
     `;document.head.appendChild(s);
   }
-  function bubble(speaker,text){return `<div class="st-cold-msg ${speaker}"><div class="st-cold-bubble"><div class="st-cold-label">${speaker==='manager'?'МЕНЕДЖЕР':'AI-КЛИЕНТ'}</div>${esc(text)}</div></div>`;}
+  function bubble(speaker,text){const buyer=Number(state.session?.scenario?.id)>=19&&Number(state.session?.scenario?.id)<=33;return `<div class="st-cold-msg ${speaker}"><div class="st-cold-bubble"><div class="st-cold-label">${speaker==='manager'?(buyer?'ЗАКУПЩИК':'МЕНЕДЖЕР'):(buyer?'ИИ-ПРОДАВЕЦ':'AI-КЛИЕНТ')}</div>${esc(text)}</div></div>`;}
 
   function render(){
     const p=$('page');if(!p||!state.session)return;css();
-    const scenario=state.session.scenario||{};const difficulty=coldCall?.difficulty||scenario.difficulty||'Средний';
+    const scenario=state.session.scenario||{};const buyer=Number(scenario.id)>=19&&Number(scenario.id)<=33;const difficulty=coldCall?.difficulty||scenario.difficulty||'Средний';
     const micIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="12" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
     const phoneIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4c1-1 2-1 3 0l2 3c.5 1 .3 2-.5 2.7l-1.4 1.1c1.1 2.2 2.9 4 5.1 5.1l1.1-1.4c.7-.8 1.7-1 2.7-.5l3 2c1 .7 1 2 .2 2.9l-1.4 1.4c-1.2 1.2-3 1.5-4.6.9C9.7 18.8 5.2 14.3 2.8 7.8 2.2 6.2 2.5 4.4 3.7 3.2z" fill="currentColor"/></svg>';
     const speakerIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4z" fill="currentColor"/><path d="M16 9c1.5 1.5 1.5 4.5 0 6M18.5 6.5c3 3 3 8 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
-    p.innerHTML=`<div class="st-cold-page"><div class="st-cold-head"><div><h2>Холодный звонок</h2><div class="st-cold-sub">Живой разговор с AI-клиентом · ${esc(difficulty)}</div></div><button id="st-cold-back" class="st-cold-back">← Назад</button></div><div class="st-cold-card"><div class="st-cold-top"><div class="st-cold-contact"><div class="st-cold-avatar">👤</div><div class="st-cold-name">Потенциальный клиент</div><div class="st-cold-meta">AI-клиент · ${esc(difficulty)}</div><div class="st-cold-time" id="st-cold-time">00:00</div></div><div class="st-cold-live"><div class="st-cold-live-label">Статус</div><div id="st-cold-live" class="st-cold-live-text">Соединение установлено. Вы говорите первым.</div></div><div class="st-cold-main"><div id="st-cold-transcript" class="st-cold-transcript">${(state.messages||[]).map(m=>bubble(m.speaker,m.content)).join("")||'<div class="st-cold-empty">Вы говорите первым.<br>Начните разговор с клиентом.</div>'}</div><div class="st-cold-compose"><textarea id="st-cold-input" rows="1" placeholder="Ответить текстом…"></textarea><button id="st-cold-send" class="st-cold-send" title="Отправить" aria-label="Отправить">↑</button></div></div><div class="st-cold-controls"><div class="st-cold-control-wrap"><button id="st-cold-mic" class="st-cold-mic" aria-label="Микрофон">${micIcon}</button><span>Микрофон</span></div><div class="st-cold-control-wrap"><button id="st-cold-end" class="st-cold-end" aria-label="Завершить звонок">${phoneIcon}</button><span>Завершить</span></div><div class="st-cold-control-wrap"><button type="button" class="st-cold-round" aria-label="Динамик">${speakerIcon}</button><span>Динамик</span></div></div><div class="st-cold-hint">${coldCall?.advanced?"Продвинутый звонок активен":"Разговор сохраняется автоматически"}</div><div class="st-cold-home"></div></div></div></div>`;
+    p.innerHTML=`<div class="st-cold-page"><div class="st-cold-head"><div><h2>Холодный звонок</h2><div class="st-cold-sub">Живой разговор с ${buyer?"ИИ-продавцом":"AI-клиентом"} · ${esc(difficulty)}</div></div><button id="st-cold-back" class="st-cold-back">← Назад</button></div><div class="st-cold-card"><div class="st-cold-top"><div class="st-cold-contact"><div class="st-cold-avatar">👤</div><div class="st-cold-name">${buyer?"Оптовый продавец шин":"Потенциальный клиент"}</div><div class="st-cold-meta">${buyer?"ИИ-продавец":"AI-клиент"} · ${esc(difficulty)}</div><div class="st-cold-time" id="st-cold-time">00:00</div></div><div class="st-cold-live"><div class="st-cold-live-label">Статус</div><div id="st-cold-live" class="st-cold-live-text">Соединение установлено. Вы говорите первым.</div></div><div class="st-cold-main"><div id="st-cold-transcript" class="st-cold-transcript">${(state.messages||[]).map(m=>bubble(m.speaker,m.content)).join("")||'<div class="st-cold-empty">Вы говорите первым.<br>Начните разговор.</div>'}</div><div class="st-cold-compose"><textarea id="st-cold-input" rows="1" placeholder="Ответить текстом…"></textarea><button id="st-cold-send" class="st-cold-send" title="Отправить" aria-label="Отправить">↑</button></div></div><div class="st-cold-controls"><div class="st-cold-control-wrap"><button id="st-cold-mic" class="st-cold-mic" aria-label="Микрофон">${micIcon}</button><span>Микрофон</span></div><div class="st-cold-control-wrap"><button id="st-cold-end" class="st-cold-end" aria-label="Завершить звонок">${phoneIcon}</button><span>Завершить</span></div><div class="st-cold-control-wrap"><button type="button" class="st-cold-round" aria-label="Динамик">${speakerIcon}</button><span>Динамик</span></div></div><div class="st-cold-hint">${coldCall?.advanced?"Продвинутый звонок активен":"Разговор сохраняется автоматически"}</div><div class="st-cold-home"></div></div></div></div>`;
     $('st-cold-back').onclick=()=>{if(!processing){cleanup();state.session=null;state.messages=[];state.view='coldcall';window.render()}};
     $('st-cold-end').onclick=finish;$('st-cold-mic').onclick=()=>{if(coldCall?.advanced){if(!livePc)startAdvancedLiveConversation()}else if(!continuousMode)startContinuousConversation()};$('st-cold-send').onclick=typedTurn;$('st-cold-input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();typedTurn()}};updateUI();scrollTranscript();
   }
@@ -182,10 +182,10 @@
   }
   // Only opaque persona IDs are stored, scoped to the signed-in user in this browser.
   function readPersonaHistory(){
-    try{const value=JSON.parse(localStorage.getItem('st.cold.personas.v2:'+state.user.id)||'[]');return Array.isArray(value)?value.filter(x=>typeof x==='string'&&/^cc2-\d+-\d+-\d+$/.test(x)).slice(-20):[]}catch{return []}
+    try{const value=JSON.parse(localStorage.getItem('st.cold.personas.v2:'+state.user.id)||'[]');return Array.isArray(value)?value.filter(x=>typeof x==='string'&&/^(?:cc2-\d+-\d+-\d+|sp1-[0-5]-[0-5])$/.test(x)).slice(-20):[]}catch{return []}
   }
   function rememberPersona(id){
-    if(typeof id!=='string'||!/^cc2-\d+-\d+-\d+$/.test(id))return;
+    if(typeof id!=='string'||!/^(?:cc2-\d+-\d+-\d+|sp1-[0-5]-[0-5])$/.test(id))return;
     try{const recent=readPersonaHistory().filter(x=>x!==id);localStorage.setItem('st.cold.personas.v2:'+state.user.id,JSON.stringify([...recent,id].slice(-20)))}catch{}
   }
   async function startAdvancedLiveConversation(){
@@ -208,12 +208,13 @@
       const mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
       mic.getTracks().forEach(t=>pc.addTrack(t,mic)); stream=mic;
       startLiveRecorder('manager',mic);
-      const character=coldCall?.character||'Лояльный';
+      const character=coldCall?.character||'Уверенный';
       const facts=coldCall?.facts||'';
       const difficulty=coldCall?.difficulty||'Средний';
-      const objections=(state.clientObjections||state.client_settings?.objections||state.session?.objections||[]).slice(0,12);
+      const objections=(state.clientObjections||state.client_settings?.objections||state.session?.objections||[]).slice(0,40);
       const scenario=state.session?.scenario||{};
       const clientContext={
+        training_mode:Number(scenario.id)>=19&&Number(scenario.id)<=33?'buyer':'manager',
         character,facts,difficulty,objections,
         scenario_title:scenario.title||'Холодный звонок',
         objective:scenario.objective||'Заинтересовать и согласовать следующий шаг',
@@ -383,7 +384,7 @@
         scenario:state.session.scenario,
         client_settings:settings,
         objections,
-        cold_call:{character:coldCall?.character||'Лояльный',facts:coldCall?.facts||'',voice:coldCall?.voice||'coral',difficulty:coldCall?.difficulty||'Средний'},
+        cold_call:{persona_id:state.session?.clientPersonaId||null,character:coldCall?.character||'Уверенный',facts:coldCall?.facts||'',voice:coldCall?.voice||'coral',difficulty:coldCall?.difficulty||'Средний'},
         stream:true
       }),
       cache:'no-store'
@@ -534,6 +535,21 @@
 
   async function typedTurn(){if(processing||!callOpen)return;const input=$('st-cold-input');const text=input?.value.trim();if(!text)return;input.value='';await turn(text)}
   async function turn(text){if(processing||!callOpen||!state.session)return;processing=true;updateUI();addMessage('manager',text);setStatus('AI-клиент формирует ответ…');try{await save();const reply=await aiClientReply(text,false);if(!reply)throw new Error('AI не вернул реплику клиента');addMessage('client',reply);await save();setStatus('AI-клиент отвечает голосом…');try{await speak(reply)}catch(e){console.error('[SaleTrening] TTS',e);if(typeof toast==='function')toast('Ошибка TTS: '+e.message)}setStatus('Ваш ход — говорите или ответьте текстом.')}catch(e){console.error('[SaleTrening] AI client',e);setStatus('Ошибка AI-клиента: '+e.message);if(typeof toast==='function')toast('Ошибка AI-клиента: '+e.message)}finally{processing=false;updateUI()}}
+  function showFinishOverlay(){
+    let el=document.getElementById('st-finish-overlay');
+    if(!el){
+      el=document.createElement('div');
+      el.id='st-finish-overlay';
+      el.setAttribute('role','status');
+      el.setAttribute('aria-live','polite');
+      el.style.cssText='position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:rgba(12,11,26,.73);padding:24px';
+      el.innerHTML='<div style="width:min(350px,100%);background:#fff;color:#171629;border-radius:22px;padding:36px 25px;text-align:center;box-shadow:0 20px 70px #0005"><div style="width:45px;height:45px;border:4px solid #e7e1ff;border-top-color:#7655ff;border-radius:50%;animation:st-finish-spin .85s linear infinite;margin:0 auto 22px"></div><div style="font-size:19px;font-weight:700">Подождите, сохраняем тренировку</div><div style="font-size:13px;color:#77748c;margin-top:10px">Не закрывайте страницу</div></div>';
+      document.body.appendChild(el);
+      if(!document.getElementById('st-finish-animation')){const style=document.createElement('style');style.id='st-finish-animation';style.textContent='@keyframes st-finish-spin{to{transform:rotate(360deg)}}';document.head.appendChild(style);}
+    }
+    el.style.display='flex';
+    return ()=>{el.remove();};
+  }
   async function finish(){
     if(!state.session)return;
     // Hang up is always allowed, including while the AI is speaking or processing.
@@ -548,33 +564,63 @@
     const validConversation=hasManager&&hasClient;
     setStatus('Завершаем тренировку…');
     cleanup();
-    state.session=null;
-    state.messages=[];
-    state.view='progress';
-    window.render();
-    if(typeof toast==='function')toast(validConversation?'Тренировка завершена. Результат рассчитывается.':'Разговор не состоялся. Тренировка не засчитана.');
-    // Saving and scoring must not hold the call screen open.
+    const dismissFinishOverlay=showFinishOverlay();
+    // Do not destroy the active session before the database confirms persistence.
+    // Persist first, evaluate second. Retry transient failures without awarding a fabricated score.
     (async()=>{
-      try{
-        const {error}=await sb.from('saletrening_sessions').update({transcript,updated_at:new Date().toISOString()}).eq('id',sessionId).eq('employee_id',employeeId);
-        if(error)throw error;
-        if(!validConversation)return; // Interrupted/failed call: never request evaluation or credit.
-        const {data}=await sb.auth.getSession();
-        const token=data?.session?.access_token;
-        if(!token)throw new Error('Авторизация истекла');
-        const response=await fetch(SUPABASE_URL+'/functions/v1/evaluate-session-v3',{
-          method:'POST',
-          headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token},
-          body:JSON.stringify({session_id:sessionId}),cache:'no-store'
-        });
-        if(!response.ok)throw new Error('Ошибка анализа: HTTP '+response.status);
-        await loadAll();
-        if(state.view==='progress')window.render();
-        if(typeof toast==='function')toast('Результат тренировки готов');
-      }catch(e){
-        console.error('[SaleTrening] background finish',e);
-        if(typeof toast==='function')toast('Не удалось сохранить или оценить тренировку. Проверьте историю.');
+      const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+      let lastError=null;
+      for(let attempt=1;attempt<=3;attempt++){
+        try{
+          const {data:saved,error}=await sb.from('saletrening_sessions')
+            .update({transcript,updated_at:new Date().toISOString()})
+            .eq('id',sessionId).eq('employee_id',employeeId).select('id');
+          if(error)throw new Error('Сохранение: '+error.message);
+          if(!saved?.length)throw new Error('Сервер не подтвердил запись тренировки (0 строк).');
+          lastError=null;break;
+        }catch(e){lastError=e;console.error('[SaleTrening] save attempt '+attempt,e);if(attempt<3)await wait(attempt*1200);}
       }
+      if(lastError){
+        dismissFinishOverlay();
+        if(typeof toast==='function')toast('Не удалось сохранить тренировку. Попробуйте завершить ещё раз.');
+        processing=false;
+        return;
+      }
+      dismissFinishOverlay();
+      state.session=null;
+      state.messages=[];
+      state.view='progress';
+      window.render();
+      // Evaluation continues quietly after the save overlay closes.
+      if(!validConversation){
+        // No score for an incomplete conversation.
+        await loadAll().catch(()=>{});if(state.view==='progress')window.render();
+        return;
+      }
+      for(let attempt=1;attempt<=3;attempt++){
+        try{
+          const {data,error:authError}=await sb.auth.getSession();
+          const token=data?.session?.access_token;
+          if(authError||!token)throw new Error('Авторизация истекла');
+          const response=await fetch(SUPABASE_URL+'/functions/v1/evaluate-session-v3',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+token},
+            body:JSON.stringify({session_id:sessionId}),cache:'no-store'
+          });
+          const result=await response.json().catch(()=>({}));
+          if(!response.ok||result.ok===false)throw new Error(result.error||('HTTP '+response.status));
+          if(result.scored===false){
+            console.info('[SaleTrening] Evaluation: insufficient data');
+          }
+          await loadAll();if(state.view==='progress')window.render();
+          return;
+        }catch(e){
+          console.error('[SaleTrening] evaluation attempt '+attempt,e);
+          lastError=e;if(attempt<3)await wait(attempt*1500);
+        }
+      }
+      console.error('[SaleTrening] Evaluation deferred',lastError);
+      await loadAll().catch(()=>{});if(state.view==='progress')window.render();
     })();
   }
   async function launchColdCall(){
@@ -584,9 +630,10 @@
     const difficulty=coldCall?.difficulty||override?.difficulty||'Средний';
     cleanup();
     try{
-      const base=override||((typeof coldCallScenario==='function'&&coldCallScenario(difficulty))||state.scenarios?.[0]);
+      const base=override||(typeof coldCallScenario==='function'?coldCallScenario(difficulty):state.scenarios?.[0]);
       if(!base?.id)throw new Error('В базе нет активных сценариев');
       const hard=String(difficulty).toLowerCase().includes('слож');
+      coldCall.mode=Number(base.id)>=19&&Number(base.id)<=33?'buyer':'manager';
       const scenario={...base,cold_call:true,difficulty,resistance_level:hard?7:4,cold_call_difficulty:(hard?7:4)+'/10'};
       const r=await sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:scenario.id,status:'started',transcript:[],voice_mode:true,difficulty_level:difficulty,assignment_id:window.__stPendingAssignmentId||null}).select().single();
       if(r.error)throw new Error(r.error.message||'Не удалось создать сессию');
@@ -602,6 +649,7 @@
         const x=$('st-cold-time');
         if(!x||!callOpen){clearInterval(timer);timer=null;return}
         const sec=Math.floor((Date.now()-startedAt)/1000);
+        if(sec>=600){clearInterval(timer);timer=null;setStatus('Лимит звонка — 10 минут. Завершаем и оцениваем тренировку.');finish();return;}
         x.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
       },1000);
       if(coldCall?.advanced){

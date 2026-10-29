@@ -6,7 +6,7 @@ const nodes = new Map();
 const element = () => ({innerHTML:'', textContent:'', value:'Ответ', disabled:false,
   classList:{toggle(){}}, setAttribute(){}, scrollHeight:0});
 for(const id of ['page','st-cold-back','st-cold-end','st-cold-mic','st-cold-send','st-cold-input','st-cold-live','st-cold-transcript']) nodes.set(id,element());
-let inserts=0, renders=0, failSave=false, aiCalls=0;
+let insertedScenario;let inserts=0, renders=0, failSave=false, aiCalls=0;
 let resolveInsert;
 const context={console:{log:console.log,warn(){},error(){}}, Map, Blob, setTimeout, clearTimeout,
   fetch:async()=>{throw new Error("TTS disabled in offline regression")},
@@ -14,7 +14,7 @@ const context={console:{log:console.log,warn(){},error(){}}, Map, Blob, setTimeo
   document:{getElementById:id=>nodes.get(id)||null,createElement:element,head:{appendChild(){}}},
   state:{user:{id:'employee'},profile:{company_id:'company'},scenarios:[{id:1}],messages:[]},
   coldCall:{difficulty:'Средний',advanced:false},
-  sb:{from(){return {insert(){inserts++;return {select(){return {single(){return new Promise(resolve=>{resolveInsert=resolve})}}}}}}}},
+  sb:{from(){return {insert(values){insertedScenario=values.scenario_id;inserts++;return {select(){return {single(){return new Promise(resolve=>{resolveInsert=resolve})}}}}}}}},
   saveSession:async()=>{if(failSave)throw new Error('Simulated save failure')},
   aiClientReply:async()=>{aiCalls++;return 'Ответ клиента'},
   render(){renders++},toast(){},
@@ -55,5 +55,9 @@ vm.runInContext(source.replace('window.launchColdCall=launchColdCall;',
   const recordings=await context.testRecorders.stopLiveRecorders();
   assert.ok(recordings.manager.blob.size>0,'manager recording must be retained');
   assert.ok(recordings.client.blob.size>0,'client recording must be retained');
+  context.state.scenarios=[{id:19,title:'Холодный звонок поставщику'}];context.coldCall.mode='buyer';
+  const buyerLaunch=context.launchColdCall();resolveInsert({data:{id:'buyer-session'}});await buyerLaunch;
+  assert.equal(insertedScenario,19);assert.equal(context.state.session.scenario.id,19);context.trainingCallPage();assert.ok(nodes.get('page').innerHTML.includes('Оптовый продавец шин'));
+  nodes.get('st-cold-back').onclick();
   console.log('PASS: duplicate voice launch, save failure recovery, back navigation, both live recorders');
 })().catch(e=>{console.error(e);process.exitCode=1});
