@@ -15,7 +15,7 @@ const context={console,Request,Response,FormData,TextDecoder,Uint8Array,atob,esc
  }
 };
 vm.createContext(context);
-vm.runInContext(compile('supabase/functions/_shared/ai-access.ts')+'\n'+shared+'\n'+compile('supabase/functions/chat-client/index.ts'),context);
+vm.runInContext(compile('supabase/functions/_shared/ai-access.ts')+'\n'+shared+'\n'+compile('supabase/functions/_shared/supplier-behavior.ts')+'\n'+compile('supabase/functions/_shared/product-catalog-data.ts')+'\n'+compile('supabase/functions/_shared/product-catalog.ts')+'\n'+compile('supabase/functions/chat-client/index.ts'),context);
 async function call(extra={}){
  const body={session_id:session,message:'Качество и применимость подтверждаем документацией. Кто отвечает за закупку?',scenario:{id:1,title:'Шины',client_role:'Техник',objective:'Обсудить качество шин'},transcript:[{speaker:'client',content:'За цену не отвечаю, оцениваю качество шин.'}],...extra};
  const result=await handler(new Request('https://function.test',{method:'POST',headers:{Authorization:'Bearer test-user','Content-Type':'application/json'},body:JSON.stringify(body)}));
@@ -31,6 +31,10 @@ async function call(extra={}){
  for(const extra of [{client_settings:{mode:'manager_chat'}},{mode:'manager_chat'},{scenario:{id:19,title:'Переговоры закупщика'}}]){
   const other=await call(extra);assert.ok(!other[0].content.includes('ПРАВИЛА ИСХОДА РАЗГОВОРА'),'Mentor and supplier roles keep their existing workflow');
  }
+ const supplier={console};vm.createContext(supplier);vm.runInContext(compile('supabase/functions/_shared/supplier-behavior.ts'),supplier);
+ let previous=[];
+ for(let i=0;i<80;i++){const r=supplier.buildSupplierBehavior({recent_persona_ids:previous},()=>((i*7)%36)/36);assert.ok(!previous.includes(r.persona.id));previous=[...previous,r.persona.id].slice(-20);}
+ const seller=supplier.buildSupplierBehavior({persona_id:'sp1-1-2',difficulty:'Сложный',session_id:'session'});const sellerAgain=supplier.buildSupplierBehavior({persona_id:'sp1-1-2',difficulty:'Сложный',session_id:'session'},()=>0.99);assert.equal(seller.instructions,sellerAgain.instructions);assert.ok(seller.instructions.includes('"max_discount_percent":2'));assert.ok(!seller.instructions.includes('ПРАВИЛА ИСХОДА РАЗГОВОРА'));
  const live={console};vm.createContext(live);vm.runInContext(shared+'\n'+compile('supabase/functions/_shared/cold-call-behavior.ts'),live);
  const technician={persona_id:'cc2-2-6-1',facts:'Техник отвечает за качество, а не цену. Нужны грузовые шины.',difficulty:'Сложный'};
  const one=live.buildColdCallBehavior(technician,()=>0),again=live.buildColdCallBehavior(technician,()=>0.99);

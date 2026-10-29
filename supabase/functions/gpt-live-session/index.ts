@@ -1,3 +1,4 @@
+import { buildSupplierBehavior } from "../_shared/supplier-behavior.ts";
 import { buildProductContext } from "../_shared/product-catalog.ts";
 import { buildColdCallBehavior, legacyColdCallContext } from "../_shared/cold-call-behavior.ts";
 import { withAiAccess } from "../_shared/ai-access.ts";
@@ -50,8 +51,18 @@ Deno.serve(withAiAccess("gpt-live-session", async (req: Request) => {
 
     const session = body?.session || {};
     const clientContext = session.client_context || legacyColdCallContext(session.instructions);
-    const behavior = buildColdCallBehavior(clientContext);
-    const catalogContext = buildProductContext(clientContext, behavior.persona.id);
+    let supplier = false;
+    if (clientContext.training_mode === 'buyer') {
+      const sid=String(body.session_id||'');
+      if(!/^[0-9a-f-]{36}$/i.test(sid))return json({ok:false,error:'Начните тренировку закупщика.'},400);
+      const check=await fetch(Deno.env.get('SUPABASE_URL')+'/rest/v1/saletrening_sessions?select=scenario_id&id=eq.'+encodeURIComponent(sid),{headers:{apikey:Deno.env.get('SUPABASE_ANON_KEY')||'',Authorization:req.headers.get('Authorization')||''}});
+      if(!check.ok)return json({ok:false,error:'Не удалось проверить режим тренировки.'},503);
+      const rows=await check.json();
+      supplier=Array.isArray(rows)&&rows.length===1&&Number(rows[0].scenario_id)>=19&&Number(rows[0].scenario_id)<=33;
+      if(!supplier)return json({ok:false,error:'Сохранённая тренировка не относится к закупкам.'},409);
+    }
+    const behavior = supplier?buildSupplierBehavior({...clientContext,session_id:body.session_id}):buildColdCallBehavior(clientContext);
+    const catalogContext = buildProductContext(clientContext, behavior.persona.id, supplier?'seller':'buyer');
     const payload = {
       session: {
         model: "gpt-live-1",
