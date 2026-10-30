@@ -228,7 +228,7 @@ const server=http.createServer((req,res)=>{
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Buyer report fits mobile');
  await page.screenshot({path:'test-results/buyer-negotiation-report-mobile.png',fullPage:true});
  // Personal mentor history: separate dialogues, refresh, failure/retry and in-flight switching.
- const mentorCors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey,content-type','access-control-allow-methods':'GET,POST,OPTIONS'};
+ const mentorCors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey,content-type,prefer','access-control-allow-methods':'GET,POST,OPTIONS'};
  const dialogues=new Map(),mentorRequests=[];let pendingRoute,pendingBody,firstReady;const pendingReady=new Promise(resolve=>firstReady=resolve);let failOnce=true,historyFails=false;
  const saveMentorAnswer=(body,reply)=>{const row=dialogues.get(body.dialogue_id);row.messages.push({role:'assistant',content:reply,request_id:body.request_id});row.status='ready';row.updated_at=new Date().toISOString();};
  await page.route(/\/rest\/v1\/mentor_chat_dialogues\?/,async route=>{
