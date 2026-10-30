@@ -227,6 +227,53 @@ const server=http.createServer((req,res)=>{
  await page.getByText('Закупщик:',{exact:true}).waitFor();await page.getByText('Продавец:',{exact:true}).waitFor();
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Buyer report fits mobile');
  await page.screenshot({path:'test-results/buyer-negotiation-report-mobile.png',fullPage:true});
+ // Personal mentor history: separate dialogues, refresh, failure/retry and in-flight switching.
+ const mentorCors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey,content-type','access-control-allow-methods':'GET,POST,OPTIONS'};
+ const dialogues=new Map(),mentorRequests=[];let pendingRoute,pendingBody,firstReady;const pendingReady=new Promise(resolve=>firstReady=resolve);let failOnce=true,historyFails=false;
+ const saveMentorAnswer=(body,reply)=>{const row=dialogues.get(body.dialogue_id);row.messages.push({role:'assistant',content:reply,request_id:body.request_id});row.status='ready';row.updated_at=new Date().toISOString();};
+ await page.route(/\/rest\/v1\/mentor_chat_dialogues\?/,async route=>{
+  if(route.request().method()==='OPTIONS'){await route.fulfill({status:204,headers:mentorCors});return;}
+  if(historyFails){await route.fulfill({status:503,body:'{}',headers:{'access-control-allow-origin':'*'}});return;}
+  const q=new URL(route.request().url()).searchParams;
+  let rows=[...dialogues.values()].filter(x=>'eq.'+x.owner_id===q.get('owner_id')&&'eq.'+x.company_id===q.get('company_id'));
+  if(q.get('id'))rows=rows.filter(x=>'eq.'+x.id===q.get('id'));
+  if(q.get('or'))rows=[];
+  await route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(rows)});
+ });
+ await page.route(/\/functions\/v1\/manager-ai-chat$/,async route=>{
+  if(route.request().method()==='OPTIONS'){await route.fulfill({status:204,headers:mentorCors});return;}
+  const body=route.request().postDataJSON();mentorRequests.push(body);assert.equal(body.transcript,undefined,'Browser does not supply persistent mentor context');
+  const row=dialogues.get(body.dialogue_id);if(!row.messages.some(x=>x.role==='user'&&x.request_id===body.request_id))row.messages.push({role:'user',content:body.message,request_id:body.request_id});
+  if(row.messages.length===1)row.title=body.message;row.status='pending';row.current_request_id=body.request_id;row.request_content=body.message;
+  if(body.message==='Первый вопрос'){pendingRoute=route;pendingBody=body;firstReady();return;}
+  if(body.message==='Повтор'&&failOnce){failOnce=false;row.status='failed';await route.fulfill({status:500,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({ok:false,error:'Временная ошибка'})});return;}
+  const reply=body.message==='Второй вопрос'?'Ответ второго диалога <img src=x onerror=alert(1)>':'Продолжение диалога';saveMentorAnswer(body,reply);
+  await route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({ok:true,reply,dialogue_id:body.dialogue_id,request_id:body.request_id})});
+ });
+ const setupMentor=async()=>page.evaluate(()=>{state.user={id:'u',email:'test@example.test'};state.profile={id:'u',first_name:'Тест',role:'director',company_id:'company'};state.company={id:'company',name:'Тест'};state.branchContext={can_manage:true};state.view='ai';state.session=null;sb.auth.getSession=async()=>({data:{session:{access_token:'chart-test-token'}}});render();});
+ await setupMentor();
+ await page.evaluate(()=>{sb.rpc=async(name,args)=>{if(name==='create_mentor_dialogue')return await window.createMentorFixture(args.p_id);return {data:null};};});
+ await page.exposeFunction('createMentorFixture',async id=>{if(!dialogues.has(id))dialogues.set(id,{id,owner_id:'u',company_id:'company',title:'Новый диалог',messages:[],status:'ready',updated_at:new Date().toISOString()});return {data:id};});
+ await page.locator('#page').getByRole('button',{name:'История',exact:true}).click();await page.getByText('Сохранённых диалогов пока нет.',{exact:false}).waitFor();
+ await page.getByRole('button',{name:'Новый чат',exact:true}).click();await page.getByLabel('Сообщение наставнику').fill('Первый вопрос');await page.locator('#aiSend').click();await pendingReady;
+ await page.getByRole('button',{name:'Новый чат',exact:true}).click();assert.equal(await page.locator('#aiMessages').getByText('Первый вопрос',{exact:false}).count(),0);
+ await page.getByLabel('Сообщение наставнику').fill('Второй вопрос');await page.locator('#aiSend').click();await page.getByText('Ответ второго диалога',{exact:false}).waitFor();assert.equal(await page.locator('#page img').count(),0,'Mentor output is escaped');
+ saveMentorAnswer(pendingBody,'Ответ первого диалога');await pendingRoute.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({ok:true,reply:'Ответ первого диалога',dialogue_id:pendingBody.dialogue_id,request_id:pendingBody.request_id})});
+ await page.locator('#page').getByRole('button',{name:'История',exact:true}).click();await page.getByRole('button',{name:'Первый вопрос',exact:false}).waitFor();assert.equal(await page.locator('.mentor-history-row').count(),2);
+ await page.getByRole('button',{name:'Первый вопрос',exact:false}).click();await page.getByText('Ответ первого диалога',{exact:false}).waitFor();assert.equal(await page.locator('#aiMessages').getByText('Ответ второго диалога',{exact:false}).count(),0);
+ await page.reload();await setupMentor();
+ await page.evaluate(()=>{sb.rpc=async(name,args)=>name==='create_mentor_dialogue'?await window.createMentorFixture(args.p_id):{data:null};});
+ await page.locator('#page').getByRole('button',{name:'История',exact:true}).click();await page.getByRole('button',{name:'Второй вопрос',exact:false}).click();await page.getByText('Ответ второго диалога',{exact:false}).waitFor();
+ await page.getByLabel('Сообщение наставнику').fill('Продолжим');await page.locator('#aiSend').click();await page.getByText('Продолжение диалога',{exact:false}).waitFor();
+ for(const width of [320,390,1440]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mentor dialogue fits '+width+'px');}
+ await page.setViewportSize({width:390,height:1000});const areaBox=await page.locator('#aiMsg').boundingBox(),sendBox=await page.locator('#aiSend').boundingBox();assert.ok(sendBox.y>=areaBox.y+areaBox.height-1,'Mobile Send button follows the message field');await page.screenshot({path:'test-results/mentor-dialogue-mobile.png',fullPage:true});
+ await page.getByRole('button',{name:'Новый чат',exact:true}).click();await page.getByLabel('Сообщение наставнику').fill('Повтор');await page.locator('#aiSend').click();await page.getByRole('alert').filter({hasText:'Временная ошибка'}).waitFor();
+ await page.getByRole('button',{name:'Повторить',exact:true}).click();await page.getByText('Продолжение диалога',{exact:false}).waitFor();
+ const retried=mentorRequests.filter(x=>x.message==='Повтор');assert.equal(retried.length,2);assert.equal(retried[0].request_id,retried[1].request_id);assert.equal(await page.locator('#aiMessages .msg.manager').count(),1,'Retry keeps one user message');
+ historyFails=true;await page.locator('#page').getByRole('button',{name:'История',exact:true}).click();await page.getByRole('alert').filter({hasText:'Не удалось загрузить историю'}).waitFor();historyFails=false;await page.getByRole('button',{name:'Повторить',exact:true}).click();await page.locator('.mentor-history-row').first().waitFor();
+ await page.screenshot({path:'test-results/mentor-history-mobile.png',fullPage:true});
+ await page.evaluate(()=>{state.user={id:'other',email:'other@example.test'};state.profile={id:'other',company_id:'other-company',role:'employee'};state.view='ai';page();});assert.equal(await page.locator('#aiMessages .msg').count(),0,'Account switching clears cached messages');
+ await page.locator('#page').getByRole('button',{name:'История',exact:true}).click();await page.getByText('Сохранённых диалогов пока нет.',{exact:false}).waitFor();
  assert.deepEqual(errors,[]);
  console.log('PASS: real Chromium, assignment parameters, duplicate save, RPC failure recovery, escaping, select keyboard, obsolete response, role navigation, employee directory and 390px layout; responsive TOP at 320/390/440px, desktop table, per-employee assignment, errors, focus, Escape and first-branch creation');
  }finally{await browser.close();await new Promise(r=>server.close(r));}
