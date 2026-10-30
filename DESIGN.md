@@ -52,3 +52,6 @@ The sidebar omits «Мой прогресс» and «Сценарии». Training
 
 ## Personal mentor dialogues
 AI-chat uses its existing card/message/composer styling with «История» and «Новый чат» actions. History contains private, server-persisted dialogues with first-question titles and dates. Each dialogue owns its draft, pending request and errors; switching does not move an answer to another thread. Failed requests are retryable without duplicate user messages. No message bodies are stored in browser localStorage. Native buttons and labels remain canonical, with wrapping actions/composer at mobile widths.
+
+## Personal notes
+The main menu includes «Заметки». Topics and entries use existing cards, native buttons, labeled fields and explicit Save. Desktop has a topic sidebar plus notes/editor workspace; phones stack these regions with natural page scrolling. Drafts remain in memory across in-app navigation; leaving the page or signing out warns about unsaved text. Saved notes are private to their owner/current company. No delete controls are introduced.
