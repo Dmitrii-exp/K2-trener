@@ -13,6 +13,7 @@ create table public.mentor_chat_dialogues (
  updated_at timestamptz not null default now()
 );
 create index mentor_chat_owner_updated on public.mentor_chat_dialogues(owner_id,company_id,updated_at desc,id);
+create index mentor_chat_company on public.mentor_chat_dialogues(company_id);
 alter table public.mentor_chat_dialogues enable row level security;
 revoke all on public.mentor_chat_dialogues from public,anon,authenticated;
 grant select on public.mentor_chat_dialogues to authenticated;

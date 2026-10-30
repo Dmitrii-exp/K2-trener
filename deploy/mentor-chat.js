@@ -11,7 +11,7 @@
  function paint(scroll=false){if(owner!==scope()||state.view!=='ai')return;page();if(scroll)requestAnimationFrame(()=>{const box=document.getElementById('aiMessages');if(box)box.scrollTop=box.scrollHeight;});}
  function current(r,e){return epoch===e&&owner===scope()&&records.get(r.id)===r;}
  async function token(){const {data,error}=await sb.auth.getSession();if(error||!data?.session?.access_token)throw Error('Сессия истекла. Войдите снова.');return data.session.access_token;}
- async function read(params){const t=await token(),response=await fetch(SUPABASE_URL+'/rest/v1/mentor_chat_dialogues?'+new URLSearchParams(params),{headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+t},cache:'no-store'});if(!response.ok)throw Error('Не удалось загрузить историю. Повторите попытку.');return await response.json();}
+ async function read(params){const t=await token(),response=await fetch(SUPABASE_URL+'/rest/v1/mentor_chat_dialogues?'+new URLSearchParams(params),{headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+t},cache:'no-store',signal:AbortSignal.timeout(20000)});if(!response.ok)throw Error('Не удалось загрузить историю. Повторите попытку.');return await response.json();}
  const styles=`<style>.mentor-actions{display:flex;gap:10px;flex-wrap:wrap}.mentor-list{display:grid;gap:12px}.mentor-history-row{width:100%;text-align:left;display:block;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--card,#fff);color:inherit;cursor:pointer}.mentor-history-row strong{display:block;overflow-wrap:anywhere;margin-bottom:7px}.mentor-history-row:focus-visible{outline:3px solid var(--p);outline-offset:3px}.mentor-note{padding:14px;margin:12px 0;border:1px solid var(--line);border-radius:12px;overflow-wrap:anywhere}.mentor-chat .msg{white-space:pre-wrap;overflow-wrap:anywhere}.mentor-chat textarea{resize:none;min-width:0}.mentor-chat .composer{flex-wrap:wrap}.mentor-chat .composer textarea{flex:1 1 200px}.mentor-chat .composer button{min-height:44px}@media(max-width:700px){.mentor-actions{width:100%}.mentor-actions button{flex:1;min-height:44px}.mentor-chat .composer textarea{flex-basis:100%}.mentor-chat .composer button{width:100%}}</style>`;
  window.aiChat=function(){
   sync();const r=records.get(active);
@@ -34,7 +34,7 @@
   sync();historyOpen=false;let r=records.get(id);if(r?.busy){active=id;paint(true);return;}
   if(!r){r={id,created:true,loaded:false,messages:[],draft:'',busy:false,error:'',retry:null};records.set(id,r);}active=id;r.loading=true;r.error='';const e=epoch,loadVersion=(r.loadVersion||0)+1;r.loadVersion=loadVersion;paint();
   try{const rows=await read({select:'*',id:'eq.'+id,owner_id:'eq.'+state.user.id,company_id:'eq.'+state.profile.company_id});if(!current(r,e)||r.loadVersion!==loadVersion)return;const row=rows?.[0];if(!row)throw Error('Диалог недоступен.');r.messages=Array.isArray(row.messages)?row.messages:[];r.loaded=true;r.created=true;r.retry=row.status!=='ready'&&row.current_request_id?{request_id:row.current_request_id,message:row.request_content}:null;
-  }catch(error){if(current(r,e)&&r.loadVersion===loadVersion){r.error=error.message;r.loaded=false;}}finally{if(current(r,e)&&r.loadVersion===loadVersion){r.loading=false;if(active===r.id)paint(true);}}
+  }catch(error){if(current(r,e)&&r.loadVersion===loadVersion){r.error=['TimeoutError','AbortError'].includes(error.name)?'Сервер не ответил вовремя. Повторите запрос.':error.message;r.loaded=false;}}finally{if(current(r,e)&&r.loadVersion===loadVersion){r.loading=false;if(active===r.id)paint(true);}}
  };
  async function send(r,retry=false){
   if(r.busy||!r.loaded)return;const e=epoch,request=retry?r.retry:{request_id:crypto.randomUUID(),message:r.draft.trim()};if(!request?.message)return;
@@ -43,10 +43,10 @@
   try{
    if(!r.created){const {error}=await sb.rpc('create_mentor_dialogue',{p_id:r.id});if(error)throw Error('Не удалось создать диалог. Повторите отправку.');r.created=true;}
    if(!current(r,e))return;
-   const t=await token(),response=await fetch(SUPABASE_URL+'/functions/v1/manager-ai-chat',{method:'POST',headers:{'Content-Type':'application/json',apikey:SUPABASE_KEY,Authorization:'Bearer '+t},body:JSON.stringify({dialogue_id:r.id,request_id:request.request_id,message:request.message,stats:state.stats||{},history:(state.history||[]).slice(0,20),profile:{first_name:state.profile?.first_name||'',role:state.profile?.role||'',company:state.company?.name||''}}),cache:'no-store'});
-   const result=await response.json();if(!response.ok||!result.ok||typeof result.reply!=='string')throw Error(result.error||'Не удалось получить ответ. Повторите попытку.');
+   const t=await token(),response=await fetch(SUPABASE_URL+'/functions/v1/manager-ai-chat',{method:'POST',headers:{'Content-Type':'application/json',apikey:SUPABASE_KEY,Authorization:'Bearer '+t},body:JSON.stringify({dialogue_id:r.id,request_id:request.request_id,message:request.message,stats:state.stats||{},history:(state.history||[]).slice(0,20),profile:{first_name:state.profile?.first_name||'',role:state.profile?.role||'',company:state.company?.name||''}}),cache:'no-store',signal:AbortSignal.timeout(65000)});
+   const result=await response.json().catch(()=>({}));if(!response.ok||!result.ok||typeof result.reply!=='string')throw Error(result.error||'Не удалось получить ответ. Повторите попытку.');
    if(!current(r,e))return;if(!r.messages.some(m=>m.role==='assistant'&&m.request_id===request.request_id))r.messages.push({role:'assistant',content:result.reply,request_id:request.request_id});r.retry=null;
-  }catch(error){if(current(r,e))r.error=error.message;}finally{if(current(r,e)){r.busy=false;if(active===r.id&&!historyOpen)paint(true);}}
+  }catch(error){if(current(r,e))r.error=['TimeoutError','AbortError'].includes(error.name)?'Сервер не ответил вовремя. Повторите запрос.':error.message;}finally{if(current(r,e)){r.busy=false;if(active===r.id&&!historyOpen)paint(true);}}
  }
  window.sendAiChat=function(){sync();return send(records.get(active));};
  window.retryMentorMessage=function(){sync();return send(records.get(active),true);};
