@@ -49,3 +49,6 @@ Cold-call setup uses two standard primary/secondary toggle buttons with aria-pre
 
 ## Navigation simplification
 The sidebar omits «Мой прогресс» and «Сценарии». Training selection remains in «Тренировки», detailed manager metrics in «Аналитика», and personal completed results in «История». Text and voice hangup return to history; legacy progress/scenarios view names normalize to history/training. No permission or evaluation behaviour changes.
+
+## Personal mentor dialogues
+AI-chat uses its existing card/message/composer styling with «История» and «Новый чат» actions. History contains private, server-persisted dialogues with first-question titles and dates. Each dialogue owns its draft, pending request and errors; switching does not move an answer to another thread. Failed requests are retryable without duplicate user messages. No message bodies are stored in browser localStorage. Native buttons and labels remain canonical, with wrapping actions/composer at mobile widths.

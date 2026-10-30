@@ -6,6 +6,7 @@ on:
       - '.github/workflows/branches-release.yml'
       - 'scripts/reg_ru_release.py'
       - 'manager-history.js'
+      - 'mentor-chat.js'
       - 'cold-call-voice-v5.js'
       - 'index.html'
       - 'company-branches.js'
