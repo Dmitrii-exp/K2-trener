@@ -25,6 +25,7 @@ jobs:
       - run: node scripts/test-cold-call-behavior.cjs
       - run: node scripts/test-client-outcomes.cjs
       - run: node scripts/test-buyer-evaluation.cjs
+      - run: node scripts/test-mentor-history.cjs
       - run: python scripts/test-reg-ru-release.py
       - run: node scripts/test-employee-analytics.cjs
       - name: Install browser test runtime

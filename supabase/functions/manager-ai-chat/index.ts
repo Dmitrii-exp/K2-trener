@@ -1,3 +1,4 @@
+import { claimMentorTurn } from "../_shared/mentor-history.ts";
 import { withAiAccess } from "../_shared/ai-access.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -21,6 +22,7 @@ async function askAI(messages:any[]){
   const model=clean(Deno.env.get("PROXYAPI_MODEL")||"gpt-5.6-luna");
   const r=await fetch(`${base}/chat/completions`,{
     method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json",Authorization:`Bearer ${apiKey}`},
+    signal:AbortSignal.timeout(45000),
     body:JSON.stringify({model,messages,max_completion_tokens:700,prompt_cache_key:"saletrening-manager-chat-v3-private-stack"})
   });
   const raw=await r.text(); let data:any=null; try{data=raw?JSON.parse(raw):null}catch{}
@@ -38,6 +40,7 @@ function safeReply(reply:string){
 Deno.serve(withAiAccess("manager-ai-chat", async req=>{
   if(req.method==="OPTIONS") return new Response("ok",{status:200,headers:cors});
   if(req.method!=="POST") return json({ok:false,error:"Method not allowed"},405);
+  let claimed:any=null,admin:any=null;
   try{
     const auth=req.headers.get("Authorization")||"";
     if(!auth.startsWith("Bearer ")) return json({ok:false,error:"Authorization required"},401);
@@ -46,7 +49,15 @@ Deno.serve(withAiAccess("manager-ai-chat", async req=>{
     if(userError||!userData.user) return json({ok:false,error:"Invalid session"},401);
     const body=await req.json(); const message=clean(body?.message,5000);
     if(!message) return json({ok:false,error:"message is required"},400);
-    const transcript=Array.isArray(body?.transcript)?body.transcript.slice(-20).map((m:any)=>({role:m?.role==="assistant"?"assistant":"user",content:clean(m?.text??m?.content,1800)})).filter((m:any)=>m.content):[];
+    let transcript=Array.isArray(body?.transcript)?body.transcript.slice(-20).map((m:any)=>({role:m?.role==="assistant"?"assistant":"user",content:clean(m?.text??m?.content,1800)})).filter((m:any)=>m.content):[];
+    if(body?.dialogue_id||body?.request_id){
+      admin=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const turn:any=await claimMentorTurn(admin,userData.user.id,body,message);
+      if(turn.error)return json({ok:false,error:turn.error},turn.status);
+      if(turn.cached)return json({ok:true,reply:turn.reply,dialogue_id:body.dialogue_id,request_id:body.request_id,cached:true});
+      transcript=turn.messages;
+      claimed={p_user_id:userData.user.id,p_dialogue_id:body.dialogue_id,p_request_id:body.request_id};
+    }
     const stats=clean(JSON.stringify(body?.stats||{}),2500);
     const history=clean(JSON.stringify(body?.history||[]),6000);
     const profile=clean(JSON.stringify(body?.profile||{}),1800);
@@ -73,9 +84,14 @@ ${stats||"не указана"}
 
 История тренировок:
 ${history||"не указана"}`;
-    const reply=await askAI([{role:"system",content:system},...transcript,{role:"user",content:message}]);
-    return json({ok:true,reply:safeReply(reply)});
+    const reply=safeReply(await askAI([{role:"system",content:system},...transcript,...(claimed?[]:[{role:"user",content:message}])]));
+    if(claimed){
+      const saved=await admin.rpc('finish_mentor_turn',{...claimed,p_reply:reply});
+      if(saved.error||saved.data!==true)throw new Error('Dialogue save failed');
+    }
+    return json({ok:true,reply,dialogue_id:body.dialogue_id||null,request_id:body.request_id||null});
   }catch(e){
+    if(claimed&&admin){try{await admin.rpc('finish_mentor_turn',{...claimed,p_reply:null})}catch{}}
     console.error("manager-ai-chat:",e);
     return json({ok:false,error:"AI-наставник временно недоступен. Повторите попытку."},500);
   }
