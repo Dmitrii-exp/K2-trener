@@ -244,7 +244,7 @@ const server=http.createServer((req,res)=>{
   if(route.request().method()==='OPTIONS'){await route.fulfill({status:204,headers:mentorCors});return;}
   const body=route.request().postDataJSON();mentorRequests.push(body);assert.equal(body.transcript,undefined,'Browser does not supply persistent mentor context');
   const row=dialogues.get(body.dialogue_id);if(!row.messages.some(x=>x.role==='user'&&x.request_id===body.request_id))row.messages.push({role:'user',content:body.message,request_id:body.request_id});
-  row.title=body.message;row.status='pending';row.current_request_id=body.request_id;row.request_content=body.message;
+  if(row.messages.length===1)row.title=body.message;row.status='pending';row.current_request_id=body.request_id;row.request_content=body.message;
   if(body.message==='Первый вопрос'){pendingRoute=route;pendingBody=body;firstReady();return;}
   if(body.message==='Повтор'&&failOnce){failOnce=false;row.status='failed';await route.fulfill({status:500,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({ok:false,error:'Временная ошибка'})});return;}
   const reply=body.message==='Второй вопрос'?'Ответ второго диалога <img src=x onerror=alert(1)>':'Продолжение диалога';saveMentorAnswer(body,reply);
@@ -266,7 +266,7 @@ const server=http.createServer((req,res)=>{
  await page.locator('#page').getByRole('button',{name:'История',exact:true}).click();await page.getByRole('button',{name:'Второй вопрос',exact:false}).click();await page.getByText('Ответ второго диалога',{exact:false}).waitFor();
  await page.getByLabel('Сообщение наставнику').fill('Продолжим');await page.locator('#aiSend').click();await page.getByText('Продолжение диалога',{exact:false}).waitFor();
  for(const width of [320,390,1440]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mentor dialogue fits '+width+'px');}
- await page.setViewportSize({width:390,height:1000});await page.screenshot({path:'test-results/mentor-dialogue-mobile.png',fullPage:true});
+ await page.setViewportSize({width:390,height:1000});const areaBox=await page.locator('#aiMsg').boundingBox(),sendBox=await page.locator('#aiSend').boundingBox();assert.ok(sendBox.y>=areaBox.y+areaBox.height-1,'Mobile Send button follows the message field');await page.screenshot({path:'test-results/mentor-dialogue-mobile.png',fullPage:true});
  await page.getByRole('button',{name:'Новый чат',exact:true}).click();await page.getByLabel('Сообщение наставнику').fill('Повтор');await page.locator('#aiSend').click();await page.getByRole('alert').filter({hasText:'Временная ошибка'}).waitFor();
  await page.getByRole('button',{name:'Повторить',exact:true}).click();await page.getByText('Продолжение диалога',{exact:false}).waitFor();
  const retried=mentorRequests.filter(x=>x.message==='Повтор');assert.equal(retried.length,2);assert.equal(retried[0].request_id,retried[1].request_id);assert.equal(await page.locator('#aiMessages .msg.manager').count(),1,'Retry keeps one user message');
