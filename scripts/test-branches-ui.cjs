@@ -32,6 +32,9 @@ const server=http.createServer((req,res)=>{
   };render();
  });
  await page.getByRole('button',{name:'Сохранить назначение'}).waitFor();
+ assert.equal(await page.locator('.nav').getByRole('button',{name:'Мой прогресс',exact:true}).count(),0);
+ assert.equal(await page.locator('.nav').getByRole('button',{name:'Сценарии',exact:true}).count(),0);
+ assert.equal(await page.locator('.nav').getByRole('button',{name:'Тренировки',exact:true}).count(),1);
  assert.equal(await page.locator('#page img').count(),0,'Branch name is escaped');
  await page.getByLabel('Сотрудник',{exact:true}).focus();
  await page.keyboard.press('ArrowDown');await page.keyboard.press('Tab');
@@ -190,6 +193,10 @@ const server=http.createServer((req,res)=>{
  const beforeForbidden=historyRequests;
  await page.evaluate(()=>{state.branchContext={branch_role:'employee',can_manage:false};state.view='analytics';page();});
  await page.getByText('Нет доступа к аналитике команды.',{exact:true}).waitFor();assert.equal(historyRequests,beforeForbidden);
+ await page.evaluate(()=>{state.view='scenarios';page();});
+ await page.waitForFunction(()=>state.view==='training');
+ await page.evaluate(()=>{state.view='progress';page();});
+ await page.waitForFunction(()=>state.view==='history');
  // Purchasing cold calls: setup switching and the persisted buyer report.
  await page.evaluate(()=>{
   window.__stColdCallActive=false;state.report=null;state.scenarios=[{id:4,title:'Холодный звонок — выход на ЛПР',difficulty:'Средний'},{id:9,title:'Холодный звонок',difficulty:'Сложный'},{id:19,title:'Холодный звонок поставщику',difficulty:'Средний'}];state.view='coldcall';page();

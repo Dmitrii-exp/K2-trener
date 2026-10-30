@@ -589,12 +589,12 @@
       dismissFinishOverlay();
       state.session=null;
       state.messages=[];
-      state.view='progress';
+      state.view='history';
       window.render();
       // Evaluation continues quietly after the save overlay closes.
       if(!validConversation){
         // No score for an incomplete conversation.
-        await loadAll().catch(()=>{});if(state.view==='progress')window.render();
+        await loadAll().catch(()=>{});if(state.view==='history')window.render();
         return;
       }
       for(let attempt=1;attempt<=3;attempt++){
@@ -612,7 +612,7 @@
           if(result.scored===false){
             console.info('[SaleTrening] Evaluation: insufficient data');
           }
-          await loadAll();if(state.view==='progress')window.render();
+          await loadAll();if(state.view==='history')window.render();
           return;
         }catch(e){
           console.error('[SaleTrening] evaluation attempt '+attempt,e);
@@ -620,7 +620,7 @@
         }
       }
       console.error('[SaleTrening] Evaluation deferred',lastError);
-      await loadAll().catch(()=>{});if(state.view==='progress')window.render();
+      await loadAll().catch(()=>{});if(state.view==='history')window.render();
     })();
   }
   async function launchColdCall(){

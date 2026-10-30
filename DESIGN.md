@@ -46,3 +46,6 @@ Analytics uses the canonical labeled native select to show one authorized employ
 
 ## Cold-call purchasing mode
 Cold-call setup uses two standard primary/secondary toggle buttons with aria-pressed in a labeled group. Each role keeps its in-memory setup draft and keyboard focus. Buyer mode calls the existing purchasing scenario 19, has a wholesale supplier counterpart, and hides customer objections. Report labels reflect buyer competencies; saved transcript speaker keys and existing score columns remain compatible. Fictional supplier concessions are training-only and server-owned. Existing manager behaviour, auth, billing and achievements are preserved.
+
+## Navigation simplification
+The sidebar omits «Мой прогресс» and «Сценарии». Training selection remains in «Тренировки», detailed manager metrics in «Аналитика», and personal completed results in «История». Text and voice hangup return to history; legacy progress/scenarios view names normalize to history/training. No permission or evaluation behaviour changes.
