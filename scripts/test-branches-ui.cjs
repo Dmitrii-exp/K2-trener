@@ -274,6 +274,50 @@ const server=http.createServer((req,res)=>{
  await page.screenshot({path:'test-results/mentor-history-mobile.png',fullPage:true});
  await page.evaluate(()=>{state.user={id:'other',email:'other@example.test'};state.profile={id:'other',company_id:'other-company',role:'employee'};state.view='ai';page();});assert.equal(await page.locator('#aiMessages .msg').count(),0,'Account switching clears cached messages');
  await page.locator('#page').getByRole('button',{name:'История',exact:true}).click();await page.getByText('Сохранённых диалогов пока нет.',{exact:false}).waitFor();
+ // Private topic-based notes: create/edit/save, drafts, retry, conflict copy and reload.
+ const topicRows=new Map(),noteRows=new Map(),noteCalls=[];let releaseNoteSave,noteReady,holdNote=true,uncertainNote=false,notesReadFails=false;
+ const noteSaveReady=new Promise(resolve=>noteReady=resolve);
+ const writeNote=(name,args)=>{
+  const isTopic=name==='save_personal_topic',rows=isTopic?topicRows:noteRows;const old=rows.get(args.p_id);
+  const title=args.p_title.trim()||(args.p_content||'').trim().split('\n')[0].slice(0,80)||'Без названия';
+  if(old&&old.last_request_id===args.p_request_id)return {data:old};
+  if(old&&old.revision!==args.p_revision)return {error:{message:'Changed',status:409,data:{code:'40001'}}};
+  const row={id:args.p_id,owner_id:'u',company_id:'company',title,revision:(old?.revision||0)+1,last_request_id:args.p_request_id,created_at:old?.created_at||new Date().toISOString(),updated_at:new Date().toISOString(),...(!isTopic?{topic_id:args.p_topic_id,content:args.p_content}:{})};rows.set(row.id,row);return {data:row};
+ };
+ await page.exposeFunction('saveNotesFixture',async(name,args)=>{
+  noteCalls.push({name,args});
+  if(name==='save_personal_note'&&holdNote){noteReady();return await new Promise(resolve=>releaseNoteSave=()=>{holdNote=false;resolve(writeNote(name,args));});}
+  const result=writeNote(name,args);if(name==='save_personal_note'&&uncertainNote){uncertainNote=false;return {error:{message:'Connection lost after commit',status:503}};}return result;
+ });
+ await page.route(/\/rest\/v1\/(personal_note_topics|personal_notes)\?/,async route=>{
+  if(route.request().method()==='OPTIONS'){await route.fulfill({status:204,headers:mentorCors});return;}
+  if(notesReadFails){await route.fulfill({status:503,headers:mentorCors,body:'{}'});return;}
+  const url=new URL(route.request().url()),q=url.searchParams;const source=url.pathname.endsWith('personal_note_topics')?topicRows:noteRows;
+  let rows=[...source.values()].filter(r=>'eq.'+r.owner_id===q.get('owner_id')&&'eq.'+r.company_id===q.get('company_id'));
+  if(q.get('id'))rows=rows.filter(r=>'eq.'+r.id===q.get('id'));if(q.get('topic_id'))rows=rows.filter(r=>'eq.'+r.topic_id===q.get('topic_id'));if(q.get('or'))rows=[];
+  await route.fulfill({status:200,headers:mentorCors,contentType:'application/json',body:JSON.stringify(rows)});
+ });
+ const setupNotes=async()=>page.evaluate(()=>{state.user={id:'u',email:'test@example.test'};state.profile={id:'u',first_name:'Тест',role:'director',company_id:'company'};state.company={id:'company',name:'Тест'};state.branchContext={can_manage:true};state.session=null;state.view='notes';sb.auth.getSession=async()=>({data:{session:{access_token:'chart-test-token'}}});sb.rpc=async(name,args)=>await window.saveNotesFixture(name,args);render();});
+ await setupNotes();await page.getByText('Создайте первую тему, например «Идеи» или «Работа с клиентами».',{exact:true}).waitFor();
+ assert.equal(await page.locator('.nav').getByRole('button',{name:'Заметки',exact:true}).count(),1);
+ await page.getByRole('button',{name:'Создать тему',exact:true}).click();await page.getByRole('button',{name:'Сохранить тему',exact:true}).click();await page.getByRole('alert').filter({hasText:'Введите название темы.'}).waitFor();assert.equal(await page.getByLabel('Название темы',{exact:true}).getAttribute('aria-invalid'),'true');
+ await page.getByLabel('Название темы',{exact:true}).fill('Работа <img src=x onerror=alert(1)>');await page.getByRole('button',{name:'Сохранить тему',exact:true}).click();await page.locator('#notesNewEntry').waitFor();assert.equal(await page.locator('#page img').count(),0);
+ await page.getByRole('button',{name:'Переименовать тему',exact:true}).click();await page.getByLabel('Название темы',{exact:true}).fill('Работа с клиентами');await page.getByRole('button',{name:'Сохранить тему',exact:true}).click();await page.getByRole('heading',{name:'Работа с клиентами',exact:true}).waitFor();assert.equal(topicRows.size,1);
+ await page.locator('#notesNewEntry').click();await page.getByLabel('Заголовок записи',{exact:true}).fill('Идея');await page.getByLabel('Текст записи',{exact:true}).fill('Первый текст\n<img src=x onerror=alert(1)>');await page.getByRole('button',{name:'Сохранить запись',exact:true}).click();await noteSaveReady;
+ assert.equal(await page.locator('#personalNoteSave').isDisabled(),true);await page.evaluate(()=>savePersonalNote(document.getElementById('personalNoteSave').dataset.key));assert.equal(noteCalls.filter(x=>x.name==='save_personal_note').length,1,'Duplicate save is blocked');releaseNoteSave();
+ await page.getByRole('status').filter({hasText:'Сохранено ·'}).waitFor();assert.equal(noteRows.size,1);assert.equal(await page.locator('#page img').count(),0);
+ await page.getByLabel('Текст записи',{exact:true}).fill('Черновик');await page.locator('.nav').getByRole('button',{name:'AI-чат',exact:true}).click();await page.locator('.nav').getByRole('button',{name:'Заметки',exact:true}).click();assert.equal(await page.getByLabel('Текст записи',{exact:true}).inputValue(),'Черновик','Draft survives in-app navigation');
+ await page.getByRole('button',{name:'Выйти',exact:true}).click();await page.getByRole('dialog',{name:'Есть несохранённые заметки'}).waitFor();await page.keyboard.press('Escape');await page.locator('#notesLeaveDialog').waitFor({state:'detached'});assert.equal(await page.getByLabel('Текст записи',{exact:true}).inputValue(),'Черновик');
+ uncertainNote=true;await page.getByRole('button',{name:'Сохранить запись',exact:true}).click();await page.getByRole('alert').filter({hasText:'Не удалось сохранить запись'}).waitFor();const pendingId=noteCalls.at(-1).args.p_request_id;
+ await page.getByRole('button',{name:'Сохранить запись',exact:true}).click();await page.getByRole('status').filter({hasText:'Сохранено ·'}).waitFor();assert.equal(noteCalls.at(-1).args.p_request_id,pendingId,'Unknown commit retries same request');assert.equal([...noteRows.values()][0].revision,2,'Retry does not duplicate update');
+ await page.reload();await setupNotes();await page.getByRole('button',{name:'Работа с клиентами',exact:true}).click();await page.getByRole('button',{name:'Идея',exact:false}).click();await page.getByLabel('Текст записи',{exact:true}).waitFor();assert.equal(await page.getByLabel('Текст записи',{exact:true}).inputValue(),'Черновик','Saved note survives reload');
+ await page.getByLabel('Текст записи',{exact:true}).fill('Мой вариант');const original=[...noteRows.values()][0];original.revision++;original.content='Из другого окна';
+ await page.getByRole('button',{name:'Сохранить запись',exact:true}).click();await page.getByRole('alert').filter({hasText:'Запись изменена в другом окне'}).waitFor();assert.equal(await page.getByLabel('Текст записи',{exact:true}).inputValue(),'Мой вариант');await page.getByRole('button',{name:'Сохранить копию',exact:true}).click();await page.getByRole('status').filter({hasText:'Сохранено ·'}).waitFor();assert.equal(noteRows.size,2);assert.equal(original.content,'Из другого окна','Conflict never overwrites remote data');
+ for(const width of [320,390,1440]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Notes fit '+width+'px');}
+ await page.setViewportSize({width:390,height:1000});await page.screenshot({path:'test-results/personal-notes-mobile.png',fullPage:true});
+ await page.getByRole('button',{name:'Создать тему',exact:true}).click();await page.getByLabel('Название темы',{exact:true}).fill('Идеи');await page.getByRole('button',{name:'Сохранить тему',exact:true}).click();await page.getByRole('heading',{name:'Идеи',exact:true}).waitFor();assert.equal(await page.locator('.notes-workspace .notes-row').count(),0,'Topics keep separate note lists');
+ notesReadFails=true;await page.getByRole('button',{name:'Обновить темы',exact:true}).click();await page.getByRole('alert').filter({hasText:'Не удалось загрузить заметки'}).waitFor();notesReadFails=false;await page.getByRole('button',{name:'Повторить',exact:true}).click();await page.getByRole('button',{name:'Работа с клиентами',exact:true}).waitFor();
+ await page.evaluate(()=>{state.user={id:'another',email:'another@example.test'};state.profile={id:'another',company_id:'other-company',role:'employee'};state.branchContext={can_manage:false};state.view='notes';render();});await page.getByText('Создайте первую тему, например «Идеи» или «Работа с клиентами».',{exact:true}).waitFor();assert.equal(await page.locator('.notes-row').count(),0,'Account/company change clears private cached notes');
  assert.deepEqual(errors,[]);
  console.log('PASS: real Chromium, assignment parameters, duplicate save, RPC failure recovery, escaping, select keyboard, obsolete response, role navigation, employee directory and 390px layout; responsive TOP at 320/390/440px, desktop table, per-employee assignment, errors, focus, Escape and first-branch creation');
  }finally{await browser.close();await new Promise(r=>server.close(r));}

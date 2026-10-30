@@ -11,7 +11,7 @@ from pathlib import Path
 import ssl
 import urllib.request
 
-FILES = ("company-top.js", "company-branches.js", "manager-history.js", "cold-call-voice-v5.js", "mentor-chat.js", "index.html")
+FILES = ("company-top.js", "company-branches.js", "manager-history.js", "cold-call-voice-v5.js", "mentor-chat.js", "personal-notes.js", "index.html")
 BACKUP = Path("release-backup")
 
 def digest(data):

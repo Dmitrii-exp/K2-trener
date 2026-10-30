@@ -7,6 +7,7 @@ on:
       - 'scripts/reg_ru_release.py'
       - 'manager-history.js'
       - 'mentor-chat.js'
+      - 'personal-notes.js'
       - 'cold-call-voice-v5.js'
       - 'index.html'
       - 'company-branches.js'
