@@ -57,3 +57,5 @@ AI-chat uses its existing card/message/composer styling with «История» 
 The main menu includes «Заметки». Topics and entries use existing cards, native buttons, labeled fields and explicit Save. Desktop has a topic sidebar plus notes/editor workspace; phones stack these regions with natural page scrolling. Drafts remain in memory across in-app navigation; leaving the page or signing out warns about unsaved text. Saved notes are private to their owner/current company. No delete controls are introduced.
 
 Mentor attachments reuse existing composer/secondary buttons and scoped mentor-file styles. A native file picker selects supported formats; photo thumbnails and explicit remove actions precede send. Mobile controls stack with readable filenames and no page overflow.
+
+Negotiation practice reuses the existing report sections, primary/secondary actions, native details, labelled textarea and state navigation. negotiation-lab.js owns one saved workspace for review/replay/deal; no new sidebar tab. Exact quotes and original/replayed context stay readable at 320px. Progress is a wrapping ordered list, never a clickable stage shortcut.
