@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{stripTypeScriptTypes}=require('node:module');
-const ctx={structuredClone};vm.createContext(ctx);vm.runInContext(stripTypeScriptTypes(fs.readFileSync('supabase/functions/_shared/negotiation-lab.ts','utf8')).replace(/export /g,'')+'\nthis.core={actOnLab,newDeal,newReplay,labTranscript};',ctx);
+const ctx={structuredClone};vm.createContext(ctx);vm.runInContext(fs.readFileSync('supabase/functions/_shared/client-outcomes.ts','utf8').replace(/export /g,'')+'\n'+stripTypeScriptTypes(fs.readFileSync('supabase/functions/_shared/negotiation-lab.ts','utf8')).replace(/^import .*;\s*$/gm,'').replace(/export /g,'')+'\nthis.core={actOnLab,newDeal,newReplay,labTranscript};',ctx);
 const {actOnLab:act,newDeal,newReplay,labTranscript}=ctx.core;
 (async()=>{
  const transcript=labTranscript([{speaker:'client',content:'Почему так дорого?'},{speaker:'manager',content:'Тогда дадим скидку.'},{speaker:'client',content:'Это будущий ответ, его нельзя использовать в повторе.'}]);
