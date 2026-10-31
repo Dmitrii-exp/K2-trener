@@ -14,7 +14,7 @@ const messages: Record<string, string> = {
 function operation(slug: string, body: any): string {
   if (slug.startsWith('evaluate-session')) return 'evaluate';
   if (['yandex-test','speechkit-test'].includes(slug)) return 'diagnostic';
-  if (slug === 'manager-ai-chat') return 'mentor';
+  if (['manager-ai-chat','negotiation-lab'].includes(slug)) return 'mentor';
   if (slug === 'gpt-live-session') return 'live';
   if (slug === 'proxy-stt') return 'stt';
   if (['proxy-tts','yandex-tts'].includes(slug)) return 'tts';
