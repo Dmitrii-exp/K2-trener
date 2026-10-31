@@ -8,6 +8,15 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: fixture-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,12 +36,27 @@ jobs:
       - run: node scripts/test-buyer-evaluation.cjs
       - run: node scripts/test-mentor-history.cjs
       - run: node scripts/test-mentor-attachments.cjs
+      - run: node scripts/test-negotiation-lab.cjs
+      - run: node scripts/test-negotiation-handler.cjs
+      - name: Isolated negotiation database contracts
+        run: bash scripts/test-negotiation-db.sh
+        env:
+          PGHOST: localhost
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: fixture-only
+          PGDATABASE: postgres
       - run: python scripts/test-reg-ru-release.py
       - run: node scripts/test-employee-analytics.cjs
       - name: Install browser test runtime
         run: npm install --prefix "$RUNNER_TEMP/branch-ui" --no-package-lock --no-save playwright@1.62.1
       - name: Branch workflow browser checks
         run: node scripts/test-branches-ui.cjs
+        env:
+          NODE_PATH: ${{ runner.temp }}/branch-ui/node_modules
+          UI_BROWSER_CHANNEL: chrome
+      - name: Negotiation practice browser checks
+        run: node scripts/test-negotiation-ui.cjs
         env:
           NODE_PATH: ${{ runner.temp }}/branch-ui/node_modules
           UI_BROWSER_CHANNEL: chrome

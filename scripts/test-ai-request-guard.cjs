@@ -32,6 +32,7 @@ async function run(options = {}) {
   r=await run({access:{allowed:true,cached_evaluation:{overall_score:85}},slug:'evaluate-session-v3'});assert.equal(r.providerCalls,0);assert.equal(JSON.parse(r.text).evaluation.overall_score,85);
   r=await run({body:{session_id:'invalid'}});assert.equal(r.status,400);assert.equal(r.gateCalls,0);
   r=await run({body:{client_settings:{mode:'manager_chat'}}});assert.equal(r.received.p_operation,'mentor');
+  r=await run({slug:'negotiation-lab',body:{id:'lab',action:'deal'}});assert.equal(r.received.p_operation,'mentor');
   const encoded=Buffer.from(JSON.stringify({mode:'manager_chat'})).toString('base64');
   r=await run({body:{scenario:{system_prompt:'AI_CLIENT_SETTINGS_V3_JSON:'+encoded}}});assert.equal(r.received.p_operation,'mentor');
   const form=new FormData();form.set('session_id',id);form.set('file',new Blob(['audio']),'speech.webm');
@@ -39,7 +40,7 @@ async function run(options = {}) {
   r=await run({slug:'gpt-live-session',body:{sdp:'offer',session:{voice:'test'}}});assert.equal(r.received.p_operation,'live');assert.equal(r.received.p_session_id,null);
   for(const slug of ['ai-client','chat-client-v12','chat-client-v13','chat-client-v39','yandex-chat-client']){r=await run({slug});assert.equal(r.received.p_operation,'reply');}
   for(const slug of ['yandex-test','speechkit-test']){r=await run({slug});assert.equal(r.received.p_operation,'diagnostic');}
-  const targets=['evaluate-session','chat-client','ai-client','chat-client-v12','chat-client-v13','yandex-test','yandex-chat-client','chat-client-v39','yandex-tts','speechkit-test','manager-ai-chat','evaluate-session-v2','evaluate-session-v3','proxy-stt','proxy-tts','gpt-live-session'];
+  const targets=['negotiation-lab','evaluate-session','chat-client','ai-client','chat-client-v12','chat-client-v13','yandex-test','yandex-chat-client','chat-client-v39','yandex-tts','speechkit-test','manager-ai-chat','evaluate-session-v2','evaluate-session-v3','proxy-stt','proxy-tts','gpt-live-session'];
   for(const slug of targets){const text=fs.readFileSync('supabase/functions/'+slug+'/index.ts','utf8');assert.ok(text.includes('Deno.serve(withAiAccess("'+slug+'", '),slug+' lacks the gate');stripTypeScriptTypes(text);}
-  console.log('PASS: real-user identity, entitlement denial before AI, fail-closed errors, cached evaluation, legacy aliases, multipart integrity, all 16 handlers gated');
+  console.log('PASS: real-user identity, entitlement denial before AI, fail-closed errors, cached evaluation, legacy aliases, multipart integrity, all 17 handlers gated');
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -1,0 +1,30 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{stripTypeScriptTypes}=require('node:module');
+const ctx={structuredClone};vm.createContext(ctx);vm.runInContext(stripTypeScriptTypes(fs.readFileSync('supabase/functions/_shared/negotiation-lab.ts','utf8')).replace(/export /g,'')+'\nthis.core={actOnLab,newDeal,newReplay,labTranscript};',ctx);
+const {actOnLab:act,newDeal,newReplay,labTranscript}=ctx.core;
+(async()=>{
+ const transcript=labTranscript([{speaker:'client',content:'Почему так дорого?'},{speaker:'manager',content:'Тогда дадим скидку.'},{speaker:'client',content:'Это будущий ответ, его нельзя использовать в повторе.'}]);
+ const source={role:'manager',transcript,finished:false};let calls=0;
+ const review=await act('review',source,'review','',async(system,input)=>{calls++;assert.match(system,/Менеджер/);return {summary:'Разбор',moments:[{turn_index:99,skill:'Fake',effect:'Invented',alternative:'No'},{turn_index:0,skill:'Wrong speaker',effect:'No',alternative:'No'},{turn_index:1,quote:'Поддельная цитата',skill:'Цена',effect:'Скидка без встречного условия',alternative:'С чем сравниваете стоимость?'},{turn_index:1,skill:'Duplicate',effect:'No',alternative:'No'}]};});
+ assert.equal(calls,1);assert.equal(review.moments.length,1);assert.equal(review.moments[0].quote,'Тогда дадим скидку.','Stored quote is exact, never model supplied');assert.equal(source.finished,false,'Original snapshot not mutated');
+ const replay=newReplay(review,0);assert.equal(replay.prefix.length,1);assert.equal(replay.messages.length,0);let seen;
+ let r=await act('replay',replay,'reply','С чем сравниваете цену?',async(system,input)=>{seen=input;assert.match(system,/несказанной/);return {reply:'У другого поставщика дешевле.'};});
+ assert.ok(!JSON.stringify(seen).includes('Это будущий ответ'));assert.equal(r.messages.length,2);assert.equal(replay.messages.length,0,'No persisted mutation before successful finish');
+ r=await act('replay',r,'finish','',async()=>({comparison:'better',reason:'Уточнил критерий сравнения',strengths:['Вопрос вместо скидки'],improvements:['Уточнить одинаковость товара']}));assert.equal(r.finished,true);assert.equal(r.result.comparison,'better');assert.ok(!('overall_score' in r.result),'Mini-practice cannot overwrite session scores');
+ await assert.rejects(act('replay',r,'reply','x',async()=>({})),/завершена/);await assert.rejects(act('replay',replay,'finish','',async()=>({})),/Сначала/);
+ let capped={...replay,messages:Array.from({length:3},()=>({role:'user',content:'x'}))};await assert.rejects(act('replay',capped,'reply','again',async()=>({})),/завершён/);
+ const deal=newDeal('manager');assert.equal(deal.stage,0);assert.match(deal.messages[0].content,/техник/);
+ const d1=await act('deal',deal,'reply','Можно контакт закупщика? Качество подтвердим сертификатом.',async()=>({reply:'Да, передам контакт: 88005353555.'}));
+ const bad=await act('deal',d1,'advance','',async()=>({passed:true,feedback:'ok',agreements:[{employee_quote:'Вымышленная договорённость',counterpart_quote:'88005353555'}]}));assert.equal(bad.stage,0);assert.equal(bad.lastFeedback.passed,false,'Invented agreement cannot advance');
+ const quote={employee_quote:d1.messages[1].content,counterpart_quote:d1.messages[2].content};
+ const next=await act('deal',d1,'advance','',async()=>({passed:true,feedback:'Контакт получен',agreements:[quote],strengths:['Заинтересовал качеством'],improvements:[]}));assert.equal(next.stage,1);assert.equal(next.agreements[0].counterpart_quote,d1.messages[2].content);assert.match(next.messages.at(-1).content,/Техник/);
+ const withoutPhone={...d1,messages:[deal.messages[0],d1.messages[1],{role:'assistant',content:'Поговорите с закупщиком.',stage:0}]};const noPhone=await act('deal',withoutPhone,'advance','',async()=>({passed:true,feedback:'ok',agreements:[{employee_quote:d1.messages[1].content,counterpart_quote:'Поговорите с закупщиком.'}]}));assert.equal(noPhone.stage,0,'Technician stage needs actual contact handoff');
+ let carried;await act('deal',next,'reply','Здравствуйте, что нужно вашему автопарку?',async(_,input)=>{carried=input;return {reply:'20 грузовых шин.'};});assert.equal(carried.agreements[0].counterpart_quote,quote.counterpart_quote,'Next counterpart receives exact prior memory');
+ let buyer=newDeal('buyer');assert.equal(buyer.role,'buyer');for(let stage=0;stage<4;stage++){
+  buyer=await act('deal',buyer,'reply','Подтверждаю условия этапа '+stage,async()=>({reply:'Да, подтверждаю условия этапа '+stage}));
+  const current=buyer.messages.filter(m=>m.stage===stage);buyer=await act('deal',buyer,'advance','',async()=>({passed:true,feedback:'Цель достигнута',agreements:[{employee_quote:current[1].content,counterpart_quote:current[2].content}],strengths:['Подтверждение'],improvements:[]}));
+ }assert.equal(buyer.finished,true);assert.equal(buyer.result.completed_stages,4);assert.equal(buyer.reports.length,4);
+ let early=await act('deal',newDeal('buyer'),'reply','Здравствуйте, нужны шины.',async()=>({reply:'Какие?'}));early=await act('deal',early,'finish','',async()=>({passed:false,feedback:'Условия не согласованы',agreements:[]}));assert.equal(early.finished,true);assert.equal(early.result.completed_stages,0);assert.match(early.result.reason,/до прохождения/);
+ await assert.rejects(act('deal',deal,'reply','x',async()=>{throw Error('upstream')}),/upstream/);assert.equal(deal.messages.length,1,'Provider failure preserves saved state');
+ assert.throws(()=>newDeal('admin'));assert.throws(()=>newReplay(review,999));assert.throws(()=>labTranscript([{speaker:'manager',content:'x'}]));
+ console.log('PASS: exact original quotes, model-index rejection, no future context, bounded isolated replay/comparison, manager/buyer stages, confirmed-only memory, contact handoff, no premature completion, provider failure and source immutability. Provider mocked.');
+})().catch(e=>{console.error(e);process.exitCode=1});

@@ -1,0 +1,21 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{stripTypeScriptTypes}=require('node:module');
+const compile=p=>stripTypeScriptTypes(fs.readFileSync(p,'utf8')).replace(/^import .*;\s*$/gm,'').replace(/export /g,'');
+const id='aaaaaaaa-1111-4111-8111-111111111111',rid='bbbbbbbb-1111-4111-8111-111111111111',uid='cccccccc-1111-4111-8111-111111111111';
+async function run({claim='claimed',otherOwner=false,foreignSource=false,sourceStatus='completed',fail=false,action='review',existing=false}={}){
+ let handler,provider=0,args=[],sourceReads=0;
+ const source={id,employee_id:foreignSource?'someone-else':uid,scenario_id:19,status:sourceStatus,transcript:[{speaker:'client',content:'Скидок нет.'},{speaker:'manager',content:'Дайте скидку.'}]};
+ const row={id,owner_id:otherOwner?'other':uid,kind:'review',revision:0,data:{role:'buyer',transcript:[{role:'assistant',content:'Скидок нет.'},{role:'user',content:'Дайте скидку.'}],finished:false}};
+ const db={auth:{getUser:async()=>({data:{user:{id:uid}}})},from:table=>({select(){return this;},eq(){return this;},maybeSingle:async()=>{if(table==='saletrening_sessions'){sourceReads++;return {data:source};}return {data:existing?row:null};}})};
+ const admin={rpc:async(name,a)=>{args.push({name,a});if(name==='create_negotiation_lab')return {data:row};if(name==='claim_negotiation_lab')return {data:{state:claim,lab:row}};return {data:{...row,data:a.p_data,status:a.p_data?'ready':'failed',revision:1}};}};
+ const ctx={console:{error(){}},Request,Response,FormData,TextDecoder,Uint8Array,atob,AbortSignal,structuredClone,createClient:(url,key)=>key==='service'?admin:db,Deno:{env:{get:k=>({SUPABASE_URL:'https://db.test',SUPABASE_ANON_KEY:'public',SUPABASE_SERVICE_ROLE_KEY:'service',PROXYAPI_API_KEY:'private-provider'})[k]},serve:fn=>handler=fn},fetch:async(url,init)=>{if(url.endsWith('/auth/v1/user'))return Response.json({id:uid});if(url.includes('/rpc/'))return Response.json({allowed:true});provider++;if(fail)return Response.json({}, {status:503});return Response.json({choices:[{message:{content:JSON.stringify({summary:'Разбор',moments:[{turn_index:1,skill:'Торг',effect:'Нет обоснования',alternative:'Как изменятся условия при предоплате?'}]})}}]});}};
+ vm.createContext(ctx);vm.runInContext(compile('supabase/functions/_shared/ai-access.ts')+'\n'+compile('supabase/functions/_shared/negotiation-lab.ts')+'\n'+compile('supabase/functions/negotiation-lab/index.ts'),ctx);
+ const response=await handler(new Request('https://function.test',{method:'POST',headers:{Authorization:'Bearer token','Content-Type':'application/json'},body:JSON.stringify({id,request_id:rid,revision:0,action,source_session_id:id,owner_id:'forged',transcript:[{speaker:'manager',content:'Forged transcript'}],role:'manager'})}));return {status:response.status,result:await response.json(),provider,args,sourceReads};
+}
+(async()=>{
+ const r=await run();assert.equal(r.status,200);assert.equal(r.provider,1);assert.equal(r.result.lab.data.role,'buyer','Role derived from persisted scenario, not request');assert.equal(r.result.lab.data.moments[0].quote,'Дайте скидку.');assert.ok(r.args.every(x=>x.a.p_user_id===uid));assert.equal(r.args[0].a.p_data.transcript[0].content,'Скидок нет.');
+ for(const claim of ['cached','busy','conflict','full','forbidden']){const r=await run({claim,existing:true});assert.equal(r.provider,0);assert.ok([200,404,409].includes(r.status));}
+ for(const options of [{otherOwner:true,existing:true},{foreignSource:true},{sourceStatus:'started'}]){const r=await run(options);assert.equal(r.provider,0);assert.ok([400,403].includes(r.status));assert.equal(r.args.length,0);}
+ const failed=await run({fail:true});assert.equal(failed.status,500);assert.equal(failed.args.at(-1).a.p_data,null,'Failure releases pending claim without changing original state');
+ assert.ok(r.args.every(x=>!x.name.includes('finish_session')&&!x.name.includes('score')),'Separate persistence never writes source score');
+ console.log('PASS: real handler auth/gate, source ownership/status, stored transcript/role, cached/busy/conflict before provider, service identity, success/failure persistence. Provider mocked.');
+})().catch(e=>{console.error(e);process.exitCode=1});

@@ -8,6 +8,7 @@ on:
       - 'manager-history.js'
       - 'mentor-chat.js'
       - 'personal-notes.js'
+      - 'negotiation-lab.js'
       - 'cold-call-voice-v5.js'
       - 'index.html'
       - 'company-branches.js'
