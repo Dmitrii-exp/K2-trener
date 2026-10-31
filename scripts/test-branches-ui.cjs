@@ -228,7 +228,7 @@ const server=http.createServer((req,res)=>{
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Buyer report fits mobile');
  await page.screenshot({path:'test-results/buyer-negotiation-report-mobile.png',fullPage:true});
  // Personal mentor history: separate dialogues, refresh, failure/retry and in-flight switching.
- const mentorCors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey,content-type,prefer','access-control-allow-methods':'GET,POST,OPTIONS'};
+ const mentorCors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey,content-type,prefer,x-upsert','access-control-allow-methods':'GET,POST,OPTIONS'};
  const dialogues=new Map(),mentorRequests=[];let pendingRoute,pendingBody,firstReady;const pendingReady=new Promise(resolve=>firstReady=resolve);let failOnce=true,historyFails=false;
  const saveMentorAnswer=(body,reply)=>{const row=dialogues.get(body.dialogue_id);row.messages.push({role:'assistant',content:reply,request_id:body.request_id});row.status='ready';row.updated_at=new Date().toISOString();};
  await page.route(/\/rest\/v1\/mentor_chat_dialogues\?/,async route=>{
@@ -243,7 +243,7 @@ const server=http.createServer((req,res)=>{
  await page.route(/\/functions\/v1\/manager-ai-chat$/,async route=>{
   if(route.request().method()==='OPTIONS'){await route.fulfill({status:204,headers:mentorCors});return;}
   const body=route.request().postDataJSON();mentorRequests.push(body);assert.equal(body.transcript,undefined,'Browser does not supply persistent mentor context');
-  const row=dialogues.get(body.dialogue_id);if(!row.messages.some(x=>x.role==='user'&&x.request_id===body.request_id))row.messages.push({role:'user',content:body.message,request_id:body.request_id});
+  const row=dialogues.get(body.dialogue_id);if(!row.messages.some(x=>x.role==='user'&&x.request_id===body.request_id))row.messages.push({role:'user',content:body.message,request_id:body.request_id,attachments:body.attachments||[]});
   if(row.messages.length===1)row.title=body.message;row.status='pending';row.current_request_id=body.request_id;row.request_content=body.message;
   if(body.message==='Первый вопрос'){pendingRoute=route;pendingBody=body;firstReady();return;}
   if(body.message==='Повтор'&&failOnce){failOnce=false;row.status='failed';await route.fulfill({status:500,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({ok:false,error:'Временная ошибка'})});return;}
@@ -272,6 +272,15 @@ const server=http.createServer((req,res)=>{
  const retried=mentorRequests.filter(x=>x.message==='Повтор');assert.equal(retried.length,2);assert.equal(retried[0].request_id,retried[1].request_id);assert.equal(await page.locator('#aiMessages .msg.manager').count(),1,'Retry keeps one user message');
  historyFails=true;await page.locator('#page').getByRole('button',{name:'История',exact:true}).click();await page.getByRole('alert').filter({hasText:'Не удалось загрузить историю'}).waitFor();historyFails=false;await page.getByRole('button',{name:'Повторить',exact:true}).click();await page.locator('.mentor-history-row').first().waitFor();
  await page.screenshot({path:'test-results/mentor-history-mobile.png',fullPage:true});
+ let uploads=0;await page.route(/\/storage\/v1\/object\/mentor-private\//,async route=>{if(route.request().method()==='OPTIONS'){await route.fulfill({status:204,headers:mentorCors});return;}uploads++;assert.equal(route.request().headers()['x-upsert'],'false');await route.fulfill({status:200,headers:mentorCors,body:'{}'});});
+ await page.getByRole('button',{name:'Новый чат',exact:true}).click();
+ await page.locator('#mentorFileInput').setInputFiles({name:'bad.exe',mimeType:'application/octet-stream',buffer:Buffer.from('no')});await page.getByRole('alert').filter({hasText:'Поддерживаются'}).waitFor();assert.equal(uploads,0);
+ await page.locator('#mentorFileInput').setInputFiles([{name:'Условия.txt',mimeType:'text/plain',buffer:Buffer.from('Доставка завтра')},{name:'photo.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aY9kAAAAASUVORK5CYII=','base64')}]);
+ await page.locator('.mentor-file-draft img').waitFor();assert.equal(await page.locator('.mentor-file-draft').count(),2);await page.locator('.mentor-remove').first().click();assert.equal(await page.locator('.mentor-file-draft').count(),1);
+ for(const width of [320,390,1440]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Attachment composer fits '+width+'px');}
+ await page.setViewportSize({width:390,height:1000});const composerBounds=await page.locator('.mentor-chat .composer').boundingBox(),chatBounds=await page.locator('.mentor-chat').boundingBox();assert.ok(composerBounds.y+composerBounds.height<=chatBounds.y+chatBounds.height+1,'Attachment composer is not clipped');await page.screenshot({path:'test-results/mentor-attachments-mobile.png',fullPage:true});
+ await page.locator('#aiSend').click();await page.getByText('Продолжение диалога',{exact:false}).waitFor();assert.equal(uploads,1);const attachmentRequest=mentorRequests.at(-1);assert.equal(attachmentRequest.message,'Проанализируй прикреплённые файлы.');assert.equal(attachmentRequest.attachments.length,1);assert.equal(attachmentRequest.attachments[0].type,'image/png');assert.ok(!JSON.stringify(attachmentRequest).includes('base64'),'Browser request has private refs, not large data');
+ await page.locator('#page').getByRole('button',{name:'История',exact:true}).click();await page.getByRole('button',{name:'Проанализируй прикреплённые файлы.',exact:false}).click();await page.locator('.mentor-file').waitFor();assert.match(await page.locator('.mentor-file').textContent(),/photo.png/,'Saved attachment restored from history');
  await page.evaluate(()=>{state.user={id:'other',email:'other@example.test'};state.profile={id:'other',company_id:'other-company',role:'employee'};state.view='ai';page();});assert.equal(await page.locator('#aiMessages .msg').count(),0,'Account switching clears cached messages');
  await page.locator('#page').getByRole('button',{name:'История',exact:true}).click();await page.getByText('Сохранённых диалогов пока нет.',{exact:false}).waitFor();
  // Private topic-based notes: create/edit/save, drafts, retry, conflict copy and reload.
