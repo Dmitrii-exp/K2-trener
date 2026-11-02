@@ -10,3 +10,5 @@ grant usage on schema auth to authenticated,service_role;
 grant execute on function auth.uid() to authenticated,service_role;
 SQL
 python scripts/build-negotiation-lab-test.py | psql -v ON_ERROR_STOP=1 -q
+
+python scripts/build-company-positions-test.py | psql -v ON_ERROR_STOP=1 -q
