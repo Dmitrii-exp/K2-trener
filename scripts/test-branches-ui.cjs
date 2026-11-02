@@ -23,7 +23,7 @@ const server=http.createServer((req,res)=>{
   sb.rpc=async(name,args)=>{
    rpcCalls.push({name,args});
    if(name==='list_company_branches')return {data:window.noBranches?[]:[{branch_id:'branch',branch_name:'Филиал <img src=x onerror=alert(1)>',director_name:'Руководитель',employee_count:2}]};
-   if(name==='list_company_branch_candidates')return {data:[{employee_id:'employee',employee_name:'Сотрудник'}]};
+   if(name==='company_position_candidates')return {data:[{employee_id:'employee',employee_name:'Сотрудник'}]};
    if(name==='company_team_directory')return {data:[{employee_name:'Сотрудник',branch_name:'Филиал'}]};
    if(name==='company_top_public')return {data:[{employee_name:'Иван Оченьдлинноеимябезпробеловдляпроверкиадаптивности',branch_name:'Не назначен',text_count:10,voice_count:32,best_score:90,average_score:84.5}]};
    if(name==='create_company_branch'){window.noBranches=false;return {data:'branch'};}
@@ -85,6 +85,7 @@ const server=http.createServer((req,res)=>{
  const assign=page.getByRole('button',{name:'Назначить должность и филиал',exact:true});
  await assign.click();
  const dialog=page.getByRole('dialog');await dialog.getByLabel('Должность',{exact:true}).waitFor();
+ await dialog.getByLabel('Филиал',{exact:true}).selectOption('branch');
  await dialog.getByLabel('Должность',{exact:true}).selectOption('branch_director');
  await dialog.getByRole('button',{name:'Сохранить назначение'}).click();
  assert.equal(await dialog.locator('#employeeBranchSave').isDisabled(),true);
@@ -111,17 +112,23 @@ const server=http.createServer((req,res)=>{
  await page.screenshot({path:'test-results/team-assignment-mobile.png',fullPage:true});
  await dialog.getByRole('button',{name:'Отмена',exact:true}).click();
  await assign.click();await dialog.getByLabel('Должность',{exact:true}).waitFor();
- assert.equal(await dialog.locator('option[value="network_director"]').count(),0,'Network director option is hidden from normal company directors');
+ assert.equal(await dialog.locator('option[value="network_director"]').isDisabled(),true,'Network role is visible but protected from non-administrator assignment');
  await dialog.getByRole('button',{name:'Отмена',exact:true}).click();
  await page.evaluate(()=>{state.branchContext.can_assign_network_director=true;window.noBranches=true;});
  await assign.click();await dialog.getByLabel('Должность',{exact:true}).waitFor();
- assert.equal(await dialog.getByLabel('Должность',{exact:true}).inputValue(),'network_director');
+ await dialog.getByLabel('Должность',{exact:true}).selectOption('network_director');
  assert.equal(await dialog.getByLabel('Филиал',{exact:true}).isVisible(),false,'Network role needs no branch');
  await dialog.getByRole('button',{name:'Сохранить назначение'}).click();
  const networkCall=await page.evaluate(()=>rpcCalls.filter(c=>c.name==='set_company_position').at(-1));
  assert.deepEqual(networkCall.args,{p_company_id:'company',p_branch_id:null,p_employee_id:'employee',p_position:'network_director'});
  await page.evaluate(()=>finishAssignment({data:null,error:null}));await dialog.waitFor({state:'detached'});
  await page.getByText('Руководитель сети · SaleTrening',{exact:true}).waitFor();
+ await page.evaluate(()=>{state.branchContext.can_assign_network_director=true;window.noBranches=false;});await assign.click();await dialog.getByLabel('Должность',{exact:true}).waitFor();
+ assert.deepEqual(await dialog.getByLabel('Должность',{exact:true}).locator('option').allTextContents(),['Менеджер','Закупщик','Руководитель филиала','Руководитель сети']);
+ await dialog.getByLabel('Должность',{exact:true}).selectOption('buyer');await dialog.getByLabel('Филиал',{exact:true}).selectOption('');await dialog.getByRole('button',{name:'Сохранить назначение'}).click();
+ const buyerCall=await page.evaluate(()=>rpcCalls.filter(c=>c.name==='set_company_position').at(-1));assert.deepEqual(buyerCall.args,{p_company_id:'company',p_branch_id:null,p_employee_id:'employee',p_position:'buyer'});await page.evaluate(()=>finishAssignment({data:null,error:null}));await dialog.waitFor({state:'detached'});await page.getByText('Закупщик · SaleTrening',{exact:true}).waitFor();
+ await page.evaluate(()=>{state.profile.role='employee';state.profile.staff_position='buyer';state.branchContext={position:'buyer',can_manage:false};state.view='home';render();});assert.match(await page.locator('.user-mini').textContent(),/Закупщик/);assert.equal(await page.locator('.nav').getByRole('button',{name:'Аналитика',exact:true}).count(),0);
+ await page.evaluate(()=>{state.profile.role='director';state.profile.staff_position='manager';state.branchContext={can_manage:true};state.view='team';render();});
  await page.evaluate(()=>{state.branchContext={can_manage:false,branch_role:'branch_director'};render();});
  assert.equal(await page.getByRole('button',{name:'Назначить должность и филиал',exact:true}).count(),0,'Only network managers can assign');
  // Per-employee growth charts use real SVG layout and current-user REST reads.

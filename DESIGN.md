@@ -59,3 +59,5 @@ The main menu includes «Заметки». Topics and entries use existing cards
 Mentor attachments reuse existing composer/secondary buttons and scoped mentor-file styles. A native file picker selects supported formats; photo thumbnails and explicit remove actions precede send. Mobile controls stack with readable filenames and no page overflow.
 
 Negotiation practice reuses the existing report sections, primary/secondary actions, native details, labelled textarea and state navigation. negotiation-lab.js owns one saved workspace for review/replay/deal; no new sidebar tab. Exact quotes and original/replayed context stay readable at 320px. Progress is a wrapping ordered list, never a clickable stage shortcut.
+
+Company positions reuse the existing assignment dialog and native select. All four business positions are visible; network appointment is disabled without the existing verified administrator capability. Manager/buyer may remain without a branch, branch leader requires one. Company-team cards and current-account badges use server-confirmed positions.
