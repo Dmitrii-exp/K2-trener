@@ -25,8 +25,8 @@ select pg_temp.assert_branch((branch_test.company_branch_context()->>'can_manage
 select branch_test.create_company_branch('Created by network director');
 select branch_test.set_company_position('10000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000007','manager','30000000-0000-4000-8000-000000000001');
 select branch_test.set_company_position('10000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000008','buyer','30000000-0000-4000-8000-000000000001');
-select pg_temp.assert_branch((select position='buyer' from branch_test.company_position_candidates('10000000-0000-4000-8000-000000000001') where employee_id='00000000-0000-4000-8000-000000000008'),'candidate reports buyer title');
-select pg_temp.assert_branch((select position='branch_director' from branch_test.company_team_positions() where employee_id='00000000-0000-4000-8000-000000000003'),'team card reports branch title');
+select pg_temp.assert_branch((select "position"='buyer' from branch_test.company_position_candidates('10000000-0000-4000-8000-000000000001') where employee_id='00000000-0000-4000-8000-000000000008'),'candidate reports buyer title');
+select pg_temp.assert_branch((select "position"='branch_director' from branch_test.company_team_positions() where employee_id='00000000-0000-4000-8000-000000000003'),'team card reports branch title');
 select pg_temp.assert_branch((select bool_and(role='employee') from branch_test.profiles where id in ('00000000-0000-4000-8000-000000000007','00000000-0000-4000-8000-000000000008')),'same staff permissions in profiles');
 reset role;
 select pg_temp.assert_branch((select bool_and(role='employee') from branch_test.organization_members where user_id in ('00000000-0000-4000-8000-000000000007','00000000-0000-4000-8000-000000000008')),'same staff permissions in memberships');

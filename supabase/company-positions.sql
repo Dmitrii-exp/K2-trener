@@ -29,7 +29,7 @@ language sql stable security definer set search_path='' as $$
 $$;
 -- Versioned read endpoint leaves the old assignment endpoint's result contract intact.
 create function public.company_position_candidates(p_company_id uuid)
-returns table(employee_id uuid,employee_name text,branch_id uuid,branch_role text,position text)
+returns table(employee_id uuid,employee_name text,branch_id uuid,branch_role text,"position" text)
 language sql stable security definer set search_path='' as $$
  select p.id,coalesce(nullif(btrim(concat_ws(' ',p.first_name,p.last_name)),''),'Сотрудник'),
  b.branch_id,b.branch_role,case when m.role='director' then 'network_director'
@@ -42,7 +42,7 @@ language sql stable security definer set search_path='' as $$
 $$;
 -- Cards use actual positions for the same roster the caller may read already.
 create function public.company_team_positions()
-returns table(employee_id uuid,position text)
+returns table(employee_id uuid,"position" text)
 language sql stable security definer set search_path='' as $$
  select p.id,case when b.branch_role='branch_director' then 'branch_director'
  when m.role='director' then 'network_director' when m.role='admin' then 'admin' else p.staff_position end
