@@ -23,7 +23,7 @@ Deno.serve(withAiAccess("negotiation-lab", async req=>{
   const db=createClient(url,Deno.env.get('SUPABASE_ANON_KEY')!,{global:{headers:{Authorization:auth}}});
   const {data:{user},error:authError}=await db.auth.getUser(auth.replace(/^Bearer\s+/i,'').trim());if(authError||!user)return json({ok:false,error:'Войдите в аккаунт.'},401);
   const b=await req.json();if(!b||typeof b!=='object'||Array.isArray(b))return json({ok:false,error:'Некорректный запрос.'},400);if(!uuid(b.id)||!uuid(b.request_id)||!Number.isInteger(b.revision)||b.revision<0)return json({ok:false,error:'Некорректный запрос. Откройте попытку заново.'},400);
-  const action=b.action;if(!['review','replay','deal','reply','advance','finish'].includes(action))return json({ok:false,error:'Неизвестное действие.'},400);
+  const action=b.action;if(!['review','replay','deal','reply','advance','finish','challenge_start','challenge_reply','challenge_finish'].includes(action))return json({ok:false,error:'Неизвестное действие.'},400);
   const message=typeof b.message==='string'?b.message.trim():'';if(message.length>2000)return json({ok:false,error:'Реплика должна быть не длиннее 2000 символов.'},400);
   admin=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   const {data:existing,error:readError}=await db.from('negotiation_labs').select('*').eq('id',b.id).maybeSingle();if(readError)throw Error('Не удалось загрузить попытку.');

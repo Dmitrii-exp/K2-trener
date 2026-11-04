@@ -1,6 +1,12 @@
 import { clientOutcomeRules } from "./client-outcomes.ts";
 export const labText=(v:any,n=2000)=>typeof v==='string'?v.trim().slice(0,n):'';
 const strings=(v:any)=>Array.isArray(v)?v.map(x=>labText(x,700)).filter(Boolean).slice(0,3):[];
+// Observable behaviours, not a requirement to repeat a particular script.
+export const labSkills:any={
+ manager:{opening:['Первый контакт','Объясняет повод и получает возможность продолжить разговор.'],discovery:['Выявление потребности','Уточняет задачу, критерии, сроки и использует ответы клиента.'],technician:['Разговор с техником','Обсуждает технические потребности и выясняет порядок закупки.'],comparison:['Сравнение предложений','Выясняет состав, характеристики и условия сравниваемых предложений.'],concessions:['Скидка и условия','Уточняет причину запроса и обсуждает допустимую уступку с встречным условием.'],proposal:['Коммерческое предложение','Выясняет содержание предложения, получателя и следующий шаг.'],hesitation:['Сомнение клиента','Уточняет оставшийся вопрос и предлагает уместный дальнейший шаг.'],followup:['Повторный контакт','Учитывает предыдущий контакт и предлагает полезное продолжение.']},
+ buyer:{request:['Запрос поставщику','Уточняет характеристики товара, объём, наличие и сроки.'],comparison:['Сравнение предложений','Сопоставляет полную стоимость, доставку, оплату и гарантию.'],negotiation:['Переговоры об условиях','Обсуждает цену, доставку, оплату и встречные условия без лишнего объёма.'],verification:['Проверка обещаний','Уточняет подтверждение наличия и существенных условий.'],agreement:['Фиксация договорённостей','Фиксирует товар, объём, цену, доставку и оплату.']}
+};
+const skillFor=(role:string,id:any)=>labSkills[role]?.[id]||null;
 export const labStages={
  manager:[['Техник','Заинтересуйте качеством шин и получите контакт закупщика.','Здравствуйте. Я техник, отвечаю за качество и эксплуатацию шин. Закупками и ценами занимается другой сотрудник.'],['Закупщик','Выясните потребность, сроки, объём и критерии выбора.','Здравствуйте. Техник передал ваш контакт. Расскажите, что предлагаете и чем это будет полезно нашему автопарку.'],['Коммерческое предложение','Напишите учебное КП: товар, количество, цена, доставка и оплата.','Пришлите предложение прямо здесь, чтобы я мог проверить состав и условия.'],['Цена и условия','Обоснуйте цену, обсудите уступки и встречные обязательства.','Ваше предложение получил. Цена кажется высокой. Какие условия можете улучшить?'],['Договорённости','Подтвердите согласованные условия и конкретный следующий шаг.','Давайте зафиксируем, о чём договорились и что делаем дальше.']],
  buyer:[['Запрос предложения','Выясните ассортимент, наличие и исходные условия оптового продавца.','Здравствуйте, оптовый отдел шинной компании. Какой товар и объём вас интересуют?'],['Сравнение условий','Уточните качество, доставку, оплату и полную стоимость предложения.','Давайте уточним условия, чтобы вы могли сопоставить предложение с другими поставщиками.'],['Торг','Обменивайте обязательства на улучшение цены, доставки, оплаты или бонусов.','Обсудим условия. Просто так снизить цену не сможем — что вы готовы предложить со своей стороны?'],['Договорённости','Зафиксируйте товар, объём, цену, доставку, оплату и письменное подтверждение.','Какие условия фиксируем в итоговом предложении?']]
@@ -28,15 +34,38 @@ export async function actOnLab(kind:string,data:any,action:string,message:string
  const d=structuredClone(data),role=d.role==='buyer'?'Закупщик':'Менеджер';
  if(kind==='review'){
   if(action!=='review')throw Error('Разбор уже создан.');
-  const p=jsonData(await ask(rules+' Анализируй действия сотрудника в роли '+role+'. Выбери до 3 реально важных эпизодов. Не создавай ошибки ради количества. turn_index — индекс реплики СОТРУДНИКА в массиве (начиная с 0), перед которой уже есть ответ собеседника. Указывай влияние по наблюдаемым данным, без гарантии результата альтернативной фразы. Формат: {"summary":"...","moments":[{"turn_index":0,"skill":"...","effect":"...","alternative":"..."}]}.',d.transcript.map((m:any,i:number)=>({turn_index:i,...m}))));
+  const p=jsonData(await ask(rules+' Анализируй действия сотрудника в роли '+role+'. Выбери до 3 реально важных эпизодов. Не создавай ошибки ради количества. Выбери skill_id только из предложенных навыков; если ни один не подходит, оставь пустым. Оценивай смысл действия, не совпадение с шаблоном. turn_index — индекс реплики СОТРУДНИКА в массиве (начиная с 0), перед которой уже есть ответ собеседника. Указывай влияние по наблюдаемым данным, без гарантии результата альтернативной фразы. Формат: {"summary":"...","moments":[{"turn_index":0,"skill_id":"...","skill":"...","effect":"...","alternative":"..."}]}.',{skills:labSkills[d.role],transcript:d.transcript.map((m:any,i:number)=>({turn_index:i,...m}))}));
   const seen=new Set();d.summary=labText(p.summary,1500);d.moments=[];
   for(const m of Array.isArray(p.moments)?p.moments:[]){const i=m?.turn_index;if(!Number.isInteger(i)||i<1||i>=d.transcript.length||d.transcript[i].role!=='user'||!d.transcript.slice(0,i).some((x:any)=>x.role==='assistant')||seen.has(i))continue;
-   const effect=labText(m.effect,1200),alternative=labText(m.alternative,1200),skill=labText(m.skill,200);if(!effect||!alternative||!skill)continue;
-   seen.add(i);d.moments.push({turn_index:i,quote:d.transcript[i].content,skill,effect,alternative});if(d.moments.length===3)break;
+   const standard=skillFor(d.role,m.skill_id),effect=labText(m.effect,1200),alternative=labText(m.alternative,1200),skill=standard?standard[0]:labText(m.skill,200);if(!effect||!alternative||!skill)continue;
+   seen.add(i);d.moments.push({turn_index:i,quote:d.transcript[i].content,skill_id:standard?m.skill_id:null,skill,criterion:standard?standard[1]:'',effect,alternative});if(d.moments.length===3)break;
   }
   d.finished=true;return d;
  }
  if(action==='deal'||action==='replay')return d;
+ if(kind==='replay'&&action==='challenge_start'){
+  if(!d.finished||d.challenge)throw Error('Сначала завершите переигрывание.');
+  const standard=skillFor(d.role,d.moment?.skill_id);
+  const p=jsonData(await ask(rules+' Создай новую короткую ситуацию для самостоятельной проверки одного навыка. Другой клиент и обстоятельства, без подсказки, образца ответа и оценки. Для закупщика собеседник — продавец шин; для менеджера — клиент. Не утверждай реальные цены или характеристики. Верни {"brief":"задание сотруднику", "opening":"первая реплика собеседника"}.',{role,skill:standard||[labText(d.moment?.skill,200),'Применить навык к новой ситуации'],previous_context:d.prefix.slice(-4)}));
+  const brief=visibleReply(p.brief),opening=visibleReply(p.opening);d.challenge={brief,messages:[{role:'assistant',content:opening}],finished:false};return d;
+ }
+ if(kind==='replay'&&['challenge_reply','challenge_finish'].includes(action)){
+  const c=d.challenge;if(!d.finished||!c||c.finished)throw Error('Самостоятельная практика недоступна.');
+  const turns=c.messages.filter((m:any)=>m.role==='user').length;
+  if(action==='challenge_reply'){
+   if(!message||message.length>2000)throw Error('Введите реплику до 2000 символов.');
+   if(turns>=3)throw Error('Достигнут предел реплик. Получите результат.');
+   c.messages.push({role:'user',content:message});
+   const p=jsonData(await ask(rules+' Играй только собеседника в новой учебной ситуации, без подсказок и оценки. Реагируй на смысл ответа. Не придумывай подтверждённые условия. Формат {"reply":"..."}.',{role,brief:c.brief,dialogue:c.messages}));
+   c.messages.push({role:'assistant',content:visibleReply(p.reply)});return d;
+  }
+  if(!turns)throw Error('Сначала ответьте собеседнику хотя бы один раз.');
+  const standard=skillFor(d.role,d.moment?.skill_id);
+  const p=jsonData(await ask(rules+' Оцени самостоятельное применение навыка по фактическим репликам. Не требуй дословного совпадения с образцом. Отказ клиента сам по себе не ошибка. Верни {"outcome":"demonstrated|developing|insufficient", "evidence":"дословная цитата сотрудника", "reason":"...", "next_step":"..."}. Если данных недостаточно, outcome=insufficient.',{role,skill:standard||[d.moment?.skill,'Применение навыка'],brief:c.brief,dialogue:c.messages}));
+  if(!['demonstrated','developing','insufficient'].includes(p.outcome)||!labText(p.reason))throw Error('Не удалось проверить ответ. Повторите запрос.');
+  let evidence=labText(p.evidence,1200);const verified=!!evidence&&c.messages.some((m:any)=>m.role==='user'&&m.content.includes(evidence));if(p.outcome!=='insufficient'&&!verified)throw Error('Не удалось подтвердить цитату. Повторите проверку.');if(!verified)evidence='';
+  c.result={outcome:p.outcome,evidence,reason:labText(p.reason,1500),next_step:labText(p.next_step,700)};c.finished=true;return d;
+ }
  if(d.finished)throw Error('Эта попытка уже завершена. Начните новую.');
  const current=kind==='deal'?d.messages.filter((m:any)=>m.stage===d.stage):d.messages;
  const turns=current.filter((m:any)=>m.role==='user').length;
