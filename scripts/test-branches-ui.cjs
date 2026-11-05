@@ -209,22 +209,22 @@ const server=http.createServer((req,res)=>{
  await page.waitForFunction(()=>state.view==='history');
  // Purchasing cold calls: setup switching and the persisted buyer report.
  await page.evaluate(()=>{
-  window.__stColdCallActive=false;state.report=null;state.scenarios=[{id:4,title:'Холодный звонок — выход на ЛПР',difficulty:'Средний'},{id:9,title:'Холодный звонок',difficulty:'Сложный'},{id:19,title:'Холодный звонок поставщику',difficulty:'Средний'}];state.view='coldcall';page();
+  window.__stColdCallActive=false;state.report=null;state.scenarios=[{id:4,title:'Холодный звонок — выход на ЛПР',difficulty:'Средний'},{id:9,title:'Холодный звонок',difficulty:'Сложный'},{id:19,title:'Холодный звонок поставщику',difficulty:'Средний'},{id:20,title:'Дорого — закупка',difficulty:'Средний'}];state.view='coldcall';page();
   window.launchColdCall=async()=>{window.buyerLaunch={id:coldCallScenario(coldCall.difficulty)?.id,mode:coldCall.mode,facts:coldCall.facts,objections:state.clientObjections};};
  });
  await page.getByRole('button',{name:'Менеджер',exact:true}).waitFor();
- await page.locator('#coldFacts').fill('Факты менеджера');await page.locator('#coldDifficulty').selectOption('Средний');
+ await page.locator('#coldScenario').selectOption('9');await page.locator('#coldFacts').fill('Факты менеджера');await page.locator('#coldDifficulty').selectOption('Средний');
  await page.getByRole('button',{name:'Закупщик',exact:true}).focus();await page.keyboard.press('Enter');
  assert.equal(await page.locator('#coldModeBuyer').getAttribute('aria-pressed'),'true');
  assert.equal(await page.locator('#coldModeBuyer').evaluate(el=>document.activeElement===el),true);
- await page.getByLabel('Факты о закупке',{exact:false}).fill('40 шин 315/70 R22.5');await page.locator('#coldDifficulty').selectOption('Сложный');
+ await page.locator('#coldScenario').selectOption('20');await page.getByLabel('Факты о закупке',{exact:false}).fill('40 шин 315/70 R22.5');await page.locator('#coldDifficulty').selectOption('Сложный');
  assert.equal(await page.getByText('Возражения клиента',{exact:true}).isVisible(),false);
- await page.getByRole('button',{name:'Менеджер',exact:true}).click();assert.equal(await page.locator('#coldFacts').inputValue(),'Факты менеджера');assert.equal(await page.locator('#coldDifficulty').inputValue(),'Средний');
- await page.getByRole('button',{name:'Закупщик',exact:true}).click();assert.equal(await page.locator('#coldFacts').inputValue(),'40 шин 315/70 R22.5');assert.equal(await page.locator('#coldDifficulty').inputValue(),'Сложный');
+ await page.getByRole('button',{name:'Менеджер',exact:true}).click();assert.equal(await page.locator('#coldScenario').inputValue(),'9');assert.equal(await page.locator('#coldFacts').inputValue(),'Факты менеджера');assert.equal(await page.locator('#coldDifficulty').inputValue(),'Средний');
+ await page.getByRole('button',{name:'Закупщик',exact:true}).click();assert.equal(await page.locator('#coldScenario').inputValue(),'20');assert.equal(await page.locator('#coldFacts').inputValue(),'40 шин 315/70 R22.5');assert.equal(await page.locator('#coldDifficulty').inputValue(),'Сложный');
  for(const width of [320,390,1440]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Buyer setup fits '+width+'px');}
  await page.setViewportSize({width:390,height:1000});await page.screenshot({path:'test-results/buyer-cold-call-setup-mobile.png',fullPage:true});
  await page.getByRole('button',{name:'Начать тренировку →',exact:true}).click();
- const launch=await page.evaluate(()=>buyerLaunch);assert.equal(launch.id,19);assert.equal(launch.mode,'buyer');assert.deepEqual(launch.objections,[]);
+ const launch=await page.evaluate(()=>buyerLaunch);assert.equal(launch.id,20);assert.equal(launch.mode,'buyer');assert.deepEqual(launch.objections,[]);
  await page.evaluate(async()=>{
   const saved={id:'buyer-session',employee_id:'u',company_id:'company',scenario_id:19,status:'completed',created_at:'2026-10-29T10:00:00Z',completed_at:'2026-10-29T10:08:00Z',ai_evaluation:{negotiation_result:{initial_terms:'Прайс',agreed_terms:'Скидка 2%',savings_summary:'Недостаточно данных для расчёта экономии',open_issues:'Срок <img src=x onerror=alert(1)>'}},transcript:[{speaker:'manager',content:'Уточним доставку'},{speaker:'client',content:'Доставку рассчитаем отдельно'}]};
   const scores={overall_score:67,discovery_score:12,objection_score:14,value_score:16,communication_score:15,closing_score:10,strengths:['Предложил самовывоз'],weaknesses:['Не подтвердил срок'],recommendations:['Уточнить срок']};
