@@ -146,8 +146,10 @@
     const header='<div class="top"><div><h2>Команда</h2><div class="muted">Сотрудники и филиалы вашей компании</div></div></div>';
     try {
       const {data,error}=await client().rpc('company_team_directory');if(error)throw error;
+      const emails=await client().rpc('company_team_emails');
+      const emailById=new Map((emails.data||[]).map(x=>[x.employee_id,x.email]));
       if(!data?.length)return header+'<div class="empty">В команде пока нет сотрудников.</div>';
-      return header+'<div style="overflow-x:auto"><table class="table"><thead><tr><th>Сотрудник</th><th>Филиал</th></tr></thead><tbody>'+data.map(r=>'<tr><td>'+safe(r.employee_name)+'</td><td>'+safe(r.branch_name||'Не назначен')+'</td></tr>').join('')+'</tbody></table></div>';
+      return header+'<div style="overflow-x:auto"><table class="table"><thead><tr><th>Сотрудник</th><th>Филиал</th></tr></thead><tbody>'+data.map(r=>'<tr><td>'+safe(r.employee_name)+'<div class="muted" style="overflow-wrap:anywhere">'+safe(emailById.get(r.employee_id)||'Почта недоступна')+'</div></td><td>'+safe(r.branch_name||'Не назначен')+'</td></tr>').join('')+'</tbody></table></div>';
     }catch(error){return header+'<div class="empty" role="alert">Не удалось загрузить команду. <button class="secondary" onclick="page()">Повторить</button></div>';}
   };
 })();
