@@ -12,3 +12,5 @@ SQL
 python scripts/build-negotiation-lab-test.py | psql -v ON_ERROR_STOP=1 -q
 
 python scripts/build-company-positions-test.py | psql -v ON_ERROR_STOP=1 -q
+
+python scripts/build-team-email-test.py | psql -v ON_ERROR_STOP=1 -q

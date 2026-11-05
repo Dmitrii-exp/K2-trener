@@ -24,7 +24,8 @@ const server=http.createServer((req,res)=>{
    rpcCalls.push({name,args});
    if(name==='list_company_branches')return {data:window.noBranches?[]:[{branch_id:'branch',branch_name:'Филиал <img src=x onerror=alert(1)>',director_name:'Руководитель',employee_count:2}]};
    if(name==='company_position_candidates')return {data:[{employee_id:'employee',employee_name:'Сотрудник'}]};
-   if(name==='company_team_directory')return {data:[{employee_name:'Сотрудник',branch_name:'Филиал'}]};
+   if(name==='company_team_directory')return {data:[{employee_id:'employee',employee_name:'Сотрудник',branch_name:'Филиал'}]};
+   if(name==='company_team_emails')return {data:[{employee_id:'employee',email:'person@example.test'}]};
    if(name==='company_top_public')return {data:[{employee_name:'Иван Оченьдлинноеимябезпробеловдляпроверкиадаптивности',branch_name:'Не назначен',text_count:10,voice_count:32,best_score:90,average_score:84.5}]};
    if(name==='create_company_branch'){window.noBranches=false;return {data:'branch'};}
    if(name==='set_company_position')return await new Promise(resolve=>window.finishAssignment=resolve);
@@ -59,6 +60,7 @@ const server=http.createServer((req,res)=>{
  assert.equal(await page.locator('.nav button').filter({hasText:'Аналитика'}).count(),1);
  await page.evaluate(()=>{state.branchContext={branch_role:'employee',can_manage:false};state.profile.role='employee';state.view='team';render();});
  await page.getByRole('columnheader',{name:'Филиал'}).waitFor();
+ await page.getByText('person@example.test',{exact:true}).waitFor();
  assert.equal(await page.getByRole('columnheader').count(),2,'Employee directory exposes only name and branch');
  await page.setViewportSize({width:390,height:844});
  await page.evaluate(()=>{state.profile.role='director';state.branchContext={can_manage:true};state.view='branches';render();});
@@ -81,7 +83,8 @@ const server=http.createServer((req,res)=>{
  assert.equal(await page.locator('.company-top-desktop').isVisible(),true);
  assert.equal(await page.locator('.company-top-desktop th').count(),7);
  await page.setViewportSize({width:390,height:844});
- await page.evaluate(()=>{state.view='team';state.team=[{employee_id:'employee',employee_name:'Сотрудник',sessions_count:2,completed_sessions:1,avg_score:74}];render();});
+ await page.evaluate(()=>{state.view='team';state.team=[{employee_id:'employee',employee_name:'Сотрудник',employee_email:'manager@example.test',sessions_count:2,completed_sessions:1,avg_score:74}];render();});
+ await page.getByText('manager@example.test',{exact:true}).waitFor();
  const assign=page.getByRole('button',{name:'Назначить должность и филиал',exact:true});
  await assign.click();
  const dialog=page.getByRole('dialog');await dialog.getByLabel('Должность',{exact:true}).waitFor();
