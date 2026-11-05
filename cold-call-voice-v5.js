@@ -660,7 +660,12 @@
     }catch(e){
       cleanup();
       console.error('[SaleTrening] launchColdCall',e);
-      if(typeof toast==='function')toast('Ошибка запуска голосовой тренировки: '+e.message);
+      if(typeof toast==='function'){
+        const reason=String(e?.message||'');
+        const messages={trial_cold_call_exhausted:'Пробный холодный звонок компании уже использован. Для продолжения нужна активная подписка.',trial_objection_exhausted:'Пробные тренировки по возражениям компании уже использованы. Для продолжения нужна активная подписка.',daily_limit:'Дневной лимит тренировок исчерпан. Попробуйте снова завтра.',subscription_expired:'Подписка компании закончилась. Обратитесь к руководителю компании.',subscription_not_found:'Подписка компании не найдена. Обратитесь к руководителю компании.',company_not_found:'Не найдена компания пользователя. Обратитесь к руководителю компании.',trial_training_type_not_free:'Этот вид тренировки недоступен в пробном режиме.'};
+        const code=reason.match(/training_access_denied:([a-z_]+)/)?.[1];
+        toast(messages[code]||'Ошибка запуска голосовой тренировки: '+reason);
+      }
     }finally{launching=false}
   }
   window.launchColdCall=launchColdCall;
