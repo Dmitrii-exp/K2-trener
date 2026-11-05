@@ -218,6 +218,7 @@
         character,facts,difficulty,objections,
         scenario_title:scenario.title||'Холодный звонок',
         objective:scenario.objective||'Заинтересовать и согласовать следующий шаг',
+        scenario_description:scenario.description||'', scenario_role:scenario.client_role||'',
         recent_persona_ids:readPersonaHistory(),
         persona_id:state.session?.clientPersonaId||null
       };
