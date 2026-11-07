@@ -26,7 +26,7 @@ function operation(slug: string, body: any): string {
   return 'reply';
 }
 
-export function withAiAccess(slug: string, handler: (request: Request) => Response | Promise<Response>) {
+export function withAiAccess(slug: string, handler: (request: Request, userId?: string) => Response | Promise<Response>) {
   return async (request: Request): Promise<Response> => {
     if (request.method === 'OPTIONS') return handler(request);
     if (request.method !== 'POST') return reply(405, 'Метод не поддерживается.');
@@ -61,7 +61,7 @@ export function withAiAccess(slug: string, handler: (request: Request) => Respon
       const access = await accessResponse.json();
       if (access?.allowed !== true) return reply([400,401,402,403,429].includes(access?.status) ? access.status : 403, messages[access?.reason] || 'Нет доступа к этому запросу.');
       if (access.cached_evaluation) return new Response(JSON.stringify({ ok: true, cached: true, evaluation: access.cached_evaluation }), { status: 200, headers });
-      return await handler(request);
+      return await handler(request, user.id);
     } catch {
       return reply(503, 'Сервис временно недоступен. Повторите попытку.');
     }

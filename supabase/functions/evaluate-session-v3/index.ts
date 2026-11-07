@@ -1,3 +1,4 @@
+import { scoringTranscript, VerifiedTextError } from "../_shared/scoring-transcript.ts";
 import { buyerRubric } from "../_shared/buyer-rubric.ts";
 import { withAiAccess } from "../_shared/ai-access.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -29,10 +30,10 @@ Deno.serve(withAiAccess("evaluate-session-v3", async req=>{
     const db=createClient(url,anon,{global:{headers:{Authorization:auth}}});
     const {data:{user}}=await db.auth.getUser();if(!user)return json({ok:false,error:"Unauthorized"},401);
     const body=await req.json(),sid=c(body.session_id,120);
-    const {data:s,error}=await db.from("saletrening_sessions").select("id,employee_id,company_id,scenario_id,transcript").eq("id",sid).single();
+    const {data:s,error}=await db.from("saletrening_sessions").select("id,employee_id,company_id,scenario_id,voice_mode,transcript,verified_text_dialogue,verified_text_version").eq("id",sid).single();
     if(error||!s)return json({ok:false,error:"Session not found"},404);
     if(s.employee_id!==user.id)return json({ok:false,error:"Forbidden"},403);
-    const tr=Array.isArray(s.transcript)?s.transcript:[];if(!tr.length)return json({ok:false,error:"Session transcript is empty"},400);const managerTurns=tr.filter((m:any)=>["manager","user","employee"].includes(String(m?.speaker||m?.role||"").toLowerCase())&&c(m?.content??m?.text??m?.message));if(!managerTurns.length){const admin=createClient(url,service),now=new Date().toISOString();await admin.from("session_scores").delete().eq("session_id",sid);const {error:ue}=await admin.from("saletrening_sessions").update({total_score:null,ai_summary:"Недостаточно данных для честной оценки: в сохранённом диалоге нет ни одной реплики менеджера.",ai_evaluation:null,feedback:"Оценка не сформирована: нет реплик менеджера.",status:"insufficient_data",completed_at:now,updated_at:now}).eq("id",sid).eq("employee_id",user.id);if(ue)return json({ok:false,error:ue.message},500);return json({ok:true,scored:false,reason:"no_manager_messages"});}
+    const tr=scoringTranscript(s);if(!tr.length)return json({ok:false,error:"Session transcript is empty"},400);const managerTurns=tr.filter((m:any)=>["manager","user","employee"].includes(String(m?.speaker||m?.role||"").toLowerCase())&&c(m?.content??m?.text??m?.message));if(!managerTurns.length){const admin=createClient(url,service),now=new Date().toISOString();await admin.from("session_scores").delete().eq("session_id",sid);const {error:ue}=await admin.from("saletrening_sessions").update({total_score:null,ai_summary:"Недостаточно данных для честной оценки: в сохранённом диалоге нет ни одной реплики менеджера.",ai_evaluation:null,feedback:"Оценка не сформирована: нет реплик менеджера.",status:"insufficient_data",completed_at:now,updated_at:now}).eq("id",sid).eq("employee_id",user.id);if(ue)return json({ok:false,error:ue.message},500);return json({ok:true,scored:false,reason:"no_manager_messages"});}
     const {data:scenario}=await db.from("saletrening_scenarios").select("title,description,objective,objections").eq("id",s.scenario_id).maybeSingle();
     const title=c(scenario?.title),free=/свобод|free/i.test(title);
 
@@ -87,10 +88,11 @@ ${JSON.stringify(tr)}`;
     const ev={overall_score:Math.max(5,Math.min(100,total)),...skills,success:Boolean(p.success),outcome:c(p.outcome,500),summary:c(p.summary,5000),strengths,weaknesses,recommendations};
     if(buyer){Object.assign(ev,{rubric:'buyer_v1',negotiation_result:{initial_terms:c(p.negotiation_result?.initial_terms,1500)||'Не выяснено',agreed_terms:c(p.negotiation_result?.agreed_terms,1500)||'Не выяснено',savings_summary:c(p.negotiation_result?.savings_summary,1000)||'Недостаточно данных для расчёта экономии',open_issues:c(p.negotiation_result?.open_issues,1500)||'Не указано в разборе'}});}
     const admin=createClient(url,service),now=new Date().toISOString();
-    const {error:ue}=await admin.from("saletrening_sessions").update({total_score:ev.overall_score,ai_summary:ev.summary,ai_evaluation:ev,feedback:ev.summary,status:"completed",completed_at:now,updated_at:now}).eq("id",sid).eq("employee_id",user.id);
+    const {data:completed,error:ue}=await admin.from("saletrening_sessions").update({transcript:tr,total_score:ev.overall_score,ai_summary:ev.summary,ai_evaluation:ev,feedback:ev.summary,status:"completed",completed_at:now,updated_at:now}).eq("id",sid).eq("employee_id",user.id).eq("verified_text_version",s.verified_text_version).in("status",["started","in_progress"]).select("id").maybeSingle();
     if(ue)return json({ok:false,error:ue.message},500);
+    if(!completed)return json({ok:false,error:"Тренировка уже изменилась. Повторите анализ."},409);
     const {error:se}=await admin.from("session_scores").upsert({session_id:sid,employee_id:user.id,company_id:s.company_id,overall_score:ev.overall_score,discovery_score:skills.discovery_score,objection_score:skills.objection_score,value_score:skills.value_score,closing_score:skills.closing_score,communication_score:skills.communication_score,strengths,weaknesses,recommendations},{onConflict:"session_id"});
     if(se)return json({ok:false,error:`Session score save failed: ${se.message}`},500);
     return json({ok:true,provider:"proxyapi",model:r.model,evaluation:ev});
-  }catch(e){return json({ok:false,error:e instanceof Error?e.message:String(e)},500)}
+  }catch(e){if(e instanceof VerifiedTextError)return json({ok:false,error:e.message},e.status);return json({ok:false,error:e instanceof Error?e.message:String(e)},500)}
 }));

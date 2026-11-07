@@ -1,3 +1,4 @@
+import { scoringTranscript, VerifiedTextError } from "../_shared/scoring-transcript.ts";
 import { withAiAccess } from "../_shared/ai-access.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -13,8 +14,8 @@ const auth=req.headers.get("Authorization");if(!auth)return json({ok:false,error
 const url=Deno.env.get("SUPABASE_URL"),anon=Deno.env.get("SUPABASE_ANON_KEY"),service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");if(!url||!anon||!service)return json({ok:false,error:"Supabase environment is not configured"},500);
 const db=createClient(url,anon,{global:{headers:{Authorization:auth}}});const {data:{user},error:ae}=await db.auth.getUser();if(ae||!user)return json({ok:false,error:"Unauthorized"},401);
 const b=await req.json().catch(()=>({})),sid=clean(b?.session_id,120);if(!sid)return json({ok:false,error:"session_id is required"},400);
-const {data:s,error:se}=await db.from("saletrening_sessions").select("id,employee_id,company_id,scenario_id,transcript").eq("id",sid).single();if(se||!s)return json({ok:false,error:"Session not found",details:se?.message||null},404);if(s.employee_id!==user.id)return json({ok:false,error:"Only the session owner can request evaluation"},403);
-const tr=Array.isArray(s.transcript)?s.transcript:[];if(!tr.length)return json({ok:false,error:"Session transcript is empty"},400);
+const {data:s,error:se}=await db.from("saletrening_sessions").select("id,employee_id,company_id,scenario_id,voice_mode,transcript,verified_text_dialogue,verified_text_version").eq("id",sid).single();if(se||!s)return json({ok:false,error:"Session not found",details:se?.message||null},404);if(s.employee_id!==user.id)return json({ok:false,error:"Only the session owner can request evaluation"},403);
+const tr=scoringTranscript(s);if(!tr.length)return json({ok:false,error:"Session transcript is empty"},400);
 const prompt=`Ты оцениваешь тренировочный звонок менеджера по продажам. Анализируй только работу МЕНЕДЖЕРА, но учитывай контекст реплик клиента. Оцени каждую компетенцию независимо по шкале 0-100. 0 — навык не проявлен/провален, 50 — средний уровень, 70-80 — хороший, 90-100 — профессиональный. Не ставь одинаковые баллы автоматически: баллы должны зависеть от конкретных действий менеджера и доказательств в диалоге. Если навык не проявлен, оцени его низко, но не автоматически ставь 0. Обязательно найди конкретные сильные стороны, слабые стороны и 3-5 практических рекомендаций. Верни ТОЛЬКО валидный JSON без markdown: {"overall_score":0,"discovery_score":0,"objection_score":0,"value_score":0,"closing_score":0,"communication_score":0,"next_step_score":0,"summary":"","strengths":[],"weaknesses":[],"recommendations":[]}. Все массивы — конкретные строки на русском с привязкой к действиям менеджера. Не выдумывай факты. ДИАЛОГ: ${JSON.stringify(tr)}`;
 const result=await ask([{role:"system",text:"Ты строгий профессиональный AI-тренер по продажам. Оценивай доказательно, дифференцируй баллы и отвечай только JSON."},{role:"user",text:prompt}]);
 const p:any=parseJson(result.content);if(!p)return json({ok:false,error:"YandexGPT returned invalid evaluation JSON",details:result.content.slice(0,3000)},502);
@@ -25,7 +26,8 @@ if(!ev.strengths.length)ev.strengths=["Менеджер провёл диало�
 if(!ev.weaknesses.length)ev.weaknesses=["Нужно улучшать структуру диалога и глубину работы с потребностью."];
 if(!ev.recommendations.length)ev.recommendations=["Задавайте больше уточняющих вопросов.","Фиксируйте потребность клиента перед презентацией.","Завершайте разговор конкретным следующим шагом."];
 const admin=createClient(url,service),now=new Date().toISOString();
-const {error:ue}=await admin.from("saletrening_sessions").update({total_score:ev.overall_score,ai_summary:ev.summary,ai_evaluation:ev,feedback:ev.summary,status:"completed",completed_at:now,updated_at:now}).eq("id",sid).eq("employee_id",user.id);if(ue)return json({ok:false,error:"Session update failed",details:ue.message,code:ue.code},500);
+const {data:completed,error:ue}=await admin.from("saletrening_sessions").update({transcript:tr,total_score:ev.overall_score,ai_summary:ev.summary,ai_evaluation:ev,feedback:ev.summary,status:"completed",completed_at:now,updated_at:now}).eq("id",sid).eq("employee_id",user.id).eq("verified_text_version",s.verified_text_version).in("status",["started","in_progress"]).select("id").maybeSingle();if(ue)return json({ok:false,error:"Session update failed",details:ue.message,code:ue.code},500);
+if(!completed)return json({ok:false,error:"Тренировка уже изменилась. Повторите анализ."},409);
 const {error:sc}=await admin.from("session_scores").upsert({session_id:sid,employee_id:user.id,company_id:s.company_id,...ev,model:result.model},{onConflict:"session_id"});
 return json({ok:true,configured:true,provider:"yandexgpt",model:result.model,evaluation:ev,saved_session:true,saved_score:!sc,score_error:sc?.message||null});
-}catch(e){console.error("evaluate-session",e);return json({ok:false,error:e instanceof Error?e.message:String(e)},500)}}));
+}catch(e){if(e instanceof VerifiedTextError)return json({ok:false,error:e.message},e.status);console.error("evaluate-session",e);return json({ok:false,error:e instanceof Error?e.message:String(e)},500)}}));
