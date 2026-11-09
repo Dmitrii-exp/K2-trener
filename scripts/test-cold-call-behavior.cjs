@@ -23,6 +23,10 @@ const sample={character:'Аналитик',facts:'Закупка через ме
 const first=ctx.buildColdCallBehavior(sample,()=>0),reconnected=ctx.buildColdCallBehavior({...sample,recent_persona_ids:history},()=>0.99);
 assert.equal(first.instructions,reconnected.instructions,'reconnect keeps complete generated context');
 assert.ok(first.instructions.includes(sample.facts));
+assert.match(first.instructions,/ВЫЯВЛЕНИЕ ПОТРЕБНОСТЕЙ/);
+assert.match(first.instructions,/после приветствия и простого представления менеджера не сообщай сам/i);
+assert.match(first.instructions,/широкий вопрос о задачах или критериях/);
+assert.match(first.instructions,/конкретное возражение естественно возникло/);
 assert.ok(!first.instructions.includes('Да, работаем с этим размером, но сейчас есть поставщик'));
 assert.ok(!first.instructions.includes('не отвечай односложно'));
 for(const difficulty of ['Лёгкий','Легкий','Средний','Сложный']){
