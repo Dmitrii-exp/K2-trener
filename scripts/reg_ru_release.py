@@ -11,8 +11,9 @@ from pathlib import Path
 import ssl
 import urllib.request
 
-FILES = ("company-top.js", "company-branches.js", "manager-history.js", "cold-call-voice-v5.js", "mentor-chat.js", "personal-notes.js", "negotiation-lab.js", "index.html")
+FILES = ("company-top.js", "company-branches.js", "manager-history.js", "cold-call-voice-v5.js", "mentor-chat.js", "personal-notes.js", "negotiation-lab.js", "supabase-client.js", "index.html")
 BACKUP = Path("release-backup")
+EXPECTED_BASE_CLIENT = "731f2e219b46fe9975eeee6fd8553864456be23525fcb2d02365cfe773d811e7"
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
@@ -95,6 +96,8 @@ def verify_public():
 
 def deploy(ftp):
     manifest = load_backup()
+    if manifest.get("supabase-client.js") not in (EXPECTED_BASE_CLIENT, digest(Path("supabase-client.js").read_bytes())):
+        raise RuntimeError("Remote auth client differs from verified baseline; refusing deployment")
     for name in FILES:
         data = read(ftp, name, missing_ok=True)
         if (None if data is None else digest(data)) != manifest[name]:
@@ -130,3 +133,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -26,6 +26,7 @@ jobs:
         with:
           python-version: '3.x'
       - run: python scripts/check_frontend.py
+      - run: node scripts/test-invite-signup-session.cjs
       - run: node scripts/test-invitation-privacy.cjs
       - run: node scripts/test-ai-request-guard.cjs
       - run: node scripts/test-training-runtime.cjs
@@ -67,3 +68,4 @@ jobs:
           name: branch-ui-evidence
           path: test-results/
           if-no-files-found: ignore
+
