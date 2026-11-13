@@ -9,7 +9,7 @@ spec=importlib.util.spec_from_file_location('release',Path(__file__).with_name('
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class FTP:
     def __init__(self):
-        self.files={'index.html':b'<html>old</html>','manager-history.js':b'old history'}
+        self.files={'index.html':b'<html>old</html>','manager-history.js':b'old history','supabase-client.js':b'old client'}
         self.fail=None
     def retrbinary(self,cmd,callback):
         key=cmd[5:]
@@ -29,7 +29,8 @@ class Release(unittest.TestCase):
         for name in m.FILES:Path(name).write_text('new '+name)
         self.ftp=FTP();self.old=dict(self.ftp.files)
         self.original_verify=m.verify_public;m.verify_public=lambda:None
-    def tearDown(self):m.verify_public=self.original_verify;os.chdir(self.previous);self.tmp.cleanup()
+        self.original_client_hash=m.EXPECTED_BASE_CLIENT;m.EXPECTED_BASE_CLIENT=m.digest(self.ftp.files["supabase-client.js"])
+    def tearDown(self):m.verify_public=self.original_verify;m.EXPECTED_BASE_CLIENT=self.original_client_hash;os.chdir(self.previous);self.tmp.cleanup()
     def test_backup_deploy_restore(self):
         m.backup(self.ftp);self.assertEqual(self.ftp.files,self.old)
         m.deploy(self.ftp)
@@ -54,3 +55,4 @@ class Release(unittest.TestCase):
         with self.assertRaises(RuntimeError):m.deploy(self.ftp)
         self.assertEqual(self.ftp.files,self.old)
 if __name__=='__main__':unittest.main()
+

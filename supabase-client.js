@@ -39,7 +39,7 @@
       const refreshToken=hash.get('refresh_token');
       const type=hash.get('type');
       if(!accessToken)return session;
-      if(type!=='invite'&&type!=='magiclink'&&type!=='recovery')return session;
+      if(type!=='invite'&&type!=='magiclink'&&type!=='signup'&&type!=='recovery')return session;
       if(type==='recovery'){
         const user=await request('/auth/v1/user',{method:'GET'},accessToken);
         const expiresIn=Number(hash.get('expires_in')||3600);
@@ -56,7 +56,7 @@
         emit('PASSWORD_RECOVERY',recovered);
         return recovered;
       }
-      if(type==='invite'||type==='magiclink'){
+      if(type==='invite'||type==='magiclink'||type==='signup'){
         const user=await request('/auth/v1/user',{method:'GET'},accessToken);
         const expiresIn=Number(hash.get('expires_in')||3600);
         const expiresAt=Number(hash.get('expires_at')||0)||Math.floor(Date.now()/1000)+expiresIn;
@@ -103,7 +103,7 @@
         const hash=new URLSearchParams((location.hash||'').replace(/^#/,''));
         const urlAuthType=hash.get('type');
         const hasRedirectSession=!!hash.get('access_token') &&
-          (urlAuthType==='invite'||urlAuthType==='magiclink'||urlAuthType==='recovery');
+          (urlAuthType==='invite'||urlAuthType==='magiclink'||urlAuthType==='signup'||urlAuthType==='recovery');
         if(hasRedirectSession)await recoverSessionFromUrl();
         if(!session)await recoverSessionFromUrl();
         if(session && needsRefresh(session)){
