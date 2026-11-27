@@ -29,6 +29,21 @@ const {actOnLab:act,newDeal,newReplay,labTranscript}=ctx.core;
  const next=await act('deal',d1,'advance','',async()=>({passed:true,feedback:'Контакт получен',agreements:[quote],strengths:['Заинтересовал качеством'],improvements:[]}));assert.equal(next.stage,1);assert.equal(next.agreements[0].counterpart_quote,d1.messages[2].content);assert.match(next.messages.at(-1).content,/Техник/);
  const withoutPhone={...d1,messages:[deal.messages[0],d1.messages[1],{role:'assistant',content:'Поговорите с закупщиком.',stage:0}]};const noPhone=await act('deal',withoutPhone,'advance','',async()=>({passed:true,feedback:'ok',agreements:[{employee_quote:d1.messages[1].content,counterpart_quote:'Поговорите с закупщиком.'}]}));assert.equal(noPhone.stage,0,'Technician stage needs actual contact handoff');
  let carried;await act('deal',next,'reply','Здравствуйте, что нужно вашему автопарку?',async(_,input)=>{carried=input;return {reply:'20 грузовых шин.'};});assert.equal(carried.agreements[0].counterpart_quote,quote.counterpart_quote,'Next counterpart receives exact prior memory');
+ const address=await act('deal',next,'reply','Подскажите точный адрес доставки.',async()=>assert.fail('Direct address request is answered without the model'));
+ assert.match(address.messages.at(-1).content,/Ставрополь, ул\. Учебная, 20/);
+ const needs='Подтверждаю: 20 новых шин 315/70 R22.5 в течение 7 дней, с сертификатами и гарантией.';
+ const confirmed='Да, всё верно. Итоговую стоимость с доставкой обсудим при подготовке КП.';
+ const withNeeds=await act('deal',address,'reply',needs,async(system,input)=>{
+  assert.match(system,/не требуй на этом этапе точный итог/);
+  assert.match(input.facts,/Учебная, 20/);
+  return {reply:confirmed};
+ });
+ const atLimit={...withNeeds,messages:[...withNeeds.messages,...Array.from({length:8},()=>({role:'user',content:'Уточнение',stage:1}))]};
+ const proposal=await act('deal',atLimit,'advance','',async(system)=>{
+  assert.match(system,/Не требуй адрес, согласование цены доставки, точную итоговую сумму/);
+  return {passed:true,feedback:'Потребность выявлена',agreements:[{employee_quote:needs,counterpart_quote:confirmed}]};
+ });
+ assert.equal(proposal.stage,2,'A saved conversation can pass discovery at the turn limit without a final delivery quote');
  let buyer=newDeal('buyer');assert.equal(buyer.role,'buyer');for(let stage=0;stage<4;stage++){
   buyer=await act('deal',buyer,'reply','Подтверждаю условия этапа '+stage,async()=>({reply:'Да, подтверждаю условия этапа '+stage}));
   const current=buyer.messages.filter(m=>m.stage===stage);buyer=await act('deal',buyer,'advance','',async()=>({passed:true,feedback:'Цель достигнута',agreements:[{employee_quote:current[1].content,counterpart_quote:current[2].content}],strengths:['Подтверждение'],improvements:[]}));
