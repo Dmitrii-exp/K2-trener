@@ -31,6 +31,20 @@ async function call(extra={}){
  for(const extra of [{client_settings:{mode:'manager_chat'}},{mode:'manager_chat'},{scenario:{id:19,title:'Переговоры закупщика'}}]){
   const other=await call(extra);assert.ok(!other[0].content.includes('ПРАВИЛА ИСХОДА РАЗГОВОРА'),'Mentor and supplier roles keep their existing workflow');
  }
+ const sizeQuestion='Какие типоразмеры вас интересуют?';
+ const sizing=(await call({message:sizeQuestion,transcript:[]}))[0].content;
+ for(const size of ['315/70 R22.5','385/65 R22.5','315/80 R22.5']) assert.ok(sizing.includes(size),size);
+ const openingPrice='По какой цене вы сейчас покупаете 315/70 R22.5?';
+ const first=(await call({message:openingPrice,transcript:[{speaker:'manager',content:openingPrice}]}))[0].content;
+ assert.ok(first.includes('впервые спрашивает закупочную цену'));
+ assert.ok(!first.includes('"price_rub":'),'first purchase-price question has no catalogue prices');
+ const pricingHistory=[{speaker:'manager',content:openingPrice},{speaker:'client',content:'Покажите сначала своё предложение.'}];
+ const compared=(await call({message:'Сколько платите за RoadX HD780 315/70?',transcript:pricingHistory}))[0].content;
+ const prices=JSON.parse(compared.split('КОНЕЦ СПРАВОЧНИКА.')[0].trim().split('\n').at(-1));
+ assert.ok(prices.length>0&&prices.every(row=>row.name.includes('315/70')));
+ assert.ok(prices.some(row=>row.name.includes('RoadX HD780')&&row.price_rub===31500));
+ const unavailable=(await call({message:'Сколько платите за 999/99 R22.5?',transcript:pricingHistory}))[0].content;
+ assert.ok(!unavailable.includes('"price_rub":'),'another size must never supply a substitute price');
  const supplier={console};vm.createContext(supplier);vm.runInContext(compile('supabase/functions/_shared/supplier-behavior.ts'),supplier);
  let previous=[];
  for(let i=0;i<80;i++){const r=supplier.buildSupplierBehavior({recent_persona_ids:previous},()=>((i*7)%36)/36);assert.ok(!previous.includes(r.persona.id));previous=[...previous,r.persona.id].slice(-20);}
