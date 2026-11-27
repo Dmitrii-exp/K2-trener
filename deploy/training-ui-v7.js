@@ -5,6 +5,7 @@
   window.__stTextTrainingV7=true;
 
   var busy=false;
+  var finishing=false;
   var modal=null;
   var launching=false;
 
@@ -33,12 +34,14 @@
   function render(){
     if(!modal||!state.session)return;
     var s=state.session.scenario||{};var msgs=Array.isArray(state.messages)?state.messages:[];
+    var buyer=Number(s.id)>=19&&Number(s.id)<=33;
+    var participant=buyer?'закупщик':'менеджер';
     modal.innerHTML='<div class="st-text-modal">'+
       '<div class="st-text-head"><div><div class="st-text-kicker">ТЕКСТОВАЯ ТРЕНИРОВКА</div><div class="st-text-title">'+esc(s.title||'Тренировка')+'</div><div class="st-text-meta">'+esc(s.client_role||'Клиент')+' · '+esc(s.difficulty||'Средняя')+'</div></div><button class="st-text-close" type="button" aria-label="Закрыть">×</button></div>'+
-      '<div class="st-text-messages" id="st-text-messages">'+(msgs.length?msgs.map(function(m){var manager=m&&m.speaker==='manager';return '<div class="st-text-row '+(manager?'manager':'client')+'"><div class="st-text-bubble"><div class="st-text-name">'+(manager?'Вы / Менеджер':'Клиент')+'</div><div>'+esc(m&&m.content)+'</div></div></div>'}).join(''):'<div class="st-text-empty">Клиент готовит первую реплику…</div>')+'</div>'+
-      '<div class="st-text-status '+(busy?'busy':'')+'">'+(busy?'ИИ формулирует ответ клиента…':'Ваш ход — ответьте клиенту')+'</div>'+
-      '<div class="st-text-compose"><textarea id="st-text-input" rows="2" placeholder="Напишите ответ клиенту…" '+(busy?'disabled':'')+'></textarea><button id="st-text-send" class="st-text-send" '+(busy?'disabled':'')+'>Отправить</button></div>'+
-      '<button id="st-text-finish" class="st-text-finish" type="button">Завершить тренировку</button></div>';
+      '<div class="st-text-messages" id="st-text-messages">'+(msgs.length?msgs.map(function(m){var manager=m&&m.speaker==='manager';return '<div class="st-text-row '+(manager?'manager':'client')+'"><div class="st-text-bubble"><div class="st-text-name">'+(manager?(buyer?'Вы / Закупщик':'Вы / Менеджер'):(buyer?'Продавец':'Клиент'))+'</div><div>'+esc(m&&m.content)+'</div></div></div>'}).join(''):'<div class="st-text-empty">Начните диалог — вы говорите первым.</div>')+'</div>'+
+      '<div class="st-text-status '+(busy?'busy':'')+'">'+(finishing?'Сохраняем диалог и формируем оценку…':busy?'ИИ формулирует ответ…':msgs.length?'Ваш ход':'Первую реплику отправляет '+participant)+'</div>'+
+      '<div class="st-text-compose"><textarea id="st-text-input" rows="2" placeholder="'+(msgs.length?'Напишите ответ…':'Введите первую реплику…')+'" '+(busy?'disabled':'')+'></textarea><button id="st-text-send" class="st-text-send" '+(busy?'disabled':'')+'>Отправить</button></div>'+
+      '<button id="st-text-finish" class="st-text-finish" type="button" '+(busy?'disabled':'')+'>Завершить тренировку</button></div>';
     var box=document.getElementById('st-text-messages');if(box)box.scrollTop=box.scrollHeight;
     var input=document.getElementById('st-text-input');
     if(input){input.focus();input.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}})}
@@ -81,14 +84,7 @@
       if(!state.profile||!state.profile.company_id)throw new Error('Профиль компании не загружен');
       var q=await wait(sb.from('saletrening_sessions').insert({employee_id:state.user.id,company_id:state.profile.company_id,scenario_id:scenario.id,status:'started',transcript:[],voice_mode:false,assignment_id:window.__stPendingAssignmentId||null}).select().single(),15000);
       if(q.error)throw new Error(q.error.message||'Не удалось создать сессию');
-      window.__stPendingAssignmentId=null;state.session=Object.assign({},q.data,{scenario:scenario});state.messages=[];state.view='training';busy=true;open();toast('Тренировка запущена');
-      try{
-        if(typeof aiClientReply!=='function')throw new Error('Функция AI-клиента не найдена');
-        var opening=await wait(aiClientReply('',true),30000);
-        if(opening)state.messages.push({speaker:'client',content:opening});
-        if(typeof saveSession==='function')await wait(saveSession(),10000);
-      }catch(e){toast('Сессия открыта. Первую реплику AI получить не удалось: '+(e.message||e));}
-      busy=false;render();
+      window.__stPendingAssignmentId=null;state.session=Object.assign({},q.data,{scenario:scenario});state.messages=[];state.view='training';open();toast('Тренировка запущена');
     }catch(e){busy=false;console.error('[SaleTrening] launch',e);toast('Ошибка запуска тренировки: '+(e.message||e))}finally{launching=false}
   }
 
@@ -96,8 +92,13 @@
     if(busy){toast('Дождитесь ответа AI');return}
     if(!state.session){close();return}
     var fn=window.finishTraining;
-    close();
-    if(typeof fn==='function')await fn();
+    if(typeof fn!=='function'){toast('Завершение пока недоступно. Попробуйте ещё раз.');return}
+    finishing=true;busy=true;render();
+    try {
+      if(await fn())close();
+    } finally {
+      finishing=false;busy=false;render();
+    }
   }
 
   function boot(){styles();window.__launchTextTrainingV7=launch;}

@@ -96,7 +96,7 @@ def verify_public():
 
 def deploy(ftp):
     manifest = load_backup()
-    if manifest.get("supabase-client.js") not in (EXPECTED_BASE_CLIENT, digest(Path("supabase-client.js").read_bytes())):
+    if "supabase-client.js" in FILES and manifest["supabase-client.js"] not in (EXPECTED_BASE_CLIENT, digest(Path("supabase-client.js").read_bytes())):
         raise RuntimeError("Remote auth client differs from verified baseline; refusing deployment")
     for name in FILES:
         data = read(ftp, name, missing_ok=True)
@@ -117,11 +117,14 @@ def deploy(ftp):
     print("Release deployed; all remote checksums verified")
 
 def main():
-    global BACKUP
+    global BACKUP, FILES
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=("backup", "deploy", "restore"))
     parser.add_argument("--backup-dir", default="release-backup")
+    parser.add_argument("--training-assets", action="store_true")
     args = parser.parse_args()
+    if args.training_assets:
+        FILES = ("training-ui-v7.js", "training-runtime-fix.js", "manager-history.js", "index.html")
     BACKUP = Path(args.backup_dir)
     with connect() as ftp:
         if args.mode == "backup":

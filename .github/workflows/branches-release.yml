@@ -1,10 +1,12 @@
 name: Branches release — REG.RU backup and deploy
 on:
   push:
-    branches: [feature/company-positions, feature/branches-roles-top, feature/network-director-admin, feature/employee-progress-charts, release/branches-roles-top]
+    branches: [main, feature/company-positions, feature/branches-roles-top, feature/network-director-admin, feature/employee-progress-charts, release/branches-roles-top]
     paths:
       - '.github/workflows/branches-release.yml'
       - 'scripts/reg_ru_release.py'
+      - 'training-ui-v7.js'
+      - 'training-runtime-fix.js'
       - 'manager-history.js'
       - 'mentor-chat.js'
       - 'personal-notes.js'
@@ -33,11 +35,13 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
+    if: github.event_name == 'workflow_dispatch' || github.ref != 'refs/heads/main' || contains(github.event.head_commit.message, '[release-text-training]')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
       FTP_SERVER: ${{ secrets.FTP_SERVER }}
       FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      RELEASE_SCOPE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && '--training-assets' || '' }}
       REG_FTP_PASSWORD: ${{ secrets.REG_FTP_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
@@ -46,8 +50,11 @@ jobs:
           python-version: '3.x'
       - name: Check frontend
         run: python scripts/check_frontend.py
+      - name: Check text training lifecycle
+        if: env.RELEASE_SCOPE != ''
+        run: node scripts/test-training-runtime.cjs
       - name: Download and verify current production assets
-        run: python scripts/reg_ru_release.py backup
+        run: python scripts/reg_ru_release.py backup $RELEASE_SCOPE
       - name: Preserve backup before any writes
         uses: actions/upload-artifact@v4
         with:
@@ -56,8 +63,8 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - name: Deploy with checksum verification and automatic rollback
-        if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy') || (github.event_name == 'push' && github.ref == 'refs/heads/release/branches-roles-top')
-        run: python scripts/reg_ru_release.py deploy
+        if: (github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy') || (github.event_name == 'push' && (github.ref == 'refs/heads/release/branches-roles-top' || github.ref == 'refs/heads/main'))
+        run: python scripts/reg_ru_release.py deploy $RELEASE_SCOPE
       - name: Download selected rollback backup
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'restore'
         uses: actions/download-artifact@v4
