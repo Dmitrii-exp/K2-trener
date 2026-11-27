@@ -70,6 +70,8 @@ vm.runInContext(compile('supabase/functions/_shared/ai-access.ts')+'\n'+behavior
  assert.equal(providerPayload.transport.sdp,'offer');assert.equal(data.transport.sdp,'answer');
  const old=await liveHandler(req({sdp:'offer',session:{instructions:'Твоя роль: Уверенный. Уровень сложности: Средний.\nФакты о клиенте: Закупка осенью.'}}));
  assert.equal(old.status,200);assert.ok(providerPayload.session.instructions.includes('Закупка осенью.'));
+ for(const size of ['315/70 R22.5','385/65 R22.5','315/80 R22.5']) assert.ok(providerPayload.session.instructions.includes(size),size);
+ assert.ok(providerPayload.session.instructions.includes('на первый вопрос о текущей цене'));
  const buyerReq={session_id:id,sdp:'offer',session:{voice:'stone',client_context:{training_mode:'buyer',facts:'Нужны 40 шин 315/70 R22.5',difficulty:'Средний',persona_id:'sp1-1-2'}}};
  const buyer=await liveHandler(req(buyerReq));assert.equal(buyer.status,200);const buyerData=await buyer.json();assert.equal(buyerData.persona.id,'sp1-1-2');
  assert.ok(providerPayload.session.instructions.includes('Ты — ПРОДАВЕЦ шин'));assert.ok(providerPayload.session.instructions.includes('Не переключайся в роль покупателя'));assert.ok(!providerPayload.session.instructions.includes('ПРАВИЛА ИСХОДА РАЗГОВОРА'));

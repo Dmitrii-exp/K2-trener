@@ -1,5 +1,5 @@
 import { buildSupplierBehavior } from "../_shared/supplier-behavior.ts";
-import { buildProductContext } from "../_shared/product-catalog.ts";
+import { buildBuyerTireContext, buildProductContext } from "../_shared/product-catalog.ts";
 import { buildColdCallBehavior, legacyColdCallContext } from "../_shared/cold-call-behavior.ts";
 import { withAiAccess } from "../_shared/ai-access.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -62,7 +62,9 @@ Deno.serve(withAiAccess("gpt-live-session", async (req: Request) => {
       if(!supplier)return json({ok:false,error:'Сохранённая тренировка не относится к закупкам.'},409);
     }
     const behavior = supplier?buildSupplierBehavior({...clientContext,session_id:body.session_id}):buildColdCallBehavior(clientContext);
-    const catalogContext = buildProductContext(clientContext, behavior.persona.id, supplier?'seller':'buyer');
+    const catalogContext = supplier
+      ? buildProductContext(clientContext, behavior.persona.id, 'seller')
+      : buildBuyerTireContext(clientContext, behavior.persona.id);
     const payload = {
       session: {
         model: "gpt-live-1",
