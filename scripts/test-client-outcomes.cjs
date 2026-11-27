@@ -25,6 +25,14 @@ async function call(extra={}){
  const messages=await call(),prompt=messages[0].content;
  assert.ok(prompt.includes('ПРАВИЛА ИСХОДА РАЗГОВОРА'));
  for(const text of ['Хорошо, отправляйте КП','Извините, но мне не интересно ваше предложение','88005353555','восемь, восемьсот, пятьсот тридцать пять, тридцать пять, пятьдесят пять','Не превращай техника в закупщика','не выдавай номер сразу после приветствия','не подтверждение заказа','не звони','не отправляй сообщения'])assert.ok(prompt.includes(text),text);
+ for(const metric of ['Пробег на ведущей оси составил 180 тысяч километров.', 'По нашему опыту получается 0,28 рубля на километр.']){
+  const dialogue=await call({message:metric});
+  assert.ok(dialogue.at(-1).content.includes(metric));
+  const policy=dialogue[0].content;
+  assert.ok(policy.includes('одной такой цифры в разговоре достаточно'));
+  assert.ok(policy.includes('Не требуй второй показатель, официальные данные'));
+  assert.ok(policy.includes('Не откладывай КП'));
+ }
  assert.equal(operation,'reply');assert.ok(messages.some(m=>m.content.includes('За цену не отвечаю')),'Preserves actual authority and conversation');
  assert.ok(!prompt.includes('Хорошо, оформляем'),'Conflicting purchase example removed');
  const opened=await call({opening:true,message:''});assert.ok(opened.at(-1).content.includes('Менеджер должен говорить первым'));
