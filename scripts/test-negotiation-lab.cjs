@@ -31,6 +31,13 @@ const {actOnLab:act,newDeal,newReplay,labTranscript}=ctx.core;
  let carried;await act('deal',next,'reply','Здравствуйте, что нужно вашему автопарку?',async(_,input)=>{carried=input;return {reply:'20 грузовых шин.'};});assert.equal(carried.agreements[0].counterpart_quote,quote.counterpart_quote,'Next counterpart receives exact prior memory');
  const address=await act('deal',next,'reply','Подскажите точный адрес доставки.',async()=>assert.fail('Direct address request is answered without the model'));
  assert.match(address.messages.at(-1).content,/Ставрополь, ул\. Учебная, 20/);
+ const combined=await act('deal',next,'reply','Подскажите адрес доставки, типоразмер и количество.',async(system,input)=>{
+  assert.match(system,/Ответь на каждый заданный вопрос/);
+  assert.match(input.facts,/Учебная, 20/);
+  assert.match(input.facts,/20 новых грузовых шин 315\/70/);
+  return {reply:'20 шин 315/70 R22.5, г. Ставрополь, ул. Учебная, 20.'};
+ });
+ assert.match(combined.messages.at(-1).content,/20 шин 315\/70/);
  const needs='Подтверждаю: 20 новых шин 315/70 R22.5 в течение 7 дней, с сертификатами и гарантией.';
  const confirmed='Да, всё верно. Итоговую стоимость с доставкой обсудим при подготовке КП.';
  const withNeeds=await act('deal',address,'reply',needs,async(system,input)=>{

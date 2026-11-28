@@ -39,6 +39,11 @@ async function call(extra={}){
  for(const extra of [{client_settings:{mode:'manager_chat'}},{mode:'manager_chat'},{scenario:{id:19,title:'Переговоры закупщика'}}]){
   const other=await call(extra);assert.ok(!other[0].content.includes('ПРАВИЛА ИСХОДА РАЗГОВОРА'),'Mentor and supplier roles keep their existing workflow');
  }
+ const quoteQuestion='Какой объём, на какую ось и к какому сроку вам нужны шины?';
+ const quotePrompt=(await call({message:quoteQuestion,transcript:[]}))[0].content;
+ assert.match(quotePrompt,/Ответь на каждый заданный вопрос/);
+ assert.match(quotePrompt,/одно правдоподобное учебное значение/);
+ assert.match(quotePrompt,/Правило отложенного раскрытия текущей закупочной цены/);
  const sizeQuestion='Какие типоразмеры вас интересуют?';
  const sizing=(await call({message:sizeQuestion,transcript:[]}))[0].content;
  for(const size of ['315/70 R22.5','385/65 R22.5','315/80 R22.5']) assert.ok(sizing.includes(size),size);
